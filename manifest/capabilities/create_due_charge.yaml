@@ -1,0 +1,45 @@
+name: create_due_charge
+description: Create a due-date Pix charge (cobv) per BCB API. PUT /v2/cobv/{txid}.
+category: capability
+resource_types: [charge]
+idempotent: true
+input_schema:
+  required: [txid, valor, chave, calendario, devedor]
+  properties:
+    txid:
+      type: string
+    valor:
+      type: object
+      properties:
+        original:
+          type: string
+    chave:
+      type: string
+    calendario:
+      type: object
+      required: [dataDeVencimento]
+      properties:
+        dataDeVencimento:
+          type: string
+        validadeAposVencimento:
+          type: integer
+    devedor:
+      type: object
+      required: [cpf, nome]
+      properties:
+        cpf: {type: string}
+        nome: {type: string}
+    multa:
+      type: object
+    juros:
+      type: object
+    abatimento:
+      type: object
+    desconto:
+      type: object
+output_schema:
+  properties:
+    txid: {type: string}
+    status: {type: string}
+    location: {type: string}
+    pixCopiaECola: {type: string}

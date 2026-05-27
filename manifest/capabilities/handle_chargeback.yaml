@@ -1,0 +1,18 @@
+name: handle_chargeback
+description: Acknowledge an EFI chargeback. Pass-through, no HTTP call. Idempotent by chargeback_id.
+category: capability
+resource_types: [pix_transaction]
+idempotent: true
+input_schema:
+  required: [e2eId, chargeback_id]
+  properties:
+    e2eId: {type: string}
+    chargeback_id: {type: string}
+    valor: {type: string}
+    status: {type: string}
+output_schema:
+  properties:
+    e2eId: {type: string}
+    chargeback_id: {type: string}
+    status: {type: string}
+    processed: {type: boolean}

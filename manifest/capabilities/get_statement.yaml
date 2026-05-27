@@ -1,0 +1,23 @@
+name: get_statement
+description: Fetch a charge statement window. GET /v2/cob with query params.
+category: capability
+resource_types: [statement]
+idempotent: true
+input_schema:
+  required: [inicio, fim]
+  properties:
+    inicio: {type: string}
+    fim: {type: string}
+    status: {type: string}
+    page:
+      type: integer
+      default: 0
+    page_size:
+      type: integer
+      default: 100
+output_schema:
+  properties:
+    parametros:
+      type: object
+    cobs:
+      type: array

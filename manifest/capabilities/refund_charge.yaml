@@ -1,0 +1,21 @@
+name: refund_charge
+description: Refund a Pix transaction. PUT /v2/pix/{e2eId}/devolucao/{id}.
+category: capability
+resource_types: [pix_transaction]
+idempotent: true
+input_schema:
+  required: [e2eId, id, valor]
+  properties:
+    e2eId: {type: string}
+    id: {type: string}
+    valor: {type: string}
+    natureza: {type: string}
+    descricao: {type: string}
+output_schema:
+  properties:
+    id: {type: string}
+    rtrId: {type: string}
+    valor: {type: string}
+    status: {type: string}
+    horario:
+      type: object

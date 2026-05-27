@@ -1,0 +1,31 @@
+name: create_payout
+description: Send a Pix payout (envio). PUT /v3/gn/pix/{idEnvio}. IntermediateIrreversible — money movement.
+category: capability
+resource_types: [pix_transaction]
+idempotent: false
+classification: IntermediateIrreversible
+rate_limit_hint: 500/second
+input_schema:
+  required: [idEnvio, valor, pagador, favorecido]
+  properties:
+    idEnvio: {type: string}
+    valor: {type: string}
+    pagador:
+      type: object
+      required: [chave]
+      properties:
+        chave: {type: string}
+    favorecido:
+      type: object
+      properties:
+        chave: {type: string}
+        cpf: {type: string}
+        contaBanco:
+          type: object
+output_schema:
+  properties:
+    idEnvio: {type: string}
+    e2eId: {type: string}
+    valor: {type: string}
+    horario: {type: string}
+    status: {type: string}

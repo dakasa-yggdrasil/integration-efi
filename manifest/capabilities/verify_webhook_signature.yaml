@@ -1,0 +1,16 @@
+name: verify_webhook_signature
+description: Verify a peer x509 cert from the inbound webhook handshake. Pure computation, no HTTP call.
+category: capability
+resource_types: [webhook]
+idempotent: true
+input_schema:
+  required: [peer_cert_der]
+  properties:
+    peer_cert_der: {type: string}
+    expected_issuer: {type: string}
+output_schema:
+  properties:
+    valid: {type: boolean}
+    subject: {type: string}
+    issuer: {type: string}
+    not_after: {type: string}

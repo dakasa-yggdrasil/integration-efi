@@ -1,0 +1,27 @@
+name: create_charge
+description: Create an immediate Pix charge (cob) per BCB API.
+category: capability
+resource_types: [charge]
+idempotent: false
+input_schema:
+  required: [valor, chave]
+  properties:
+    valor:
+      type: object
+      properties:
+        original:
+          type: string
+    chave:
+      type: string
+    txid:
+      type: string
+    expiracao:
+      type: integer
+      default: 3600
+output_schema:
+  properties:
+    txid: {type: string}
+    location: {type: string}
+    pixCopiaECola: {type: string}
+    status: {type: string}
+    created_at: {type: string}

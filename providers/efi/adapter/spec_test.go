@@ -2,7 +2,11 @@ package adapter
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/dakasa-yggdrasil/integration-efi/pkg/contractcheck"
 )
@@ -33,6 +37,34 @@ func TestProviderConstants(t *testing.T) {
 	}
 	if AdapterVersion != "1.0.0" {
 		t.Fatalf("AdapterVersion = %q, want 1.0.0", AdapterVersion)
+	}
+}
+
+// TestManifestCapabilityYAMLsParse asserts the manifest/capabilities/
+// directory holds exactly 11 YAMLs (one per supported operation) and
+// that each parses + has a `name` key. This is the cheapest possible
+// smoke against the YAML wire shape.
+func TestManifestCapabilityYAMLsParse(t *testing.T) {
+	dir := filepath.Join("..", "..", "..", "manifest", "capabilities")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read %s: %v", dir, err)
+	}
+	if len(entries) != 11 {
+		t.Fatalf("expected 11 capability YAMLs, got %d", len(entries))
+	}
+	for _, e := range entries {
+		raw, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s: %v", e.Name(), err)
+		}
+		var doc map[string]any
+		if err := yaml.Unmarshal(raw, &doc); err != nil {
+			t.Fatalf("parse %s: %v", e.Name(), err)
+		}
+		if doc["name"] == nil {
+			t.Errorf("%s missing 'name'", e.Name())
+		}
 	}
 }
 
