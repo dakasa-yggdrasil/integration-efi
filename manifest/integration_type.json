@@ -3,7 +3,6 @@
   "name": "efi",
   "spec": {
     "provider": "efi",
-    "family_ref": {"namespace": "global", "name": "efi"},
     "adapter": {
       "transport": "http_json",
       "version": "1.0.0",
