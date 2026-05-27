@@ -1,8 +1,8 @@
-name: create_charge
-description: Create an immediate Pix charge (cob) per BCB API.
+name: ensure_charge
+description: Ensure an immediate Pix charge (cob) exists. POST /v2/cob or PUT /v2/cob/{txid} when caller-supplied — idempotent by txid.
 category: capability
 resource_types: [charge]
-idempotent: false
+idempotent: true
 input_schema:
   required: [valor, chave]
   properties:

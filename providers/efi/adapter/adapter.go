@@ -42,8 +42,8 @@ func Execute(req contract.AdapterExecuteIntegrationRequest) (contract.AdapterExe
 	output := map[string]any{"provider": Provider}
 
 	switch operation {
-	case OperationCreateCharge:
-		got, err := capabilities.CreateCharge(ctx, client, req.Input)
+	case OperationEnsureCharge:
+		got, err := capabilities.EnsureCharge(ctx, client, req.Input)
 		if err != nil {
 			return contract.AdapterExecuteIntegrationResponse{}, err
 		}

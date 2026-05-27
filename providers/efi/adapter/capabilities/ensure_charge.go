@@ -12,21 +12,24 @@ import (
 	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/efiapi"
 )
 
-// CreateCharge POSTs /v2/cob (auto-generated txid) or PUTs
+// EnsureCharge POSTs /v2/cob (auto-generated txid) or PUTs
 // /v2/cob/{txid} (caller-provided makes the call idempotent), per BCB
-// PIX spec.
+// PIX spec. v2.0.0 rename of create_charge — same semantics, the
+// canonical ensure_ prefix reflects that this is GET-then-PUT
+// (the BCB API treats repeat PUTs to the same txid as updates,
+// matching the convention's adoption-if-exists invariant).
 //
 // Required input: valor.original (string), chave (string).
 // Optional:       txid (idempotency), expiracao (int), devedor,
 //                 infoAdicionais, solicitacaoPagador.
-func CreateCharge(ctx context.Context, c *efiapi.EfiClient, in map[string]any) (map[string]any, error) {
+func EnsureCharge(ctx context.Context, c *efiapi.EfiClient, in map[string]any) (map[string]any, error) {
 	valor, _ := in["valor"].(map[string]any)
 	if valor == nil || fmt.Sprint(valor["original"]) == "" {
-		return nil, fmt.Errorf("create_charge: valor.original is required")
+		return nil, fmt.Errorf("ensure_charge: valor.original is required")
 	}
 	chave, _ := in["chave"].(string)
 	if chave == "" {
-		return nil, fmt.Errorf("create_charge: chave is required")
+		return nil, fmt.Errorf("ensure_charge: chave is required")
 	}
 
 	body := map[string]any{
@@ -55,7 +58,7 @@ func CreateCharge(ctx context.Context, c *efiapi.EfiClient, in map[string]any) (
 
 	var resp map[string]any
 	if err := efiapi.DoRaw(ctx, c, method, path, body, &resp); err != nil {
-		return nil, fmt.Errorf("create_charge: %w", err)
+		return nil, fmt.Errorf("ensure_charge: %w", err)
 	}
 	return resp, nil
 }

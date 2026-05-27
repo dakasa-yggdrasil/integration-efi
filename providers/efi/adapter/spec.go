@@ -34,7 +34,7 @@ const (
 // an import cycle: the capabilities subpackage already imports
 // `adapter` for EfiClient + DoRaw.
 const (
-	OperationCreateCharge              = "create_charge"
+	OperationEnsureCharge              = "ensure_charge"
 	OperationCreateDueCharge           = "create_due_charge"
 	OperationGetChargeStatus           = "get_charge_status"
 	OperationRefundCharge              = "refund_charge"
@@ -52,7 +52,7 @@ const (
 // (one entry per capability). Kept in sync with ActionCatalog +
 // ResourceTypes via the contractcheck lint.
 var SupportedExecuteOperations = []string{
-	OperationCreateCharge,
+	OperationEnsureCharge,
 	OperationCreateDueCharge,
 	OperationGetChargeStatus,
 	OperationRefundCharge,
@@ -146,7 +146,7 @@ func Describe() contract.AdapterDescribeResponse {
 				CanonicalPrefix:  "thirdparty.efi.charge",
 				IdentityTemplate: "charge.{txid}",
 				Discoverable:     false,
-				DefaultActions:   []string{OperationCreateCharge, OperationCreateDueCharge, OperationGetChargeStatus},
+				DefaultActions:   []string{OperationEnsureCharge, OperationCreateDueCharge, OperationGetChargeStatus},
 			},
 			{
 				Name:             "pix_transaction",
@@ -172,10 +172,10 @@ func Describe() contract.AdapterDescribeResponse {
 		},
 		ActionCatalog: []contract.IntegrationActionDefinition{
 			{
-				Name:          OperationCreateCharge,
-				Description:   "Create an immediate Pix charge (cob) per BCB API.",
+				Name:          OperationEnsureCharge,
+				Description:   "Ensure an immediate Pix charge (cob) exists. POST /v2/cob (auto-generated txid) or PUT /v2/cob/{txid} when caller-supplied — repeat PUTs reconcile to the same charge identity, idempotent by txid.",
 				ResourceTypes: []string{"charge"},
-				Idempotent:    false, // caller-provided txid makes it effectively idempotent
+				Idempotent:    true,
 				Category:      "capability",
 			},
 			{
@@ -259,6 +259,7 @@ func Describe() contract.AdapterDescribeResponse {
 		},
 		Execution: contract.IntegrationExecutionSpec{
 			IdempotentActions: []string{
+				OperationEnsureCharge,
 				OperationCreateDueCharge,
 				OperationGetChargeStatus,
 				OperationRefundCharge,

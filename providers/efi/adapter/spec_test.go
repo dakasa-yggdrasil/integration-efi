@@ -85,6 +85,23 @@ func TestIntegrationTypeManifestJSON_IsValid(t *testing.T) {
 	}
 }
 
+// TestSpec_EnsureChargeReplaceCreateCharge asserts the v2.0.0 rename
+// landed in the action_catalog: ensure_charge is present and the
+// pre-convention create_charge is gone.
+func TestSpec_EnsureChargeReplaceCreateCharge(t *testing.T) {
+	desc := Describe()
+	names := map[string]bool{}
+	for _, a := range desc.ActionCatalog {
+		names[a.Name] = true
+	}
+	if !names["ensure_charge"] {
+		t.Error("expected ensure_charge in action_catalog")
+	}
+	if names["create_charge"] {
+		t.Error("create_charge must be removed from action_catalog (renamed to ensure_charge)")
+	}
+}
+
 // TestDescribeContractAligned guards against the drift pattern that has
 // bitten integration-aws and integration-grafana: SupportedExecuteOperations,
 // ResourceTypes and ActionCatalog must agree shape-by-shape. The lint
