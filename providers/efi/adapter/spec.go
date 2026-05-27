@@ -62,6 +62,7 @@ var SupportedExecuteOperations = []string{
 	OperationRegisterWebhookEndpoint,
 	OperationUnregisterWebhookEndpoint,
 	OperationVerifyWebhookSignature,
+	OperationEfiWebhookReceived,
 }
 
 // Describe returns the integration_type manifest the orchestrator
@@ -166,7 +167,7 @@ func Describe() contract.AdapterDescribeResponse {
 				CanonicalPrefix:  "thirdparty.efi.webhook",
 				IdentityTemplate: "webhook.{chave}",
 				Discoverable:     false,
-				DefaultActions:   []string{OperationRegisterWebhookEndpoint, OperationUnregisterWebhookEndpoint, OperationVerifyWebhookSignature},
+				DefaultActions:   []string{OperationRegisterWebhookEndpoint, OperationUnregisterWebhookEndpoint, OperationVerifyWebhookSignature, OperationEfiWebhookReceived},
 			},
 		},
 		ActionCatalog: []contract.IntegrationActionDefinition{
@@ -240,6 +241,13 @@ func Describe() contract.AdapterDescribeResponse {
 				Idempotent:    true,
 				Category:      "capability",
 			},
+			{
+				Name:          OperationEfiWebhookReceived,
+				Description:   "Reactor: handle an inbound EFI Pix webhook callback. Emits to identities.efi.pix-receive.q.",
+				ResourceTypes: []string{"webhook"},
+				Idempotent:    true,
+				Category:      "reactor",
+			},
 		},
 		Discovery: contract.IntegrationDiscoverySpec{
 			Mode:   "push",
@@ -259,6 +267,7 @@ func Describe() contract.AdapterDescribeResponse {
 				OperationRegisterWebhookEndpoint,
 				OperationUnregisterWebhookEndpoint,
 				OperationVerifyWebhookSignature,
+				OperationEfiWebhookReceived,
 			},
 		},
 		Extensions: contract.IntegrationExtensionsSpec{

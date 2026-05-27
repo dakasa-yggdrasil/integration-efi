@@ -6,9 +6,18 @@ import (
 
 	"github.com/dakasa-yggdrasil/integration-efi/family/contract"
 	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/adapter/capabilities"
+	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/adapter/reactor"
 	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/config"
 	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/efiapi"
 )
+
+// DefaultReactorEmit is the EmitFunc installed by main.go after the
+// production emit function (Yggdrasil-orchestrator round-trip) has
+// been constructed. Replay-via-Execute uses this. Initialized to a
+// no-op so tests / unit invocations of Execute do not panic.
+var DefaultReactorEmit reactor.EmitFunc = func(_ context.Context, _, _ string, _ map[string]any) error {
+	return nil
+}
 
 // Execute dispatches one EFI operation. It builds a fresh EfiClient
 // per request — the OAuth token is short-lived and an EFI roundtrip
@@ -107,6 +116,17 @@ func Execute(req contract.AdapterExecuteIntegrationRequest) (contract.AdapterExe
 		}
 	case OperationVerifyWebhookSignature:
 		got, err := capabilities.VerifyWebhookSignature(ctx, client, req.Input)
+		if err != nil {
+			return contract.AdapterExecuteIntegrationResponse{}, err
+		}
+		for k, v := range got {
+			output[k] = v
+		}
+	case OperationEfiWebhookReceived:
+		// In normal flow this is fired by the WebhookServer directly.
+		// Replay from a workflow uses DefaultReactorEmit (installed
+		// by main.go after the production emit is built).
+		got, err := reactor.EfiWebhookReceived(ctx, DefaultReactorEmit, req.Input)
 		if err != nil {
 			return contract.AdapterExecuteIntegrationResponse{}, err
 		}
