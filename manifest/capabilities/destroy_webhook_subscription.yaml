@@ -1,0 +1,14 @@
+name: destroy_webhook_subscription
+description: Remove a Pix webhook subscription. DELETE /v2/webhook/{chave}. 404 treated as already-absent success (idempotent).
+category: capability
+resource_types: [webhook_subscription]
+idempotent: true
+input_schema:
+  required: [chave]
+  properties:
+    chave: {type: string}
+output_schema:
+  properties:
+    destroyed: {type: boolean}
+    chave: {type: string}
+    already_absent: {type: boolean}

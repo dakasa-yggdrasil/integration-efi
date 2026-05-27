@@ -1,7 +1,7 @@
-name: register_webhook_endpoint
-description: Register a Pix webhook URL. PUT /v2/webhook/{chave} with /v3/gn/webhook/{chave} fallback on 404.
+name: ensure_webhook_subscription
+description: Ensure a Pix webhook subscription exists. PUT /v2/webhook/{chave} with /v3/gn/webhook/{chave} fallback on 404. Idempotent — repeat calls reconcile URL/headers without creating duplicates.
 category: capability
-resource_types: [webhook]
+resource_types: [webhook_subscription]
 idempotent: true
 input_schema:
   required: [chave, webhook_url]
@@ -13,6 +13,6 @@ input_schema:
       default: false
 output_schema:
   properties:
-    registered: {type: boolean}
+    ensured: {type: boolean}
     chave: {type: string}
     endpoint: {type: string}

@@ -14,7 +14,7 @@ import (
 	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/efiapi"
 )
 
-func TestRegisterWebhookEndpoint_PutsToV2WithUrl(t *testing.T) {
+func TestEnsureWebhookSubscription_PutsToV2WithUrl(t *testing.T) {
 	var gotMethod, gotPath, gotSkipMTLS string
 	var gotBody []byte
 
@@ -33,13 +33,13 @@ func TestRegisterWebhookEndpoint_PutsToV2WithUrl(t *testing.T) {
 
 	c, _ := efiapi.NewEfiClient(config.Config{ClientKeyID: "k", ClientSecret: "s", BaseURL: srv.URL, MTLSEnabled: false}, nil)
 
-	got, err := RegisterWebhookEndpoint(context.Background(), c, map[string]any{
-		"chave":                  "pix@dakasa.me",
-		"webhook_url":            "https://webhook.dakasa.me/efi/webhook/pix",
-		"skip_mtls_validation":   true,
+	got, err := EnsureWebhookSubscription(context.Background(), c, map[string]any{
+		"chave":                "pix@dakasa.me",
+		"webhook_url":          "https://webhook.dakasa.me/efi/webhook/pix",
+		"skip_mtls_validation": true,
 	})
 	if err != nil {
-		t.Fatalf("RegisterWebhookEndpoint = %v", err)
+		t.Fatalf("EnsureWebhookSubscription = %v", err)
 	}
 	if gotMethod != http.MethodPut {
 		t.Fatalf("method = %q, want PUT", gotMethod)
@@ -53,12 +53,12 @@ func TestRegisterWebhookEndpoint_PutsToV2WithUrl(t *testing.T) {
 	if !strings.Contains(string(gotBody), `"webhookUrl":"https://webhook.dakasa.me/efi/webhook/pix"`) {
 		t.Fatalf("body missing webhookUrl: %s", string(gotBody))
 	}
-	if got["registered"] != true {
-		t.Fatalf("registered = %v", got["registered"])
+	if got["ensured"] != true {
+		t.Fatalf("ensured = %v", got["ensured"])
 	}
 }
 
-func TestRegisterWebhookEndpoint_FallsBackToV3OnV2_404(t *testing.T) {
+func TestEnsureWebhookSubscription_FallsBackToV3OnV2_404(t *testing.T) {
 	var v2Calls, v3Calls int32
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -81,12 +81,12 @@ func TestRegisterWebhookEndpoint_FallsBackToV3OnV2_404(t *testing.T) {
 	defer srv.Close()
 
 	c, _ := efiapi.NewEfiClient(config.Config{ClientKeyID: "k", ClientSecret: "s", BaseURL: srv.URL, MTLSEnabled: false}, nil)
-	_, err := RegisterWebhookEndpoint(context.Background(), c, map[string]any{
+	_, err := EnsureWebhookSubscription(context.Background(), c, map[string]any{
 		"chave":       "pix@dakasa.me",
 		"webhook_url": "https://hook/",
 	})
 	if err != nil {
-		t.Fatalf("RegisterWebhookEndpoint = %v", err)
+		t.Fatalf("EnsureWebhookSubscription = %v", err)
 	}
 	if v2Calls != 1 {
 		t.Fatalf("v2 calls = %d, want 1", v2Calls)
@@ -96,13 +96,13 @@ func TestRegisterWebhookEndpoint_FallsBackToV3OnV2_404(t *testing.T) {
 	}
 }
 
-func TestRegisterWebhookEndpoint_RequiresChaveAndUrl(t *testing.T) {
+func TestEnsureWebhookSubscription_RequiresChaveAndUrl(t *testing.T) {
 	c := &efiapi.EfiClient{}
-	_, err := RegisterWebhookEndpoint(context.Background(), c, map[string]any{"webhook_url": "u"})
+	_, err := EnsureWebhookSubscription(context.Background(), c, map[string]any{"webhook_url": "u"})
 	if err == nil || !strings.Contains(err.Error(), "chave") {
 		t.Fatalf("expected chave required, got %v", err)
 	}
-	_, err = RegisterWebhookEndpoint(context.Background(), c, map[string]any{"chave": "c"})
+	_, err = EnsureWebhookSubscription(context.Background(), c, map[string]any{"chave": "c"})
 	if err == nil || !strings.Contains(err.Error(), "webhook_url") {
 		t.Fatalf("expected webhook_url required, got %v", err)
 	}

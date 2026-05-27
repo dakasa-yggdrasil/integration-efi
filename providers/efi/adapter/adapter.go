@@ -90,16 +90,24 @@ func Execute(req contract.AdapterExecuteIntegrationRequest) (contract.AdapterExe
 		for k, v := range got {
 			output[k] = v
 		}
-	case OperationRegisterWebhookEndpoint:
-		got, err := capabilities.RegisterWebhookEndpoint(ctx, client, req.Input)
+	case OperationEnsureWebhookSubscription:
+		got, err := capabilities.EnsureWebhookSubscription(ctx, client, req.Input)
 		if err != nil {
 			return contract.AdapterExecuteIntegrationResponse{}, err
 		}
 		for k, v := range got {
 			output[k] = v
 		}
-	case OperationUnregisterWebhookEndpoint:
-		got, err := capabilities.UnregisterWebhookEndpoint(ctx, client, req.Input)
+	case OperationObserveWebhookSubscriptions:
+		got, err := capabilities.ObserveWebhookSubscriptions(ctx, client, req.Input)
+		if err != nil {
+			return contract.AdapterExecuteIntegrationResponse{}, err
+		}
+		for k, v := range got {
+			output[k] = v
+		}
+	case OperationDestroyWebhookSubscription:
+		got, err := capabilities.DestroyWebhookSubscription(ctx, client, req.Input)
 		if err != nil {
 			return contract.AdapterExecuteIntegrationResponse{}, err
 		}

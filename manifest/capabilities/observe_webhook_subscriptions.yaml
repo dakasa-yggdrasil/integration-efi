@@ -1,0 +1,17 @@
+name: observe_webhook_subscriptions
+description: Observe Pix webhook subscriptions. Filter {chave} returns the single subscription (GET /v2/webhook/{chave}); empty filter lists all (GET /v2/webhook). Read-only.
+category: capability
+resource_types: [webhook_subscription]
+idempotent: true
+input_schema:
+  properties:
+    chave:
+      type: string
+      description: When set, returns the single subscription matching this chave; otherwise lists all subscriptions on the account.
+output_schema:
+  description: "Raw upstream payload. Single-chave variant: {chave, webhookUrl, criacao}. List variant: {webhooks: [...]}."
+  properties:
+    chave: {type: string}
+    webhookUrl: {type: string}
+    webhooks:
+      type: array

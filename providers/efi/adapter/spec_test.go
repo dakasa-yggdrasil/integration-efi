@@ -50,8 +50,8 @@ func TestManifestCapabilityYAMLsParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read %s: %v", dir, err)
 	}
-	if len(entries) != 10 {
-		t.Fatalf("expected 10 capability YAMLs, got %d", len(entries))
+	if len(entries) != 11 {
+		t.Fatalf("expected 11 capability YAMLs, got %d", len(entries))
 	}
 	for _, e := range entries {
 		raw, err := os.ReadFile(filepath.Join(dir, e.Name()))
@@ -135,6 +135,31 @@ func TestSpec_ObserveChargesMergesStatusAndStatement(t *testing.T) {
 	}
 	if names["get_statement"] {
 		t.Error("get_statement must be merged into observe_charges")
+	}
+}
+
+// TestSpec_WebhookSubscriptionTripleExists asserts the v2.0.0
+// webhook lifecycle triple landed: ensure_/observe_/destroy_ for
+// webhook_subscription, and the v1.x register_/unregister_ pair is
+// gone.
+func TestSpec_WebhookSubscriptionTripleExists(t *testing.T) {
+	desc := Describe()
+	names := map[string]bool{}
+	for _, a := range desc.ActionCatalog {
+		names[a.Name] = true
+	}
+	wantPresent := []string{"ensure_webhook_subscription", "observe_webhook_subscriptions", "destroy_webhook_subscription"}
+	wantAbsent := []string{"register_webhook_endpoint", "unregister_webhook_endpoint"}
+
+	for _, n := range wantPresent {
+		if !names[n] {
+			t.Errorf("expected %q present", n)
+		}
+	}
+	for _, n := range wantAbsent {
+		if names[n] {
+			t.Errorf("expected %q removed", n)
+		}
 	}
 }
 

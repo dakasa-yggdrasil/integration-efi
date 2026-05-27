@@ -40,8 +40,9 @@ const (
 	OperationRefundCharge              = "refund_charge"
 	OperationCreatePayout              = "create_payout"
 	OperationHandleChargeback          = "handle_chargeback"
-	OperationRegisterWebhookEndpoint   = "register_webhook_endpoint"
-	OperationUnregisterWebhookEndpoint = "unregister_webhook_endpoint"
+	OperationEnsureWebhookSubscription   = "ensure_webhook_subscription"
+	OperationObserveWebhookSubscriptions = "observe_webhook_subscriptions"
+	OperationDestroyWebhookSubscription  = "destroy_webhook_subscription"
 	OperationVerifyWebhookSignature    = "verify_webhook_signature"
 	OperationEfiWebhookReceived        = "efi_webhook_received"
 )
@@ -57,8 +58,9 @@ var SupportedExecuteOperations = []string{
 	OperationRefundCharge,
 	OperationCreatePayout,
 	OperationHandleChargeback,
-	OperationRegisterWebhookEndpoint,
-	OperationUnregisterWebhookEndpoint,
+	OperationEnsureWebhookSubscription,
+	OperationObserveWebhookSubscriptions,
+	OperationDestroyWebhookSubscription,
 	OperationVerifyWebhookSignature,
 	OperationEfiWebhookReceived,
 }
@@ -154,11 +156,17 @@ func Describe() contract.AdapterDescribeResponse {
 				DefaultActions:   []string{OperationRefundCharge, OperationCreatePayout, OperationHandleChargeback},
 			},
 			{
-				Name:             "webhook",
-				CanonicalPrefix:  "thirdparty.efi.webhook",
-				IdentityTemplate: "webhook.{chave}",
+				Name:             "webhook_subscription",
+				CanonicalPrefix:  "thirdparty.efi.webhook_subscription",
+				IdentityTemplate: "webhook_subscription.{chave}",
 				Discoverable:     false,
-				DefaultActions:   []string{OperationRegisterWebhookEndpoint, OperationUnregisterWebhookEndpoint, OperationVerifyWebhookSignature, OperationEfiWebhookReceived},
+				DefaultActions: []string{
+					OperationEnsureWebhookSubscription,
+					OperationObserveWebhookSubscriptions,
+					OperationDestroyWebhookSubscription,
+					OperationVerifyWebhookSignature,
+					OperationEfiWebhookReceived,
+				},
 			},
 		},
 		ActionCatalog: []contract.IntegrationActionDefinition{
@@ -205,30 +213,37 @@ func Describe() contract.AdapterDescribeResponse {
 				Category:      "capability",
 			},
 			{
-				Name:          OperationRegisterWebhookEndpoint,
-				Description:   "Register a Pix webhook URL. PUT /v2/webhook/{chave} (v3 fallback on 404).",
-				ResourceTypes: []string{"webhook"},
+				Name:          OperationEnsureWebhookSubscription,
+				Description:   "Ensure a Pix webhook subscription exists. PUT /v2/webhook/{chave} (v3 fallback on 404). Idempotent — repeat calls reconcile URL/headers without creating duplicates.",
+				ResourceTypes: []string{"webhook_subscription"},
 				Idempotent:    true,
 				Category:      "capability",
 			},
 			{
-				Name:          OperationUnregisterWebhookEndpoint,
-				Description:   "Unregister a Pix webhook URL. DELETE /v2/webhook/{chave}. 404 treated as success.",
-				ResourceTypes: []string{"webhook"},
+				Name:          OperationObserveWebhookSubscriptions,
+				Description:   "Observe Pix webhook subscriptions. Filter {chave} returns the single subscription (GET /v2/webhook/{chave}); empty filter lists all (GET /v2/webhook). Read-only.",
+				ResourceTypes: []string{"webhook_subscription"},
+				Idempotent:    true,
+				Category:      "capability",
+			},
+			{
+				Name:          OperationDestroyWebhookSubscription,
+				Description:   "Remove a Pix webhook subscription. DELETE /v2/webhook/{chave}. 404 treated as already-absent success (idempotent).",
+				ResourceTypes: []string{"webhook_subscription"},
 				Idempotent:    true,
 				Category:      "capability",
 			},
 			{
 				Name:          OperationVerifyWebhookSignature,
 				Description:   "Verify a peer x509 cert from the inbound webhook handshake. Pure computation.",
-				ResourceTypes: []string{"webhook"},
+				ResourceTypes: []string{"webhook_subscription"},
 				Idempotent:    true,
 				Category:      "capability",
 			},
 			{
 				Name:          OperationEfiWebhookReceived,
 				Description:   "Reactor: handle an inbound EFI Pix webhook callback. Emits to identities.efi.pix-receive.q.",
-				ResourceTypes: []string{"webhook"},
+				ResourceTypes: []string{"webhook_subscription"},
 				Idempotent:    true,
 				Category:      "reactor",
 			},
@@ -248,8 +263,9 @@ func Describe() contract.AdapterDescribeResponse {
 				OperationObserveCharges,
 				OperationRefundCharge,
 				OperationHandleChargeback,
-				OperationRegisterWebhookEndpoint,
-				OperationUnregisterWebhookEndpoint,
+				OperationEnsureWebhookSubscription,
+				OperationObserveWebhookSubscriptions,
+				OperationDestroyWebhookSubscription,
 				OperationVerifyWebhookSignature,
 				OperationEfiWebhookReceived,
 			},
