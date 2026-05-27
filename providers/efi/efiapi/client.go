@@ -121,7 +121,7 @@ func IsTransientError(err error) bool {
 
 // do issues a Bearer-auth request and decodes the JSON response into
 // dest. Returns *EfiAPIError on non-2xx so callers can classify.
-func (c *EfiClient) do(ctx context.Context, method, path string, body, dest any) error {
+func (c *EfiClient) do(ctx context.Context, method, path string, body, dest any, headers map[string]string) error {
 	var reader io.Reader
 	if body != nil {
 		raw, err := json.Marshal(body)
@@ -138,6 +138,9 @@ func (c *EfiClient) do(ctx context.Context, method, path string, body, dest any)
 	req.Header.Set("Accept", "application/json")
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
 	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -162,5 +165,12 @@ func (c *EfiClient) do(ctx context.Context, method, path string, body, dest any)
 // DoRaw is exported so capability subpackages can issue authenticated
 // requests without leaking *EfiClient internals.
 func DoRaw(ctx context.Context, c *EfiClient, method, path string, body, dest any) error {
-	return c.do(ctx, method, path, body, dest)
+	return c.do(ctx, method, path, body, dest, nil)
+}
+
+// DoRawWithHeaders is DoRaw + caller-supplied extra request headers.
+// Use for endpoints where EFI accepts non-standard headers such as
+// `x-skip-mtls-checking` (register_webhook_endpoint).
+func DoRawWithHeaders(ctx context.Context, c *EfiClient, method, path string, body, dest any, headers map[string]string) error {
+	return c.do(ctx, method, path, body, dest, headers)
 }

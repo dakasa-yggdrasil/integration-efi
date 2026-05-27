@@ -59,6 +59,7 @@ var SupportedExecuteOperations = []string{
 	OperationCreatePayout,
 	OperationGetStatement,
 	OperationHandleChargeback,
+	OperationRegisterWebhookEndpoint,
 }
 
 // Describe returns the integration_type manifest the orchestrator
@@ -158,6 +159,13 @@ func Describe() contract.AdapterDescribeResponse {
 				Discoverable:     false,
 				DefaultActions:   []string{OperationGetStatement},
 			},
+			{
+				Name:             "webhook",
+				CanonicalPrefix:  "thirdparty.efi.webhook",
+				IdentityTemplate: "webhook.{chave}",
+				Discoverable:     false,
+				DefaultActions:   []string{OperationRegisterWebhookEndpoint},
+			},
 		},
 		ActionCatalog: []contract.IntegrationActionDefinition{
 			{
@@ -209,6 +217,13 @@ func Describe() contract.AdapterDescribeResponse {
 				Idempotent:    true,
 				Category:      "capability",
 			},
+			{
+				Name:          OperationRegisterWebhookEndpoint,
+				Description:   "Register a Pix webhook URL. PUT /v2/webhook/{chave} (v3 fallback on 404).",
+				ResourceTypes: []string{"webhook"},
+				Idempotent:    true,
+				Category:      "capability",
+			},
 		},
 		Discovery: contract.IntegrationDiscoverySpec{
 			Mode:   "push",
@@ -225,6 +240,7 @@ func Describe() contract.AdapterDescribeResponse {
 				OperationRefundCharge,
 				OperationGetStatement,
 				OperationHandleChargeback,
+				OperationRegisterWebhookEndpoint,
 			},
 		},
 		Extensions: contract.IntegrationExtensionsSpec{
