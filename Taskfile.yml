@@ -1,0 +1,38 @@
+version: '3'
+
+dotenv:
+  - .env
+
+vars:
+  COMPOSE_ARGS: -f docker-compose.yml -f docker-compose.standalone.yml
+
+tasks:
+  env:init:
+    cmds:
+      - if [ ! -f ./.env ]; then cp ./.env.example ./.env; fi
+
+  config:
+    deps: [env:init]
+    cmds:
+      - docker compose {{.COMPOSE_ARGS}} config >/dev/null
+
+  test:
+    cmds:
+      - go test ./...
+
+  build:image:
+    cmds:
+      - docker build -t integration-efi:local .
+
+  up:
+    deps: [env:init]
+    cmds:
+      - docker compose {{.COMPOSE_ARGS}} up --build -d
+
+  down:
+    cmds:
+      - docker compose {{.COMPOSE_ARGS}} down --remove-orphans
+
+  logs:
+    cmds:
+      - docker compose {{.COMPOSE_ARGS}} logs -f

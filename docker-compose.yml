@@ -1,0 +1,26 @@
+services:
+  integration-efi:
+    build:
+      context: ${INTEGRATION_EFI_BUILD_CONTEXT:-.}
+      dockerfile: ${INTEGRATION_EFI_DOCKERFILE:-Dockerfile}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      BROKER_URL: ${BROKER_URL:-amqp://guest:guest@rabbitmq:5672/}
+      HEALTHCHECK_PORT: ${HEALTHCHECK_PORT:-8080}
+      ADAPTER_PORT: ${ADAPTER_PORT:-8081}
+      EFI_WEBHOOK_PORT: ${EFI_WEBHOOK_PORT:-9079}
+      EFI_BASE_URL: ${EFI_BASE_URL:-https://pix.api.efipay.com.br}
+      EFI_MTLS_ENABLED: ${EFI_MTLS_ENABLED:-true}
+      EFI_API_CLIENT_KEY_ID: ${EFI_API_CLIENT_KEY_ID}
+      EFI_API_CLIENT_SECRET: ${EFI_API_CLIENT_SECRET}
+      EFI_CERTIFICATE: ${EFI_CERTIFICATE:-/etc/efi/cert.p12}
+      HTTP_READ_HEADER_TIMEOUT_SECONDS: ${HTTP_READ_HEADER_TIMEOUT_SECONDS:-10s}
+      HTTP_READ_TIMEOUT_SECONDS: ${HTTP_READ_TIMEOUT_SECONDS:-30s}
+      HTTP_WRITE_TIMEOUT_SECONDS: ${HTTP_WRITE_TIMEOUT_SECONDS:-30s}
+      HTTP_IDLE_TIMEOUT_SECONDS: ${HTTP_IDLE_TIMEOUT_SECONDS:-120s}
+    expose:
+      - "${HEALTHCHECK_PORT:-8080}"
+      - "${ADAPTER_PORT:-8081}"
+      - "${EFI_WEBHOOK_PORT:-9079}"
