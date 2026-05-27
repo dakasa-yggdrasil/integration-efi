@@ -384,3 +384,72 @@ func TestWireReconcilers_LegacyAliasWARNs(t *testing.T) {
 		t.Fatalf("expected 1 WARN entry, got %d", warns)
 	}
 }
+
+// TestSDKDispatch_DestroyCharge_PreservesReservedKeys verifies that
+// SDK v0.8.0's DestroyWithDesired[D] interface forwards the
+// bridge-stashed reserved keys (_integration / instance_id) through
+// the destroy dispatch path the same way ensure_* and observe_* see
+// them. Without DestroyWithDesired the SDK would call the legacy
+// Destroy(ctx, ref) and the dispatch helper would receive only
+// {"txid": ref} — losing the mTLS cert path / EFI client ID stashed
+// under _integration. The fake dispatcher records the desired
+// payload it receives so the test can assert reserved keys propagate.
+func TestSDKDispatch_DestroyCharge_PreservesReservedKeys(t *testing.T) {
+	fake := newFakeDispatchTable()
+	fake.resp[OperationDestroyCharge] = reconcilePayload{"destroyed": true, "txid": "tx_with_creds"}
+
+	a := sdkadapter.New(sdkadapter.Config{
+		Provider:        Provider,
+		IntegrationType: IntegrationType,
+		Version:         AdapterVersion,
+	})
+
+	cr := &chargeReconciler{instanceID: "efi-e2e", dispatch: fake.dispatch}
+	reconcile.RegisterReconciler[reconcilePayload, reconcilePayload](
+		a, "charge", "charges", cr,
+		reconcile.WithProvider(Provider),
+		reconcile.WithInstanceID("efi-e2e"),
+	)
+
+	// Wire body matches what the bridge produces: _integration stashed
+	// alongside operator-supplied input fields.
+	body, _ := json.Marshal(map[string]any{
+		"operation":   OperationDestroyCharge,
+		"instance_id": "efi-e2e",
+		"input": map[string]any{
+			"ref":         "tx_with_creds",
+			"instance_id": "efi-e2e",
+			"_integration": map[string]any{
+				"instance": map[string]any{"name": "efi-e2e"},
+				"instance_spec": map[string]any{
+					"credentials": map[string]any{"client_id": "efi_client_canary"},
+					"config":      map[string]any{"api_base_url": "https://api.test"},
+				},
+			},
+		},
+	})
+
+	if _, _, err := reconcile.Dispatch(context.Background(), a, rpc.Delivery{Body: body}); err != nil {
+		t.Fatalf("SDK Dispatch destroy_charge: %v", err)
+	}
+
+	got, called := fake.calls[OperationDestroyCharge]
+	if !called {
+		t.Fatalf("destroy_charge not dispatched through fake")
+	}
+	// Reserved bridge key must arrive in the dispatch payload —
+	// proves DestroyWithDesired forwards the full desired, not just ref.
+	integ, ok := got["_integration"].(map[string]any)
+	if !ok {
+		t.Fatalf("DestroyWithDesired dropped _integration; got %v", got)
+	}
+	spec, _ := integ["instance_spec"].(map[string]any)
+	creds, _ := spec["credentials"].(map[string]any)
+	if creds["client_id"] != "efi_client_canary" {
+		t.Fatalf("DestroyWithDesired dropped instance credentials; got %v", creds)
+	}
+	// The destroy key the handler expects must also be present.
+	if got["txid"] != "tx_with_creds" {
+		t.Fatalf("expected txid forwarded, got %v", got["txid"])
+	}
+}

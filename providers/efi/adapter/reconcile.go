@@ -51,6 +51,21 @@ func defaultDispatch(op string, instanceID string, in reconcilePayload) (reconci
 	return reconcilePayload{"output": resp.Output}, nil
 }
 
+// instanceFromDesired extracts the per-call instance_id from a
+// desired payload the SDK forwards via the bridge (the bridge stamps
+// integration.instance.name onto the input as "instance_id"). Falls
+// back to the reconciler-bound default when the payload carries no
+// override.
+func instanceFromDesired(in reconcilePayload, fallback string) string {
+	if in == nil {
+		return fallback
+	}
+	if v, ok := in["instance_id"].(string); ok && v != "" {
+		return v
+	}
+	return fallback
+}
+
 // integrationFromPayload reconstructs the per-request integration
 // context from input metadata lifted onto the payload by the
 // ExecuteHandler bridge in providers/efi/message/execute.go. The bridge
@@ -126,6 +141,24 @@ func (r *chargeReconciler) Destroy(ctx context.Context, ref string) error {
 	return err
 }
 
+// DestroyWithDesired opts the chargeReconciler into SDK v0.8.0's
+// env-aware destroy path. The legacy Destroy(ctx, ref) signature drops
+// the reserved bridge keys (_integration / instance_id) the bridge
+// stashes for integrationFromPayload to rehydrate the per-request
+// integration context. Without this method, every SDK-routed
+// destroy_charge silently drops credentials (and mTLS cert references)
+// and fails inside clientForInstance.
+func (r *chargeReconciler) DestroyWithDesired(ctx context.Context, ref string, desired reconcilePayload) error {
+	if desired == nil {
+		desired = reconcilePayload{}
+	}
+	if _, present := desired["txid"]; !present {
+		desired["txid"] = ref
+	}
+	_, err := r.dispatch(OperationDestroyCharge, instanceFromDesired(desired, r.instanceID), desired)
+	return err
+}
+
 // dueChargeReconciler wires ensure_due_charge / observe_charges /
 // destroy_charge against the EFI cobv (due charge) variant. Note that
 // observe and destroy reuse the charge endpoints — BCB Pix exposes the
@@ -161,6 +194,19 @@ func (r *dueChargeReconciler) Destroy(ctx context.Context, ref string) error {
 	return err
 }
 
+// DestroyWithDesired — see chargeReconciler.DestroyWithDesired for
+// the full rationale (SDK v0.8.0 env-aware destroy adoption).
+func (r *dueChargeReconciler) DestroyWithDesired(ctx context.Context, ref string, desired reconcilePayload) error {
+	if desired == nil {
+		desired = reconcilePayload{}
+	}
+	if _, present := desired["txid"]; !present {
+		desired["txid"] = ref
+	}
+	_, err := r.dispatch(OperationDestroyCharge, instanceFromDesired(desired, r.instanceID), desired)
+	return err
+}
+
 // webhookSubscriptionReconciler wires the three webhook subscription
 // capabilities. Identity is the Pix key (chave) — the subscription is
 // keyed by chave on the EFI side, so destroy.ref carries the chave.
@@ -187,6 +233,19 @@ func (r *webhookSubscriptionReconciler) Observe(ctx context.Context, filter map[
 
 func (r *webhookSubscriptionReconciler) Destroy(ctx context.Context, ref string) error {
 	_, err := r.dispatch(OperationDestroyWebhookSubscription, r.instanceID, reconcilePayload{"chave": ref})
+	return err
+}
+
+// DestroyWithDesired — see chargeReconciler.DestroyWithDesired for
+// the full rationale (SDK v0.8.0 env-aware destroy adoption).
+func (r *webhookSubscriptionReconciler) DestroyWithDesired(ctx context.Context, ref string, desired reconcilePayload) error {
+	if desired == nil {
+		desired = reconcilePayload{}
+	}
+	if _, present := desired["chave"]; !present {
+		desired["chave"] = ref
+	}
+	_, err := r.dispatch(OperationDestroyWebhookSubscription, instanceFromDesired(desired, r.instanceID), desired)
 	return err
 }
 
