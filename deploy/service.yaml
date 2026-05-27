@@ -1,0 +1,55 @@
+# Source-of-truth Kubernetes Service for integration-efi.
+#
+# Two ports MUST be exposed:
+#
+#   - 8080 (named "health")  — /healthz, /readyz, /metrics. Used by
+#     kubelet probes + Prometheus scraping. HEALTHCHECK_PORT in
+#     cmd/adapter/health.go:22 (default "8080").
+#
+#   - 8081 (named "rpc")     — /rpc/describe + /rpc/execute over
+#     HTTP-JSON transport. ADAPTER_PORT in cmd/adapter/main.go:88
+#     (default "8081"). Yggdrasil-core's forward-drift / auto-sync
+#     reaches the adapter via this port through the in-cluster
+#     Service DNS name (integration-efi.yggdrasil-adapters.svc).
+#
+# Pre-2.3.1 the live Service only declared port 8080. forward-drift
+# auto-sync failed with "connection refused" when describing the
+# adapter via Service DNS, because port 8081 was unrouted. The
+# Phase C agent worked around this with `kubectl exec deploy/yggdrasil
+# -- wget` against the pod IP; that path is NOT a fix — apply this
+# manifest on next deploy so Service routing works at source.
+#
+# AMQP transport (YGGDRASIL_TRANSPORT=amqp / rabbitmq) does NOT need
+# port 8081 to be reachable — the AMQP path consumes from a broker
+# queue. But HTTP-JSON is the default transport for this adapter,
+# and forward-drift auto-sync uses the HTTP describe endpoint regardless.
+#
+# Webhook port 9079 (EFI Pix callbacks) is deliberately NOT included
+# in this Service — that ingress path lives behind the external
+# webhook receiver / mTLS terminator and is routed separately. See
+# providers/efi/adapter/webhook_server.go for the mTLS-required
+# listener.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: integration-efi
+  namespace: yggdrasil-adapters
+  labels:
+    app.kubernetes.io/name: integration-efi
+    app.kubernetes.io/component: adapter
+    yggdrasil.io/integration-family: efi
+    yggdrasil.io/integration-type: efi
+spec:
+  type: ClusterIP
+  selector:
+    app: integration-efi
+  ports:
+    - name: health
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: rpc
+      port: 8081
+      targetPort: 8081
+      protocol: TCP

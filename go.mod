@@ -3,7 +3,7 @@ module github.com/dakasa-yggdrasil/integration-efi
 go 1.25.0
 
 require (
-	github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.8.0
+	github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.8.1
 	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.23.2
 	go.opentelemetry.io/otel v1.43.0

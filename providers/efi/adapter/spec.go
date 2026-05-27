@@ -26,7 +26,7 @@ const (
 	// due_charge, webhook_subscription) and §6.5 mutation events emit
 	// live for ensure_/destroy_ on those resource types when
 	// YGGDRASIL_CORE_URL is wired in cluster.
-	AdapterVersion = "2.3.0"
+	AdapterVersion = "2.3.1"
 
 	// QueueDescribe / QueueExecute are the AMQP queue names used when
 	// transport=amqp. http_json mode uses the Endpoints instead.

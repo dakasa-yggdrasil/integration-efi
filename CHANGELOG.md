@@ -5,6 +5,29 @@ All notable changes to integration-efi will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] — 2026-05-27
+
+### Fixed
+
+- **K8s Service rpc port missing** — added explicit
+  `deploy/service.yaml` declaring two named ports (8080 health, 8081
+  rpc). Pre-2.3.1 the live Service only exposed 8080, so
+  yggdrasil-core forward-drift auto-sync hit "connection refused"
+  reaching `/rpc/describe` via service DNS. The Phase C agent worked
+  around this with `kubectl exec deploy/yggdrasil -- wget` against
+  the pod IP — not a fix. Apply the manifest via `apply_manifest`
+  workflow on next deploy. Container ports 8080 + 8081 are already
+  what `cmd/adapter/health.go` and `cmd/adapter/main.go` bind to;
+  this manifest aligns the Service routing.
+
+### Changed
+
+- **Bumped `yggdrasil-sdk-go` v0.8.0 → v0.8.1**. SDK patch closes
+  the destroy resource_id inference gap for §6.5 mutation events.
+  All `efi.<resource>.destroyed` events emit with the correct
+  identifier on the wire (was silently rejected with HTTP 400 by
+  yggdrasil-core before v0.8.1).
+
 ## [2.3.0] — 2026-05-27
 
 ### Changed
