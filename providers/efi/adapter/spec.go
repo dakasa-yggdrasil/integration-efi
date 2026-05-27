@@ -61,6 +61,7 @@ var SupportedExecuteOperations = []string{
 	OperationHandleChargeback,
 	OperationRegisterWebhookEndpoint,
 	OperationUnregisterWebhookEndpoint,
+	OperationVerifyWebhookSignature,
 }
 
 // Describe returns the integration_type manifest the orchestrator
@@ -165,7 +166,7 @@ func Describe() contract.AdapterDescribeResponse {
 				CanonicalPrefix:  "thirdparty.efi.webhook",
 				IdentityTemplate: "webhook.{chave}",
 				Discoverable:     false,
-				DefaultActions:   []string{OperationRegisterWebhookEndpoint, OperationUnregisterWebhookEndpoint},
+				DefaultActions:   []string{OperationRegisterWebhookEndpoint, OperationUnregisterWebhookEndpoint, OperationVerifyWebhookSignature},
 			},
 		},
 		ActionCatalog: []contract.IntegrationActionDefinition{
@@ -232,6 +233,13 @@ func Describe() contract.AdapterDescribeResponse {
 				Idempotent:    true,
 				Category:      "capability",
 			},
+			{
+				Name:          OperationVerifyWebhookSignature,
+				Description:   "Verify a peer x509 cert from the inbound webhook handshake. Pure computation.",
+				ResourceTypes: []string{"webhook"},
+				Idempotent:    true,
+				Category:      "capability",
+			},
 		},
 		Discovery: contract.IntegrationDiscoverySpec{
 			Mode:   "push",
@@ -250,6 +258,7 @@ func Describe() contract.AdapterDescribeResponse {
 				OperationHandleChargeback,
 				OperationRegisterWebhookEndpoint,
 				OperationUnregisterWebhookEndpoint,
+				OperationVerifyWebhookSignature,
 			},
 		},
 		Extensions: contract.IntegrationExtensionsSpec{
