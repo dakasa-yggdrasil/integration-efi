@@ -13,7 +13,7 @@ import (
 	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/efiapi"
 )
 
-func TestCreateDueCharge_PutsToCobvWithDataDeVencimento(t *testing.T) {
+func TestEnsureDueCharge_PutsToCobvWithDataDeVencimento(t *testing.T) {
 	var gotMethod, gotPath string
 	var gotBody []byte
 
@@ -34,7 +34,7 @@ func TestCreateDueCharge_PutsToCobvWithDataDeVencimento(t *testing.T) {
 
 	c, _ := efiapi.NewEfiClient(config.Config{ClientKeyID: "k", ClientSecret: "s", BaseURL: srv.URL, MTLSEnabled: false}, nil)
 
-	got, err := CreateDueCharge(context.Background(), c, map[string]any{
+	got, err := EnsureDueCharge(context.Background(), c, map[string]any{
 		"txid":  "due-tx-A",
 		"valor": map[string]any{"original": "55.00"},
 		"chave": "pix@dakasa.me",
@@ -47,7 +47,7 @@ func TestCreateDueCharge_PutsToCobvWithDataDeVencimento(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Fatalf("CreateDueCharge = %v", err)
+		t.Fatalf("EnsureDueCharge = %v", err)
 	}
 	if gotMethod != http.MethodPut {
 		t.Fatalf("method = %q, want PUT", gotMethod)
@@ -63,10 +63,10 @@ func TestCreateDueCharge_PutsToCobvWithDataDeVencimento(t *testing.T) {
 	}
 }
 
-func TestCreateDueCharge_RequiresAllFields(t *testing.T) {
+func TestEnsureDueCharge_RequiresAllFields(t *testing.T) {
 	c := &efiapi.EfiClient{}
 
-	_, err := CreateDueCharge(context.Background(), c, map[string]any{
+	_, err := EnsureDueCharge(context.Background(), c, map[string]any{
 		"valor": map[string]any{"original": "10.00"},
 		"chave": "x",
 		"calendario": map[string]any{
@@ -80,7 +80,7 @@ func TestCreateDueCharge_RequiresAllFields(t *testing.T) {
 		t.Fatalf("expected txid required, got %v", err)
 	}
 
-	_, err = CreateDueCharge(context.Background(), c, map[string]any{
+	_, err = EnsureDueCharge(context.Background(), c, map[string]any{
 		"txid":  "t",
 		"valor": map[string]any{"original": "10.00"},
 		"chave": "x",

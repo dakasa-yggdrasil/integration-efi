@@ -1,5 +1,5 @@
-name: create_due_charge
-description: Create a due-date Pix charge (cobv) per BCB API. PUT /v2/cobv/{txid}.
+name: ensure_due_charge
+description: Ensure a due-date Pix charge (cobv) exists. PUT /v2/cobv/{txid}. Idempotent — caller-supplied txid is required.
 category: capability
 resource_types: [charge]
 idempotent: true

@@ -102,6 +102,22 @@ func TestSpec_EnsureChargeReplaceCreateCharge(t *testing.T) {
 	}
 }
 
+// TestSpec_EnsureDueChargeReplaceCreateDueCharge asserts the
+// create_due_charge → ensure_due_charge rename landed.
+func TestSpec_EnsureDueChargeReplaceCreateDueCharge(t *testing.T) {
+	desc := Describe()
+	names := map[string]bool{}
+	for _, a := range desc.ActionCatalog {
+		names[a.Name] = true
+	}
+	if !names["ensure_due_charge"] {
+		t.Error("expected ensure_due_charge")
+	}
+	if names["create_due_charge"] {
+		t.Error("create_due_charge must be removed")
+	}
+}
+
 // TestDescribeContractAligned guards against the drift pattern that has
 // bitten integration-aws and integration-grafana: SupportedExecuteOperations,
 // ResourceTypes and ActionCatalog must agree shape-by-shape. The lint

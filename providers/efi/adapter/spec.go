@@ -35,7 +35,7 @@ const (
 // `adapter` for EfiClient + DoRaw.
 const (
 	OperationEnsureCharge              = "ensure_charge"
-	OperationCreateDueCharge           = "create_due_charge"
+	OperationEnsureDueCharge           = "ensure_due_charge"
 	OperationGetChargeStatus           = "get_charge_status"
 	OperationRefundCharge              = "refund_charge"
 	OperationCreatePayout              = "create_payout"
@@ -53,7 +53,7 @@ const (
 // ResourceTypes via the contractcheck lint.
 var SupportedExecuteOperations = []string{
 	OperationEnsureCharge,
-	OperationCreateDueCharge,
+	OperationEnsureDueCharge,
 	OperationGetChargeStatus,
 	OperationRefundCharge,
 	OperationCreatePayout,
@@ -146,7 +146,7 @@ func Describe() contract.AdapterDescribeResponse {
 				CanonicalPrefix:  "thirdparty.efi.charge",
 				IdentityTemplate: "charge.{txid}",
 				Discoverable:     false,
-				DefaultActions:   []string{OperationEnsureCharge, OperationCreateDueCharge, OperationGetChargeStatus},
+				DefaultActions:   []string{OperationEnsureCharge, OperationEnsureDueCharge, OperationGetChargeStatus},
 			},
 			{
 				Name:             "pix_transaction",
@@ -179,10 +179,10 @@ func Describe() contract.AdapterDescribeResponse {
 				Category:      "capability",
 			},
 			{
-				Name:          OperationCreateDueCharge,
-				Description:   "Create a due-date Pix charge (cobv) per BCB API. PUT /v2/cobv/{txid}.",
+				Name:          OperationEnsureDueCharge,
+				Description:   "Ensure a due-date Pix charge (cobv) exists. PUT /v2/cobv/{txid}. Idempotent — caller-supplied txid is required (cobv is always upserted).",
 				ResourceTypes: []string{"charge"},
-				Idempotent:    true, // txid is mandatory for cobv
+				Idempotent:    true,
 				Category:      "capability",
 			},
 			{
@@ -260,7 +260,7 @@ func Describe() contract.AdapterDescribeResponse {
 		Execution: contract.IntegrationExecutionSpec{
 			IdempotentActions: []string{
 				OperationEnsureCharge,
-				OperationCreateDueCharge,
+				OperationEnsureDueCharge,
 				OperationGetChargeStatus,
 				OperationRefundCharge,
 				OperationGetStatement,

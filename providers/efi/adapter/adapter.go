@@ -50,8 +50,8 @@ func Execute(req contract.AdapterExecuteIntegrationRequest) (contract.AdapterExe
 		for k, v := range got {
 			output[k] = v
 		}
-	case OperationCreateDueCharge:
-		got, err := capabilities.CreateDueCharge(ctx, client, req.Input)
+	case OperationEnsureDueCharge:
+		got, err := capabilities.EnsureDueCharge(ctx, client, req.Input)
 		if err != nil {
 			return contract.AdapterExecuteIntegrationResponse{}, err
 		}
