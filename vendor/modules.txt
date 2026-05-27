@@ -1,6 +1,7 @@
 # github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.4.0
 ## explicit; go 1.25.0
 github.com/dakasa-yggdrasil/yggdrasil-sdk-go/adapter
+github.com/dakasa-yggdrasil/yggdrasil-sdk-go/mtls
 github.com/dakasa-yggdrasil/yggdrasil-sdk-go/rpc
 github.com/dakasa-yggdrasil/yggdrasil-sdk-go/rpc/amqp
 github.com/dakasa-yggdrasil/yggdrasil-sdk-go/rpc/http
@@ -26,3 +27,7 @@ go.uber.org/zap/internal/exit
 go.uber.org/zap/internal/pool
 go.uber.org/zap/internal/stacktrace
 go.uber.org/zap/zapcore
+# golang.org/x/crypto v0.52.0
+## explicit; go 1.25.0
+golang.org/x/crypto/pkcs12
+golang.org/x/crypto/pkcs12/internal/rc2
