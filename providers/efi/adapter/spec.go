@@ -21,7 +21,7 @@ const (
 	IntegrationType = "efi"
 
 	// AdapterVersion is the wire-advertised adapter binary version.
-	AdapterVersion = "2.0.0"
+	AdapterVersion = "2.1.0"
 
 	// QueueDescribe / QueueExecute are the AMQP queue names used when
 	// transport=amqp. http_json mode uses the Endpoints instead.
