@@ -54,6 +54,7 @@ const (
 var SupportedExecuteOperations = []string{
 	OperationCreateCharge,
 	OperationCreateDueCharge,
+	OperationGetChargeStatus,
 }
 
 // Describe returns the integration_type manifest the orchestrator
@@ -137,7 +138,7 @@ func Describe() contract.AdapterDescribeResponse {
 				CanonicalPrefix:  "thirdparty.efi.charge",
 				IdentityTemplate: "charge.{txid}",
 				Discoverable:     false,
-				DefaultActions:   []string{OperationCreateCharge, OperationCreateDueCharge},
+				DefaultActions:   []string{OperationCreateCharge, OperationCreateDueCharge, OperationGetChargeStatus},
 			},
 		},
 		ActionCatalog: []contract.IntegrationActionDefinition{
@@ -155,6 +156,13 @@ func Describe() contract.AdapterDescribeResponse {
 				Idempotent:    true, // txid is mandatory for cobv
 				Category:      "capability",
 			},
+			{
+				Name:          OperationGetChargeStatus,
+				Description:   "Fetch the status + pix[] for a charge. GET /v2/cob/{txid}.",
+				ResourceTypes: []string{"charge"},
+				Idempotent:    true,
+				Category:      "capability",
+			},
 		},
 		Discovery: contract.IntegrationDiscoverySpec{
 			Mode:   "push",
@@ -165,7 +173,10 @@ func Describe() contract.AdapterDescribeResponse {
 			FallbackResourcePrefix: "thirdparty.efi.custom",
 		},
 		Execution: contract.IntegrationExecutionSpec{
-			IdempotentActions: []string{},
+			IdempotentActions: []string{
+				OperationCreateDueCharge,
+				OperationGetChargeStatus,
+			},
 		},
 		Extensions: contract.IntegrationExtensionsSpec{
 			AllowCustomActions: false,
