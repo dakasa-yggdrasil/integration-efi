@@ -1,0 +1,19 @@
+apiVersion: yggdrasil.io/v1
+kind: Quickstart
+spec:
+  integration_family:
+    namespace: global
+    name: efi
+    manifest_file: family/manifest.json
+  integration_type:
+    namespace: global
+    name: efi
+    manifest_file: manifest/integration_type.json
+  example_instance:
+    namespace: global
+    name: efi-prod
+    manifest_file: manifest/integration_instance.example.json
+  deploy:
+    component_name: integration-efi
+    image: ghcr.io/dakasa-yggdrasil/integration-efi
+    image_tag: v1.0.0

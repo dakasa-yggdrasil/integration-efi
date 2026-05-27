@@ -1,0 +1,36 @@
+{
+  "namespace": "global",
+  "name": "efi",
+  "spec": {
+    "provider": "efi",
+    "family_ref": {"namespace": "global", "name": "efi"},
+    "adapter": {
+      "transport": "http_json",
+      "version": "1.0.0",
+      "endpoints": {
+        "describe": "/rpc/describe",
+        "execute": "/rpc/execute"
+      },
+      "timeout_seconds": 30
+    },
+    "capabilities": ["describe", "execute"],
+    "credential_schema": {
+      "mode": "inline",
+      "required": ["efi_client_key_id", "efi_client_secret"],
+      "properties": {
+        "efi_client_key_id":      {"type": "string", "description": "EFI Pix API client key ID."},
+        "efi_client_secret":      {"type": "string", "description": "EFI Pix API client secret.", "secret": true},
+        "efi_certificate_base64": {"type": "string", "description": "Base64-encoded P12 mTLS certificate.", "secret": true}
+      }
+    },
+    "instance_schema": {
+      "mode": "inline",
+      "properties": {
+        "base_url":     {"type": "string", "default": "https://pix.api.efipay.com.br"},
+        "sandbox":      {"type": "boolean", "default": false},
+        "mtls_enabled": {"type": "boolean", "default": true},
+        "webhook_port": {"type": "integer", "default": 9079}
+      }
+    }
+  }
+}

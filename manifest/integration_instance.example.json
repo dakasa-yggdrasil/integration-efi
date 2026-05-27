@@ -1,0 +1,19 @@
+{
+  "namespace": "global",
+  "name": "efi-prod",
+  "spec": {
+    "type_ref": {"namespace": "global", "name": "efi"},
+    "credentials": {
+      "efi_client_key_id":      "<from-aws-sm:dakasa/prod/efi-mtls#client_key_id>",
+      "efi_client_secret":      "<from-aws-sm:dakasa/prod/efi-mtls#client_secret>",
+      "efi_certificate_base64": "<from-aws-sm:dakasa/prod/efi-mtls#p12_base64>"
+    },
+    "config": {
+      "base_url":     "https://pix.api.efipay.com.br",
+      "sandbox":      false,
+      "mtls_enabled": true,
+      "webhook_port": 9079
+    },
+    "discovery": {"enabled": false}
+  }
+}

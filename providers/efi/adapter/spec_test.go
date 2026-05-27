@@ -68,6 +68,23 @@ func TestManifestCapabilityYAMLsParse(t *testing.T) {
 	}
 }
 
+// TestIntegrationTypeManifestJSON_IsValid asserts the
+// integration_type manifest exists, parses, and carries the expected
+// name = "efi".
+func TestIntegrationTypeManifestJSON_IsValid(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "manifest", "integration_type.json"))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if doc["name"] != "efi" {
+		t.Fatalf("name = %v", doc["name"])
+	}
+}
+
 // TestDescribeContractAligned guards against the drift pattern that has
 // bitten integration-aws and integration-grafana: SupportedExecuteOperations,
 // ResourceTypes and ActionCatalog must agree shape-by-shape. The lint
