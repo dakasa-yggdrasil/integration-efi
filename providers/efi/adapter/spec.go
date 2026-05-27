@@ -57,6 +57,7 @@ var SupportedExecuteOperations = []string{
 	OperationGetChargeStatus,
 	OperationRefundCharge,
 	OperationCreatePayout,
+	OperationGetStatement,
 }
 
 // Describe returns the integration_type manifest the orchestrator
@@ -149,6 +150,13 @@ func Describe() contract.AdapterDescribeResponse {
 				Discoverable:     false,
 				DefaultActions:   []string{OperationRefundCharge, OperationCreatePayout},
 			},
+			{
+				Name:             "statement",
+				CanonicalPrefix:  "thirdparty.efi.statement",
+				IdentityTemplate: "statement.{inicio}.{fim}",
+				Discoverable:     false,
+				DefaultActions:   []string{OperationGetStatement},
+			},
 		},
 		ActionCatalog: []contract.IntegrationActionDefinition{
 			{
@@ -186,6 +194,13 @@ func Describe() contract.AdapterDescribeResponse {
 				Idempotent:    false, // safety classification — server idempotency exists but caller must treat as opaque
 				Category:      "capability",
 			},
+			{
+				Name:          OperationGetStatement,
+				Description:   "Fetch a charge statement window. GET /v2/cob?inicio=&fim=&page=&page_size=.",
+				ResourceTypes: []string{"statement"},
+				Idempotent:    true,
+				Category:      "capability",
+			},
 		},
 		Discovery: contract.IntegrationDiscoverySpec{
 			Mode:   "push",
@@ -200,6 +215,7 @@ func Describe() contract.AdapterDescribeResponse {
 				OperationCreateDueCharge,
 				OperationGetChargeStatus,
 				OperationRefundCharge,
+				OperationGetStatement,
 			},
 		},
 		Extensions: contract.IntegrationExtensionsSpec{
