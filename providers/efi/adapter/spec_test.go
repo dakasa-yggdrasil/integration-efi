@@ -1,7 +1,10 @@
 package adapter
 
 import (
+	"encoding/json"
 	"testing"
+
+	"github.com/dakasa-yggdrasil/integration-efi/pkg/contractcheck"
 )
 
 func TestDescribeHTTP(t *testing.T) {
@@ -30,5 +33,24 @@ func TestProviderConstants(t *testing.T) {
 	}
 	if AdapterVersion != "1.0.0" {
 		t.Fatalf("AdapterVersion = %q, want 1.0.0", AdapterVersion)
+	}
+}
+
+// TestDescribeContractAligned guards against the drift pattern that has
+// bitten integration-aws and integration-grafana: SupportedExecuteOperations,
+// ResourceTypes and ActionCatalog must agree shape-by-shape. The lint
+// runs over the JSON-projection of Describe() so it exercises the same
+// wire shape the core would receive.
+func TestDescribeContractAligned(t *testing.T) {
+	raw, err := json.Marshal(Describe())
+	if err != nil {
+		t.Fatalf("marshal describe: %v", err)
+	}
+	var snapshot contractcheck.DescribeResponse
+	if err := json.Unmarshal(raw, &snapshot); err != nil {
+		t.Fatalf("unmarshal describe into contractcheck: %v", err)
+	}
+	if err := contractcheck.LintDescribeContract(snapshot, SupportedExecuteOperations); err != nil {
+		t.Fatalf("describe contract drift:\n%s", err.Error())
 	}
 }
