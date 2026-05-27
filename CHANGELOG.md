@@ -5,6 +5,30 @@ All notable changes to integration-efi will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased — 2026-05-27
+
+### Changed
+
+- Bump yggdrasil-sdk-go v0.6.0 → v0.7.0 to pick up the public
+  `reconcile.Dispatch` API. The bump is API-compatible; existing
+  call sites keep building.
+
+### Notes — production migration to reconcile.Dispatch DEFERRED
+
+- This adapter still routes execute through the hand-written
+  `providers/efi/adapter.Execute` switch. Unlike the sibling
+  stripe/nfeio adapters, integration-efi never wired
+  `RegisterReconciler` (no per-resource `Reconciler[D,O]` impls)
+  — the v2.0.0 cycle landed the canonical capability names + the
+  legacy alias shim in `LegacyOperationAliases`, but skipped the
+  Reconciler binding step.
+- Migrating to `reconcile.Dispatch` requires first authoring
+  Reconcilers for the 4 managed resources (charge, due_charge,
+  webhook_subscription, refund) and a `WireReconcilers` function.
+  That work is a separate cycle from this SDK pin bump.
+- §6.5 mutation event auto-emission stays DORMANT for EFI until
+  the Reconciler wiring lands.
+
 ## [2.1.0] — 2026-05-27
 
 ### Added
