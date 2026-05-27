@@ -10,7 +10,7 @@
 #     HTTP-JSON transport. ADAPTER_PORT in cmd/adapter/main.go:88
 #     (default "8081"). Yggdrasil-core's forward-drift / auto-sync
 #     reaches the adapter via this port through the in-cluster
-#     Service DNS name (integration-efi.yggdrasil-adapters.svc).
+#     Service DNS name (integration-efi.dakasa.svc).
 #
 # Pre-2.3.1 the live Service only declared port 8080. forward-drift
 # auto-sync failed with "connection refused" when describing the
@@ -34,7 +34,11 @@ apiVersion: v1
 kind: Service
 metadata:
   name: integration-efi
-  namespace: yggdrasil-adapters
+  # Cluster Service runs in the `dakasa` namespace alongside the deployment
+  # (verified 2026-05-27 via `kubectl get svc -A | grep integration-efi`).
+  # Pre-2026-05-27 the source manifest declared `yggdrasil-adapters` here
+  # which would create a duplicate Service on the next apply_manifest run.
+  namespace: dakasa
   labels:
     app.kubernetes.io/name: integration-efi
     app.kubernetes.io/component: adapter
