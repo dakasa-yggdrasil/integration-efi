@@ -1,0 +1,164 @@
+// Package adapter implements the EFI/Pix Yggdrasil adapter. It exposes
+// the Describe() contract advertised on the integration_type manifest
+// and an Execute() dispatcher that routes operations to capability
+// implementations under providers/efi/adapter/capabilities.
+package adapter
+
+import (
+	"os"
+	"strings"
+
+	"github.com/dakasa-yggdrasil/integration-efi/family/contract"
+)
+
+const (
+	// Provider is the integration_family identifier. Validated by the
+	// describe handshake in providers/efi/message/describe.go.
+	Provider = "efi"
+
+	// IntegrationType is the integration_type ID — single-provider, so
+	// equal to Provider. The SDK derives queue prefixes from this.
+	IntegrationType = "efi"
+
+	// AdapterVersion is the wire-advertised adapter binary version.
+	AdapterVersion = "1.0.0"
+
+	// QueueDescribe / QueueExecute are the AMQP queue names used when
+	// transport=amqp. http_json mode uses the Endpoints instead.
+	QueueDescribe = "yggdrasil.adapter.efi.describe"
+	QueueExecute  = "yggdrasil.adapter.efi.execute"
+)
+
+// SupportedExecuteOperations is the canonical list of operations
+// dispatchable through Execute(). It grows as each capability task lands
+// (one entry per capability). Kept in sync with ActionCatalog +
+// ResourceTypes via the contractcheck lint.
+var SupportedExecuteOperations = []string{}
+
+// Describe returns the integration_type manifest the orchestrator
+// stores at register-time. The shape is the standard
+// AdapterDescribeResponse used by every Yggdrasil adapter.
+func Describe() contract.AdapterDescribeResponse {
+	transport := strings.ToLower(strings.TrimSpace(os.Getenv("YGGDRASIL_TRANSPORT")))
+	if transport == "" {
+		transport = "http"
+	}
+	adapterSpec := contract.IntegrationAdapterSpec{
+		Version:        AdapterVersion,
+		TimeoutSeconds: 30,
+	}
+	switch transport {
+	case "amqp", "rabbitmq":
+		adapterSpec.Transport = "rabbitmq"
+		adapterSpec.Queues = contract.IntegrationAdapterQueue{
+			Describe: QueueDescribe,
+			Execute:  QueueExecute,
+		}
+	default:
+		adapterSpec.Transport = "http_json"
+		adapterSpec.Endpoints = contract.IntegrationAdapterRoute{
+			Describe: "/rpc/describe",
+			Execute:  "/rpc/execute",
+		}
+	}
+	return contract.AdapterDescribeResponse{
+		Provider:     Provider,
+		Adapter:      adapterSpec,
+		Capabilities: []string{"describe", "execute"},
+		CredentialSchema: contract.IntegrationSchemaSpec{
+			Mode:     "inline",
+			Required: []string{"efi_client_key_id", "efi_client_secret"},
+			Properties: map[string]contract.IntegrationSchemaProperty{
+				"efi_client_key_id": {
+					Type:        "string",
+					Description: "EFI Pix API client key ID.",
+				},
+				"efi_client_secret": {
+					Type:        "string",
+					Description: "EFI Pix API client secret.",
+					Secret:      true,
+				},
+				"efi_certificate_base64": {
+					Type:        "string",
+					Description: "Base64-encoded P12 mTLS certificate bytes (alternative to mounting EFI_CERTIFICATE file).",
+					Secret:      true,
+				},
+			},
+		},
+		InstanceSchema: contract.IntegrationSchemaSpec{
+			Mode: "inline",
+			Properties: map[string]contract.IntegrationSchemaProperty{
+				"base_url": {
+					Type:        "string",
+					Description: "EFI Pix API base URL (pix.api.efipay.com.br or pix-h.api.efipay.com.br for homologation).",
+					Default:     "https://pix.api.efipay.com.br",
+				},
+				"sandbox": {
+					Type:        "boolean",
+					Description: "Whether this instance points at EFI homologation (pix-h).",
+					Default:     false,
+				},
+				"mtls_enabled": {
+					Type:        "boolean",
+					Description: "Whether mTLS is enforced for outbound + inbound. Disable only for mock/test instances.",
+					Default:     true,
+				},
+				"webhook_port": {
+					Type:        "integer",
+					Description: "Port on which the adapter listens for inbound EFI webhook callbacks.",
+					Default:     9079,
+				},
+			},
+		},
+		ResourceTypes: []contract.IntegrationResourceType{},
+		ActionCatalog: []contract.IntegrationActionDefinition{},
+		Discovery: contract.IntegrationDiscoverySpec{
+			Mode:   "push",
+			Cursor: "none",
+		},
+		Normalization: contract.IntegrationNormalizationSpec{
+			ExternalIDPath:         "txid",
+			FallbackResourcePrefix: "thirdparty.efi.custom",
+		},
+		Execution: contract.IntegrationExecutionSpec{
+			IdempotentActions: []string{},
+		},
+		Extensions: contract.IntegrationExtensionsSpec{
+			AllowCustomActions: false,
+		},
+	}
+}
+
+// NormalizeExecuteOperation falls back to capability when operation is
+// blank (allowing core-side dispatch envelopes that only set
+// capability).
+func NormalizeExecuteOperation(operation, capability string) string {
+	operation = strings.TrimSpace(operation)
+	if operation == "" {
+		operation = strings.TrimSpace(capability)
+	}
+	return operation
+}
+
+// NormalizeExecuteCapability mirrors NormalizeExecuteOperation — when
+// capability is blank, it inherits the operation value.
+func NormalizeExecuteCapability(capability, operation string) string {
+	capability = strings.TrimSpace(capability)
+	if capability == "" {
+		capability = NormalizeExecuteOperation(operation, capability)
+	}
+	return capability
+}
+
+// SupportsExecuteCapability returns true when value names an entry in
+// SupportedExecuteOperations (or is blank, allowing operation-only
+// dispatch).
+func SupportsExecuteCapability(value string) bool {
+	value = strings.TrimSpace(value)
+	for _, supported := range SupportedExecuteOperations {
+		if value == supported {
+			return true
+		}
+	}
+	return value == ""
+}

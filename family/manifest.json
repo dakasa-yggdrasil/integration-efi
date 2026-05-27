@@ -1,0 +1,13 @@
+{
+  "namespace": "global",
+  "name": "efi",
+  "spec": {
+    "provider": "efi",
+    "description": "EFI/Pix family — Brazilian Pix payments (Banco Central PIX API + EFI overlay).",
+    "license": "Apache-2.0",
+    "source_repo": "https://github.com/dakasa-yggdrasil/integration-efi",
+    "maintainers": [
+      "dakasa-platform@dakasa.me"
+    ]
+  }
+}
