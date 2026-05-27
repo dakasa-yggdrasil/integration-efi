@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -50,8 +51,8 @@ func TestManifestCapabilityYAMLsParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read %s: %v", dir, err)
 	}
-	if len(entries) != 11 {
-		t.Fatalf("expected 11 capability YAMLs, got %d", len(entries))
+	if len(entries) != 12 {
+		t.Fatalf("expected 12 capability YAMLs, got %d", len(entries))
 	}
 	for _, e := range entries {
 		raw, err := os.ReadFile(filepath.Join(dir, e.Name()))
@@ -161,6 +162,37 @@ func TestSpec_WebhookSubscriptionTripleExists(t *testing.T) {
 			t.Errorf("expected %q removed", n)
 		}
 	}
+}
+
+// TestSpec_WebhookSubscriptionResourceTypeDeclared asserts the
+// webhook_subscription resource_type carries the canonical triple in
+// the first three DefaultActions slots (the convention's
+// "default_actions starts with ensure_/observe_/destroy_").
+func TestSpec_WebhookSubscriptionResourceTypeDeclared(t *testing.T) {
+	desc := Describe()
+	for _, rt := range desc.ResourceTypes {
+		if rt.Name == "webhook_subscription" {
+			want := []string{"ensure_webhook_subscription", "observe_webhook_subscriptions", "destroy_webhook_subscription"}
+			if len(rt.DefaultActions) < 3 || !reflect.DeepEqual(rt.DefaultActions[:3], want) {
+				t.Errorf("expected canonical triple in DefaultActions[:3], got %v", rt.DefaultActions)
+			}
+			return
+		}
+	}
+	t.Fatal("webhook_subscription resource_type missing")
+}
+
+// TestSpec_DestroyChargeExists asserts the new destroy_charge entry
+// landed so the charge resource_type now has the full canonical
+// ensure_/observe_/destroy_ triple.
+func TestSpec_DestroyChargeExists(t *testing.T) {
+	desc := Describe()
+	for _, a := range desc.ActionCatalog {
+		if a.Name == "destroy_charge" {
+			return
+		}
+	}
+	t.Fatal("expected destroy_charge in action_catalog")
 }
 
 // TestDescribeContractAligned guards against the drift pattern that has

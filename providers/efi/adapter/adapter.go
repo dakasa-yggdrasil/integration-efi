@@ -66,6 +66,14 @@ func Execute(req contract.AdapterExecuteIntegrationRequest) (contract.AdapterExe
 		for k, v := range got {
 			output[k] = v
 		}
+	case OperationDestroyCharge:
+		got, err := capabilities.DestroyCharge(ctx, client, req.Input)
+		if err != nil {
+			return contract.AdapterExecuteIntegrationResponse{}, err
+		}
+		for k, v := range got {
+			output[k] = v
+		}
 	case OperationRefundCharge:
 		got, err := capabilities.RefundCharge(ctx, client, req.Input)
 		if err != nil {

@@ -1,0 +1,14 @@
+name: destroy_charge
+description: Remove (cancel) a Pix charge by txid. PATCH /v2/cob/{txid} with status=REMOVIDA_PELO_USUARIO_RECEBEDOR per BCB Pix spec. 404 treated as already-absent success (idempotent).
+category: capability
+resource_types: [charge]
+idempotent: true
+input_schema:
+  required: [txid]
+  properties:
+    txid: {type: string}
+output_schema:
+  properties:
+    destroyed: {type: boolean}
+    txid: {type: string}
+    already_absent: {type: boolean}

@@ -37,6 +37,7 @@ const (
 	OperationEnsureCharge              = "ensure_charge"
 	OperationEnsureDueCharge           = "ensure_due_charge"
 	OperationObserveCharges            = "observe_charges"
+	OperationDestroyCharge             = "destroy_charge"
 	OperationRefundCharge              = "refund_charge"
 	OperationCreatePayout              = "create_payout"
 	OperationHandleChargeback          = "handle_chargeback"
@@ -55,6 +56,7 @@ var SupportedExecuteOperations = []string{
 	OperationEnsureCharge,
 	OperationEnsureDueCharge,
 	OperationObserveCharges,
+	OperationDestroyCharge,
 	OperationRefundCharge,
 	OperationCreatePayout,
 	OperationHandleChargeback,
@@ -146,7 +148,7 @@ func Describe() contract.AdapterDescribeResponse {
 				CanonicalPrefix:  "thirdparty.efi.charge",
 				IdentityTemplate: "charge.{txid}",
 				Discoverable:     false,
-				DefaultActions:   []string{OperationEnsureCharge, OperationEnsureDueCharge, OperationObserveCharges},
+				DefaultActions:   []string{OperationEnsureCharge, OperationEnsureDueCharge, OperationObserveCharges, OperationDestroyCharge},
 			},
 			{
 				Name:             "pix_transaction",
@@ -187,6 +189,13 @@ func Describe() contract.AdapterDescribeResponse {
 			{
 				Name:          OperationObserveCharges,
 				Description:   "Observe Pix charges. Filter {txid: X} returns the single charge (GET /v2/cob/{txid}); filter {inicio, fim} returns a paged statement window (GET /v2/cob?inicio=&fim=&page=&page_size=). Read-only.",
+				ResourceTypes: []string{"charge"},
+				Idempotent:    true,
+				Category:      "capability",
+			},
+			{
+				Name:          OperationDestroyCharge,
+				Description:   "Remove (cancel) a Pix charge by txid. PATCH /v2/cob/{txid} with status=REMOVIDA_PELO_USUARIO_RECEBEDOR per BCB Pix spec. 404 from EFI → already-absent success (idempotent).",
 				ResourceTypes: []string{"charge"},
 				Idempotent:    true,
 				Category:      "capability",
@@ -261,6 +270,7 @@ func Describe() contract.AdapterDescribeResponse {
 				OperationEnsureCharge,
 				OperationEnsureDueCharge,
 				OperationObserveCharges,
+				OperationDestroyCharge,
 				OperationRefundCharge,
 				OperationHandleChargeback,
 				OperationEnsureWebhookSubscription,
