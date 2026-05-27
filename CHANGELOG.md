@@ -5,29 +5,69 @@ All notable changes to integration-efi will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased — 2026-05-27
+## [2.2.0] — 2026-05-27
 
-### Changed
+### Added
 
-- Bump yggdrasil-sdk-go v0.6.0 → v0.7.0 to pick up the public
-  `reconcile.Dispatch` API. The bump is API-compatible; existing
-  call sites keep building.
+- Production runtime migrated to `sdk/reconcile.Dispatch` via the
+  Option B hybrid bridge (matches the integration-slack /
+  integration-stripe v2.x pattern). `controllers/message`
+  `ExecuteHandler` now routes inbound envelopes through the SDK
+  reconcile dispatch table FIRST, falling back to the legacy
+  `adapter.Execute` switch when the operation has no registered
+  Reconciler. The legacy fallback preserves the existing semantics
+  for action helpers + reactor replay paths.
+- 3 `Reconciler[reconcilePayload, reconcilePayload]` impls authored
+  in `providers/efi/adapter/reconcile.go`:
+  - `chargeReconciler` — `ensure_charge` / `observe_charges` /
+    `destroy_charge`. Routes through the existing capability
+    handlers (POST /v2/cob or PUT /v2/cob/{txid}, GET, PATCH).
+  - `dueChargeReconciler` — `ensure_due_charge` (PUT /v2/cobv/{txid})
+    plus SDK-only `observe_due_charges` / `destroy_due_charge`. The
+    last two reuse the immediate-charge handlers (BCB Pix exposes
+    cob and cobv records under the same /v2/cob/{txid} GET + PATCH
+    paths).
+  - `webhookSubscriptionReconciler` — `ensure_webhook_subscription` /
+    `observe_webhook_subscriptions` / `destroy_webhook_subscription`.
+    Routes through the EFI v2 webhook surface with the existing v3
+    fallback for accounts that only accept /v3/gn/webhook/{chave}.
+- `WireReconcilers(a, instanceID)` function: installs the SDK
+  reconcile handlers BEFORE the adapter `.Register(...)` chain so the
+  hybrid bridge can take over the execute capability while preserving
+  the dispatch table the SDK auto-installs. Wired in `cmd/adapter/main.go`
+  ahead of register.
+- §6.5 mutation event auto-emission now lives for the resource-typed
+  ops (`charge`, `due_charge`, `webhook_subscription`) when
+  `YGGDRASIL_CORE_URL` + `YGGDRASIL_RUN_TOKEN` are set. Empty env →
+  `events.NoopEmitter` so dev / unit tests stay deterministic. Emission
+  is best-effort: failures log WARN but do NOT fail the capability
+  call (per `reconcile.WithEmitter` docstring).
+- Two SDK-only canonical operations (`observe_due_charges`,
+  `destroy_due_charge`) admitted by `SupportsExecuteCapability` so the
+  controllers/message gate doesn't reject them BEFORE
+  `reconcile.Dispatch` can route. They are NOT in the legacy
+  `SupportedExecuteOperations` slice (so the legacy `Execute` switch
+  never sees them); the SDK dispatch table is their sole entry point.
+- New unit test file `providers/efi/adapter/reconcile_test.go`:
+  10 table-driven tests against fake dispatch table + an end-to-end
+  test driving `reconcile.Dispatch` through all 3 Reconcilers (9
+  canonical ops total) + a legacy alias WARN counter test.
 
-### Notes — production migration to reconcile.Dispatch DEFERRED
+### Action allowlist + helper + reactor stay in legacy switch path
 
-- This adapter still routes execute through the hand-written
-  `providers/efi/adapter.Execute` switch. Unlike the sibling
-  stripe/nfeio adapters, integration-efi never wired
-  `RegisterReconciler` (no per-resource `Reconciler[D,O]` impls)
-  — the v2.0.0 cycle landed the canonical capability names + the
-  legacy alias shim in `LegacyOperationAliases`, but skipped the
-  Reconciler binding step.
-- Migrating to `reconcile.Dispatch` requires first authoring
-  Reconcilers for the 4 managed resources (charge, due_charge,
-  webhook_subscription, refund) and a `WireReconcilers` function.
-  That work is a separate cycle from this SDK pin bump.
-- §6.5 mutation event auto-emission stays DORMANT for EFI until
-  the Reconciler wiring lands.
+- `refund_charge` (action — PUT /v2/pix/{e2eId}/devolucao/{id})
+- `create_payout` (action — PUT /v3/gn/pix/{idEnvio})
+- `handle_chargeback` (action — internal pass-through)
+- `verify_webhook_signature` (helper — pure x509 DER parse)
+- `efi_webhook_received` (reactor — framework-invoked)
+
+These are NOT resource-typed `ensure_/observe_/destroy_` operations
+and therefore stay in the `adapter.Execute` switch. The hybrid bridge
+falls back to that path on `reconcile: unsupported operation`. §6.5
+emission for the money-movement actions (`refund_charge`,
+`create_payout`) is a separate cycle (would emit `efi.refund.created`
+/ `efi.payout.created` per the contract's exemption for non-idempotent
+allowlist actions).
 
 ## [2.1.0] — 2026-05-27
 

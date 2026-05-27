@@ -5,7 +5,7 @@
     "provider": "efi",
     "adapter": {
       "transport": "http_json",
-      "version": "2.0.0",
+      "version": "2.2.0",
       "endpoints": {
         "describe": "/rpc/describe",
         "execute": "/rpc/execute"
