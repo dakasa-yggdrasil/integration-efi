@@ -53,6 +53,7 @@ const (
 // ResourceTypes via the contractcheck lint.
 var SupportedExecuteOperations = []string{
 	OperationCreateCharge,
+	OperationCreateDueCharge,
 }
 
 // Describe returns the integration_type manifest the orchestrator
@@ -136,7 +137,7 @@ func Describe() contract.AdapterDescribeResponse {
 				CanonicalPrefix:  "thirdparty.efi.charge",
 				IdentityTemplate: "charge.{txid}",
 				Discoverable:     false,
-				DefaultActions:   []string{OperationCreateCharge},
+				DefaultActions:   []string{OperationCreateCharge, OperationCreateDueCharge},
 			},
 		},
 		ActionCatalog: []contract.IntegrationActionDefinition{
@@ -145,6 +146,13 @@ func Describe() contract.AdapterDescribeResponse {
 				Description:   "Create an immediate Pix charge (cob) per BCB API.",
 				ResourceTypes: []string{"charge"},
 				Idempotent:    false, // caller-provided txid makes it effectively idempotent
+				Category:      "capability",
+			},
+			{
+				Name:          OperationCreateDueCharge,
+				Description:   "Create a due-date Pix charge (cobv) per BCB API. PUT /v2/cobv/{txid}.",
+				ResourceTypes: []string{"charge"},
+				Idempotent:    true, // txid is mandatory for cobv
 				Category:      "capability",
 			},
 		},
