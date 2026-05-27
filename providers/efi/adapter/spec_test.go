@@ -50,8 +50,8 @@ func TestManifestCapabilityYAMLsParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read %s: %v", dir, err)
 	}
-	if len(entries) != 11 {
-		t.Fatalf("expected 11 capability YAMLs, got %d", len(entries))
+	if len(entries) != 10 {
+		t.Fatalf("expected 10 capability YAMLs, got %d", len(entries))
 	}
 	for _, e := range entries {
 		raw, err := os.ReadFile(filepath.Join(dir, e.Name()))
@@ -115,6 +115,26 @@ func TestSpec_EnsureDueChargeReplaceCreateDueCharge(t *testing.T) {
 	}
 	if names["create_due_charge"] {
 		t.Error("create_due_charge must be removed")
+	}
+}
+
+// TestSpec_ObserveChargesMergesStatusAndStatement asserts the merge
+// landed: observe_charges is the single canonical read op, and the
+// pre-convention get_charge_status + get_statement are both gone.
+func TestSpec_ObserveChargesMergesStatusAndStatement(t *testing.T) {
+	desc := Describe()
+	names := map[string]bool{}
+	for _, a := range desc.ActionCatalog {
+		names[a.Name] = true
+	}
+	if !names["observe_charges"] {
+		t.Error("expected observe_charges")
+	}
+	if names["get_charge_status"] {
+		t.Error("get_charge_status must be merged into observe_charges")
+	}
+	if names["get_statement"] {
+		t.Error("get_statement must be merged into observe_charges")
 	}
 }
 

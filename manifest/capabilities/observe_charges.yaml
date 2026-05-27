@@ -1,0 +1,37 @@
+name: observe_charges
+description: Observe Pix charges. Filter {txid} returns the single charge (GET /v2/cob/{txid}); filter {inicio, fim} returns a paged statement window (GET /v2/cob?inicio=&fim=&page=&page_size=&status=). v2.0.0 merge of get_charge_status + get_statement.
+category: capability
+resource_types: [charge]
+idempotent: true
+input_schema:
+  description: "Caller MUST supply either {txid} OR {inicio, fim}. Other fields are optional and only apply to the time-range variant."
+  properties:
+    txid:
+      type: string
+      description: When set, returns the single charge (GET /v2/cob/{txid}).
+    inicio:
+      type: string
+      description: RFC3339 start (statement window). Required with fim.
+    fim:
+      type: string
+      description: RFC3339 end (statement window). Required with inicio.
+    status:
+      type: string
+      description: Filter the statement by charge status (statement variant only).
+    page:
+      type: integer
+      default: 0
+    page_size:
+      type: integer
+      default: 100
+output_schema:
+  description: "Raw upstream payload. Single-charge variant: {txid, status, pix[]}. Statement variant: {parametros, cobs[]}."
+  properties:
+    txid: {type: string}
+    status: {type: string}
+    pix:
+      type: array
+    parametros:
+      type: object
+    cobs:
+      type: array

@@ -36,10 +36,9 @@ const (
 const (
 	OperationEnsureCharge              = "ensure_charge"
 	OperationEnsureDueCharge           = "ensure_due_charge"
-	OperationGetChargeStatus           = "get_charge_status"
+	OperationObserveCharges            = "observe_charges"
 	OperationRefundCharge              = "refund_charge"
 	OperationCreatePayout              = "create_payout"
-	OperationGetStatement              = "get_statement"
 	OperationHandleChargeback          = "handle_chargeback"
 	OperationRegisterWebhookEndpoint   = "register_webhook_endpoint"
 	OperationUnregisterWebhookEndpoint = "unregister_webhook_endpoint"
@@ -54,10 +53,9 @@ const (
 var SupportedExecuteOperations = []string{
 	OperationEnsureCharge,
 	OperationEnsureDueCharge,
-	OperationGetChargeStatus,
+	OperationObserveCharges,
 	OperationRefundCharge,
 	OperationCreatePayout,
-	OperationGetStatement,
 	OperationHandleChargeback,
 	OperationRegisterWebhookEndpoint,
 	OperationUnregisterWebhookEndpoint,
@@ -146,7 +144,7 @@ func Describe() contract.AdapterDescribeResponse {
 				CanonicalPrefix:  "thirdparty.efi.charge",
 				IdentityTemplate: "charge.{txid}",
 				Discoverable:     false,
-				DefaultActions:   []string{OperationEnsureCharge, OperationEnsureDueCharge, OperationGetChargeStatus},
+				DefaultActions:   []string{OperationEnsureCharge, OperationEnsureDueCharge, OperationObserveCharges},
 			},
 			{
 				Name:             "pix_transaction",
@@ -154,13 +152,6 @@ func Describe() contract.AdapterDescribeResponse {
 				IdentityTemplate: "pix.{e2eId}",
 				Discoverable:     false,
 				DefaultActions:   []string{OperationRefundCharge, OperationCreatePayout, OperationHandleChargeback},
-			},
-			{
-				Name:             "statement",
-				CanonicalPrefix:  "thirdparty.efi.statement",
-				IdentityTemplate: "statement.{inicio}.{fim}",
-				Discoverable:     false,
-				DefaultActions:   []string{OperationGetStatement},
 			},
 			{
 				Name:             "webhook",
@@ -186,8 +177,8 @@ func Describe() contract.AdapterDescribeResponse {
 				Category:      "capability",
 			},
 			{
-				Name:          OperationGetChargeStatus,
-				Description:   "Fetch the status + pix[] for a charge. GET /v2/cob/{txid}.",
+				Name:          OperationObserveCharges,
+				Description:   "Observe Pix charges. Filter {txid: X} returns the single charge (GET /v2/cob/{txid}); filter {inicio, fim} returns a paged statement window (GET /v2/cob?inicio=&fim=&page=&page_size=). Read-only.",
 				ResourceTypes: []string{"charge"},
 				Idempotent:    true,
 				Category:      "capability",
@@ -204,13 +195,6 @@ func Describe() contract.AdapterDescribeResponse {
 				Description:   "Send a Pix payout (envio). PUT /v3/gn/pix/{idEnvio}. IntermediateIrreversible — money movement.",
 				ResourceTypes: []string{"pix_transaction"},
 				Idempotent:    false, // safety classification — server idempotency exists but caller must treat as opaque
-				Category:      "capability",
-			},
-			{
-				Name:          OperationGetStatement,
-				Description:   "Fetch a charge statement window. GET /v2/cob?inicio=&fim=&page=&page_size=.",
-				ResourceTypes: []string{"statement"},
-				Idempotent:    true,
 				Category:      "capability",
 			},
 			{
@@ -261,9 +245,8 @@ func Describe() contract.AdapterDescribeResponse {
 			IdempotentActions: []string{
 				OperationEnsureCharge,
 				OperationEnsureDueCharge,
-				OperationGetChargeStatus,
+				OperationObserveCharges,
 				OperationRefundCharge,
-				OperationGetStatement,
 				OperationHandleChargeback,
 				OperationRegisterWebhookEndpoint,
 				OperationUnregisterWebhookEndpoint,
