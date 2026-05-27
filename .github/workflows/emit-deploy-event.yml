@@ -60,13 +60,17 @@ jobs:
           SOURCE_RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
+          # Soft-skip when YGGDRASIL_CORE_BASE_URL/YGGDRASIL_WORKFLOW_RUN_TOKEN
+          # are not configured on the repo (matches integration-template
+          # pattern). The job stays green so it never blocks commits on
+          # adapters that have not been wired into yggdrasil-core yet.
           if [ -z "${CORE_BASE_URL:-}" ]; then
-            echo "::error::YGGDRASIL_CORE_BASE_URL secret is not set on this repo"
-            exit 1
+            echo "::notice::YGGDRASIL_CORE_BASE_URL secret not set on this repo; soft-skipping deploy event emission."
+            exit 0
           fi
           if [ -z "${WORKFLOW_RUN_TOKEN:-}" ]; then
-            echo "::error::YGGDRASIL_WORKFLOW_RUN_TOKEN secret is not set on this repo"
-            exit 1
+            echo "::notice::YGGDRASIL_WORKFLOW_RUN_TOKEN secret not set on this repo; soft-skipping deploy event emission."
+            exit 0
           fi
           # Build the JSON payload (jq handles escaping safely).
           payload=$(jq -nc \
