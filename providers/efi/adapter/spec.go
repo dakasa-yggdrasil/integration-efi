@@ -55,6 +55,7 @@ var SupportedExecuteOperations = []string{
 	OperationCreateCharge,
 	OperationCreateDueCharge,
 	OperationGetChargeStatus,
+	OperationRefundCharge,
 }
 
 // Describe returns the integration_type manifest the orchestrator
@@ -140,6 +141,13 @@ func Describe() contract.AdapterDescribeResponse {
 				Discoverable:     false,
 				DefaultActions:   []string{OperationCreateCharge, OperationCreateDueCharge, OperationGetChargeStatus},
 			},
+			{
+				Name:             "pix_transaction",
+				CanonicalPrefix:  "thirdparty.efi.pix",
+				IdentityTemplate: "pix.{e2eId}",
+				Discoverable:     false,
+				DefaultActions:   []string{OperationRefundCharge},
+			},
 		},
 		ActionCatalog: []contract.IntegrationActionDefinition{
 			{
@@ -163,6 +171,13 @@ func Describe() contract.AdapterDescribeResponse {
 				Idempotent:    true,
 				Category:      "capability",
 			},
+			{
+				Name:          OperationRefundCharge,
+				Description:   "Refund a Pix transaction. PUT /v2/pix/{e2eId}/devolucao/{id}.",
+				ResourceTypes: []string{"pix_transaction"},
+				Idempotent:    true, // caller-supplied id is the dedup key
+				Category:      "capability",
+			},
 		},
 		Discovery: contract.IntegrationDiscoverySpec{
 			Mode:   "push",
@@ -176,6 +191,7 @@ func Describe() contract.AdapterDescribeResponse {
 			IdempotentActions: []string{
 				OperationCreateDueCharge,
 				OperationGetChargeStatus,
+				OperationRefundCharge,
 			},
 		},
 		Extensions: contract.IntegrationExtensionsSpec{
