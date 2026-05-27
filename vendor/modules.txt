@@ -14,6 +14,8 @@ github.com/dakasa-yggdrasil/yggdrasil-sdk-go/mtls
 github.com/dakasa-yggdrasil/yggdrasil-sdk-go/rpc
 github.com/dakasa-yggdrasil/yggdrasil-sdk-go/rpc/amqp
 github.com/dakasa-yggdrasil/yggdrasil-sdk-go/rpc/http
+github.com/dakasa-yggdrasil/yggdrasil-sdk-go/sdk/events
+github.com/dakasa-yggdrasil/yggdrasil-sdk-go/sdk/reconcile
 # github.com/go-logr/logr v1.4.3
 ## explicit; go 1.18
 github.com/go-logr/logr

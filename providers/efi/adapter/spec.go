@@ -21,7 +21,12 @@ const (
 	IntegrationType = "efi"
 
 	// AdapterVersion is the wire-advertised adapter binary version.
-	AdapterVersion = "2.1.0"
+	// v2.2.0: production runtime migrated to sdk/reconcile.Dispatch
+	// via the Option B hybrid bridge — 3 Reconcilers authored (charge,
+	// due_charge, webhook_subscription) and §6.5 mutation events emit
+	// live for ensure_/destroy_ on those resource types when
+	// YGGDRASIL_CORE_URL is wired in cluster.
+	AdapterVersion = "2.2.0"
 
 	// QueueDescribe / QueueExecute are the AMQP queue names used when
 	// transport=amqp. http_json mode uses the Endpoints instead.
@@ -48,6 +53,23 @@ const (
 	OperationEfiWebhookReceived        = "efi_webhook_received"
 )
 
+// SDK-only dispatch operations. The Reconciler[D,O] registration in
+// reconcile.go installs these names in the SDK dispatch table so the
+// canonical ensure_/observe_/destroy_ triple for the due_charge
+// resource type is complete. Their handlers route internally to
+// OperationObserveCharges / OperationDestroyCharge — BCB Pix exposes
+// cob and cobv records under the same /v2/cob/{txid} GET + PATCH paths.
+//
+// These are intentionally NOT added to SupportedExecuteOperations (the
+// gate the legacy adapter.Execute switch consults): they are valid
+// ONLY through the SDK reconcile.Dispatch path. The hybrid bridge in
+// providers/efi/message/execute.go routes them via the SDK first; the
+// legacy switch never sees them.
+const (
+	SDKOperationObserveDueCharges = "observe_due_charges"
+	SDKOperationDestroyDueCharge  = "destroy_due_charge"
+)
+
 // SupportedExecuteOperations is the canonical list of operations
 // dispatchable through Execute(). It grows as each capability task lands
 // (one entry per capability). Kept in sync with ActionCatalog +
@@ -65,6 +87,17 @@ var SupportedExecuteOperations = []string{
 	OperationDestroyWebhookSubscription,
 	OperationVerifyWebhookSignature,
 	OperationEfiWebhookReceived,
+}
+
+// SDKOnlyOperations names the operations registered ONLY in the SDK
+// reconcile.Dispatch table — they are not in SupportedExecuteOperations
+// (so the legacy adapter.Execute switch rejects them) but the hybrid
+// bridge admits them when reconcile.Dispatch can route them. Used by
+// SupportsExecuteCapability so the controllers/message gate doesn't
+// reject SDK-handled callers BEFORE the bridge gets a chance to route.
+var SDKOnlyOperations = []string{
+	SDKOperationObserveDueCharges,
+	SDKOperationDestroyDueCharge,
 }
 
 // Describe returns the integration_type manifest the orchestrator
@@ -308,12 +341,18 @@ func NormalizeExecuteCapability(capability, operation string) string {
 }
 
 // SupportsExecuteCapability returns true when value names an entry in
-// SupportedExecuteOperations, names a legacy alias in
+// SupportedExecuteOperations, in SDKOnlyOperations (handled by the SDK
+// reconcile dispatch path), names a legacy alias in
 // LegacyOperationAliases, or is blank (operation-only dispatch).
 func SupportsExecuteCapability(value string) bool {
 	value = strings.TrimSpace(value)
 	for _, supported := range SupportedExecuteOperations {
 		if value == supported {
+			return true
+		}
+	}
+	for _, sdkOnly := range SDKOnlyOperations {
+		if value == sdkOnly {
 			return true
 		}
 	}
