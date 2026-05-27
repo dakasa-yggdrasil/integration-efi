@@ -3,6 +3,7 @@ package adapter
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/dakasa-yggdrasil/integration-efi/family/contract"
 	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/adapter/capabilities"
@@ -19,13 +20,36 @@ var DefaultReactorEmit reactor.EmitFunc = func(_ context.Context, _, _ string, _
 	return nil
 }
 
+// LegacyDeprecationLogger is the function called the first time a v1.x
+// operation name routes through the compat shim. Production wires this
+// to a zap.SugaredLogger.Warnf in main.go; tests can override it to
+// capture invocations. Default uses log.Printf so the WARN is at least
+// visible during dev runs.
+//
+// The shim is removed in integration-efi v3.0.0 (matching SDK v0.6.0).
+var LegacyDeprecationLogger = func(format string, args ...any) {
+	log.Printf("WARN "+format, args...)
+}
+
 // Execute dispatches one EFI operation. It builds a fresh EfiClient
 // per request — the OAuth token is short-lived and an EFI roundtrip
 // is cheap. A later iteration could cache by instance-config hash.
+//
+// Legacy compat (v2.0.0 transition): if the caller passes a v1.x
+// operation name listed in LegacyOperationAliases, it is silently
+// remapped to the canonical v2.0.0 name and a deprecation WARN is
+// emitted via LegacyDeprecationLogger. The shim is removed in v3.0.0.
 func Execute(req contract.AdapterExecuteIntegrationRequest) (contract.AdapterExecuteIntegrationResponse, error) {
 	operation := NormalizeExecuteOperation(req.Operation, req.Capability)
 	if operation == "" {
 		return contract.AdapterExecuteIntegrationResponse{}, fmt.Errorf("operation is required")
+	}
+	if canonical, legacy := CanonicalOperationFor(operation); legacy {
+		LegacyDeprecationLogger(
+			"integration-efi: deprecated capability name %q invoked; use %q (v2.0.0 compat shim, removed in v3.0.0)",
+			operation, canonical,
+		)
+		operation = canonical
 	}
 
 	cfg := configFromRequest(req)

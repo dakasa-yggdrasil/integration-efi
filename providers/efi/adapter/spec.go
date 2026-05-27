@@ -308,8 +308,8 @@ func NormalizeExecuteCapability(capability, operation string) string {
 }
 
 // SupportsExecuteCapability returns true when value names an entry in
-// SupportedExecuteOperations (or is blank, allowing operation-only
-// dispatch).
+// SupportedExecuteOperations, names a legacy alias in
+// LegacyOperationAliases, or is blank (operation-only dispatch).
 func SupportsExecuteCapability(value string) bool {
 	value = strings.TrimSpace(value)
 	for _, supported := range SupportedExecuteOperations {
@@ -317,5 +317,43 @@ func SupportsExecuteCapability(value string) bool {
 			return true
 		}
 	}
+	if _, legacy := LegacyOperationAliases[value]; legacy {
+		return true
+	}
 	return value == ""
+}
+
+// LegacyOperationAliases maps every pre-convention v1.x operation
+// name to its v2.0.0 canonical replacement. The Execute switch
+// resolves through this table BEFORE the canonical dispatch so any
+// caller still publishing the legacy names continues to work for one
+// minor cycle.
+//
+// Each legacy invocation logs a structured "deprecated capability
+// name" message via the WARN-shim wrapper installed at the call site
+// in adapter.go. The shim is removed in integration-efi v3.0.0,
+// matching the SDK v0.6.0 deprecation cadence.
+//
+// Mirror of yggdrasil-sdk-go v0.5.0 sdk/reconcile.WithLegacyNames —
+// the same idea expressed in this adapter's local dispatch path.
+var LegacyOperationAliases = map[string]string{
+	"create_charge":                OperationEnsureCharge,
+	"create_due_charge":            OperationEnsureDueCharge,
+	"get_charge_status":            OperationObserveCharges,
+	"get_statement":                OperationObserveCharges,
+	"register_webhook_endpoint":    OperationEnsureWebhookSubscription,
+	"unregister_webhook_endpoint":  OperationDestroyWebhookSubscription,
+}
+
+// CanonicalOperationFor returns the v2.0.0 canonical operation name
+// for value. If value is already canonical (or unrecognized), it is
+// returned unchanged. The second return is true ONLY when value was
+// a legacy alias — the caller (Execute) uses that to decide whether
+// to log the deprecation WARN.
+func CanonicalOperationFor(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	if canonical, ok := LegacyOperationAliases[value]; ok {
+		return canonical, true
+	}
+	return value, false
 }
