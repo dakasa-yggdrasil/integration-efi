@@ -52,16 +52,27 @@ func NewWebhookServer(addr string, tlsConfig *tls.Config, emit reactor.EmitFunc,
 			http.Error(w, "bad json", http.StatusBadRequest)
 			return
 		}
+		pixStatus := ""
+		if pixSlice, ok := payload["pix"].([]any); ok && len(pixSlice) > 0 {
+			if first, ok := pixSlice[0].(map[string]any); ok {
+				if s, ok := first["status"].(string); ok {
+					pixStatus = s
+				}
+			}
+		}
 		got, err := reactor.EfiWebhookReceived(r.Context(), emit, payload)
 		if err != nil {
+			WebhookReceived.WithLabelValues("emit_failed", pixStatus).Inc()
 			logger.Error("efi webhook emit failed", zap.Error(err))
 			http.Error(w, "emit failed", http.StatusInternalServerError)
 			return
 		}
 		if emitted, _ := got["emitted"].(bool); !emitted {
+			WebhookReceived.WithLabelValues("noop", pixStatus).Inc()
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
+		WebhookReceived.WithLabelValues("received", pixStatus).Inc()
 		w.WriteHeader(http.StatusAccepted)
 	})
 

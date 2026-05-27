@@ -99,6 +99,8 @@ func main() {
 		}
 	}()
 
+	ad.AdapterUp.Set(1)
+
 	if err := a.Run(ctx); err != nil {
 		logger.Fatal("adapter run", zap.Error(err))
 	}

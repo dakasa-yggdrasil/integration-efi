@@ -76,12 +76,15 @@ func NewEfiClient(cfg config.Config, tlsConfig *tls.Config) (*EfiClient, error) 
 		AccessToken string `json:"access_token"`
 	}
 	if err := json.Unmarshal(raw, &token); err != nil {
+		OAuthRefreshes.WithLabelValues("decode_fail").Inc()
 		return nil, fmt.Errorf("efi: decode oauth response: %w", err)
 	}
 	if strings.TrimSpace(token.AccessToken) == "" {
+		OAuthRefreshes.WithLabelValues("empty_token").Inc()
 		return nil, fmt.Errorf("efi: oauth response had empty access_token")
 	}
 
+	OAuthRefreshes.WithLabelValues("success").Inc()
 	return &EfiClient{
 		cfg:        cfg,
 		httpClient: httpClient,
@@ -121,7 +124,25 @@ func IsTransientError(err error) bool {
 
 // do issues a Bearer-auth request and decodes the JSON response into
 // dest. Returns *EfiAPIError on non-2xx so callers can classify.
+// Records efi_request_duration_seconds + efi_request_errors_total.
 func (c *EfiClient) do(ctx context.Context, method, path string, body, dest any, headers map[string]string) error {
+	op := classifyPath(path)
+	start := time.Now()
+	err := c.doInner(ctx, method, path, body, dest, headers)
+	statusClass := "2xx"
+	var apiErr *EfiAPIError
+	if errors.As(err, &apiErr) {
+		statusClass = fmt.Sprintf("%dxx", apiErr.Status/100)
+		RequestErrors.WithLabelValues(op, fmt.Sprint(apiErr.Status)).Inc()
+	} else if err != nil {
+		statusClass = "transport"
+	}
+	RequestDuration.WithLabelValues(op, statusClass).Observe(time.Since(start).Seconds())
+	return err
+}
+
+// doInner is the non-instrumented core; metric wrapping lives in do().
+func (c *EfiClient) doInner(ctx context.Context, method, path string, body, dest any, headers map[string]string) error {
 	var reader io.Reader
 	if body != nil {
 		raw, err := json.Marshal(body)
