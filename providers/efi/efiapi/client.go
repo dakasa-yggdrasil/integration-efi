@@ -17,6 +17,9 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+
 	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/config"
 )
 
@@ -124,9 +127,18 @@ func IsTransientError(err error) bool {
 
 // do issues a Bearer-auth request and decodes the JSON response into
 // dest. Returns *EfiAPIError on non-2xx so callers can classify.
-// Records efi_request_duration_seconds + efi_request_errors_total.
+// Records efi_request_duration_seconds + efi_request_errors_total
+// AND emits an OpenTelemetry span (1 span per EFI API call).
 func (c *EfiClient) do(ctx context.Context, method, path string, body, dest any, headers map[string]string) error {
 	op := classifyPath(path)
+	tracer := otel.Tracer("integration-efi")
+	ctx, span := tracer.Start(ctx, "efi."+op)
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("http.method", method),
+		attribute.String("http.path", path),
+	)
+
 	start := time.Now()
 	err := c.doInner(ctx, method, path, body, dest, headers)
 	statusClass := "2xx"
@@ -134,8 +146,11 @@ func (c *EfiClient) do(ctx context.Context, method, path string, body, dest any,
 	if errors.As(err, &apiErr) {
 		statusClass = fmt.Sprintf("%dxx", apiErr.Status/100)
 		RequestErrors.WithLabelValues(op, fmt.Sprint(apiErr.Status)).Inc()
+		span.SetAttributes(attribute.Int("http.status_code", apiErr.Status))
+		span.RecordError(err)
 	} else if err != nil {
 		statusClass = "transport"
+		span.RecordError(err)
 	}
 	RequestDuration.WithLabelValues(op, statusClass).Observe(time.Since(start).Seconds())
 	return err

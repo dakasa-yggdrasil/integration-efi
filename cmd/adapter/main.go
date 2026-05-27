@@ -27,6 +27,9 @@ import (
 	"time"
 
 	"github.com/dakasa-yggdrasil/yggdrasil-sdk-go/adapter"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/zap"
 
 	ad "github.com/dakasa-yggdrasil/integration-efi/providers/efi/adapter"
@@ -41,6 +44,19 @@ func main() {
 		panic(err)
 	}
 	defer func() { _ = logger.Sync() }()
+
+	// OTel tracer provider — installed globally so efiapi.do() picks it up.
+	tp, err := newTracerProvider(context.Background())
+	if err != nil {
+		logger.Warn("OTel tracer init failed; spans will be no-op", zap.Error(err))
+	}
+	if tp != nil {
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = tp.Shutdown(shutdownCtx)
+		}()
+	}
 
 	a := adapter.New(adapter.Config{
 		Provider:        ad.Provider,
@@ -117,6 +133,26 @@ func envOrDefault(name, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+// newTracerProvider wires an OTLP gRPC exporter when
+// OTEL_EXPORTER_OTLP_ENDPOINT is set; otherwise returns a no-op
+// provider. The global tracer is installed so efiapi.do() picks it
+// up automatically.
+func newTracerProvider(ctx context.Context) (*sdktrace.TracerProvider, error) {
+	endpoint := strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
+	if endpoint == "" {
+		tp := sdktrace.NewTracerProvider()
+		otel.SetTracerProvider(tp)
+		return tp, nil
+	}
+	exp, err := otlptracegrpc.New(ctx, otlptracegrpc.WithEndpoint(endpoint), otlptracegrpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+	tp := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exp))
+	otel.SetTracerProvider(tp)
+	return tp, nil
 }
 
 // newProductionEmitFunc returns an EmitFunc that POSTs a
