@@ -1,4 +1,4 @@
-package adapter
+package efiapi
 
 import (
 	"crypto/tls"

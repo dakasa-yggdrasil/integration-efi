@@ -1,4 +1,9 @@
-package adapter
+// Package efiapi hosts the HTTP client used by every capability to
+// talk to EFI's API. It lives in a sibling package so that the
+// capabilities subpackage can import it without creating an import
+// cycle with the adapter package (which routes Execute() through both
+// the client and the capabilities).
+package efiapi
 
 import (
 	"bytes"

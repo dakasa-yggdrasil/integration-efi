@@ -1,16 +1,81 @@
 package adapter
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/dakasa-yggdrasil/integration-efi/family/contract"
+	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/adapter/capabilities"
+	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/config"
+	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/efiapi"
 )
 
-// Execute is the operation dispatcher. As capabilities land in
-// providers/efi/adapter/capabilities, this function gains a case in
-// the switch. The bootstrap version returns "not yet implemented" for
-// any operation so the ExecuteHandler compiles.
+// Execute dispatches one EFI operation. It builds a fresh EfiClient
+// per request — the OAuth token is short-lived and an EFI roundtrip
+// is cheap. A later iteration could cache by instance-config hash.
 func Execute(req contract.AdapterExecuteIntegrationRequest) (contract.AdapterExecuteIntegrationResponse, error) {
 	operation := NormalizeExecuteOperation(req.Operation, req.Capability)
-	return contract.AdapterExecuteIntegrationResponse{}, fmt.Errorf("operation %q not yet implemented", operation)
+	if operation == "" {
+		return contract.AdapterExecuteIntegrationResponse{}, fmt.Errorf("operation is required")
+	}
+
+	cfg := configFromRequest(req)
+	tlsConfig, err := LoadTLSConfig(cfg)
+	if err != nil {
+		return contract.AdapterExecuteIntegrationResponse{}, fmt.Errorf("load mTLS: %w", err)
+	}
+	client, err := efiapi.NewEfiClient(cfg, tlsConfig)
+	if err != nil {
+		return contract.AdapterExecuteIntegrationResponse{}, fmt.Errorf("authenticate to EFI: %w", err)
+	}
+
+	ctx := context.Background()
+	output := map[string]any{"provider": Provider}
+
+	switch operation {
+	case OperationCreateCharge:
+		got, err := capabilities.CreateCharge(ctx, client, req.Input)
+		if err != nil {
+			return contract.AdapterExecuteIntegrationResponse{}, err
+		}
+		for k, v := range got {
+			output[k] = v
+		}
+	default:
+		return contract.AdapterExecuteIntegrationResponse{}, fmt.Errorf("unsupported operation %q", operation)
+	}
+
+	return contract.AdapterExecuteIntegrationResponse{
+		Operation:  operation,
+		Capability: operation,
+		Status:     "ok",
+		Output:     output,
+		Metadata:   map[string]any{"provider": Provider, "base_url": cfg.BaseURL},
+	}, nil
+}
+
+// configFromRequest builds a config.Config from the instance manifest
+// (instance_spec.credentials/config), falling back to process env vars
+// when an instance field is unset.
+func configFromRequest(req contract.AdapterExecuteIntegrationRequest) config.Config {
+	cfg := config.Load() // env defaults
+	creds := req.Integration.InstanceSpec.Credentials
+	inst := req.Integration.InstanceSpec.Config
+
+	if v, _ := creds["efi_client_key_id"].(string); v != "" {
+		cfg.ClientKeyID = v
+	}
+	if v, _ := creds["efi_client_secret"].(string); v != "" {
+		cfg.ClientSecret = v
+	}
+	if v, _ := creds["efi_certificate_base64"].(string); v != "" {
+		cfg.CertificateBase64 = v
+	}
+	if v, _ := inst["base_url"].(string); v != "" {
+		cfg.BaseURL = v
+	}
+	if v, ok := inst["mtls_enabled"].(bool); ok {
+		cfg.MTLSEnabled = v
+	}
+	return cfg
 }

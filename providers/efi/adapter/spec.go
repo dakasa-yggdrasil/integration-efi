@@ -29,11 +29,31 @@ const (
 	QueueExecute  = "yggdrasil.adapter.efi.execute"
 )
 
+// Operation constants are declared here (rather than imported from
+// capabilities/) so that spec.go can reference them without creating
+// an import cycle: the capabilities subpackage already imports
+// `adapter` for EfiClient + DoRaw.
+const (
+	OperationCreateCharge              = "create_charge"
+	OperationCreateDueCharge           = "create_due_charge"
+	OperationGetChargeStatus           = "get_charge_status"
+	OperationRefundCharge              = "refund_charge"
+	OperationCreatePayout              = "create_payout"
+	OperationGetStatement              = "get_statement"
+	OperationHandleChargeback          = "handle_chargeback"
+	OperationRegisterWebhookEndpoint   = "register_webhook_endpoint"
+	OperationUnregisterWebhookEndpoint = "unregister_webhook_endpoint"
+	OperationVerifyWebhookSignature    = "verify_webhook_signature"
+	OperationEfiWebhookReceived        = "efi_webhook_received"
+)
+
 // SupportedExecuteOperations is the canonical list of operations
 // dispatchable through Execute(). It grows as each capability task lands
 // (one entry per capability). Kept in sync with ActionCatalog +
 // ResourceTypes via the contractcheck lint.
-var SupportedExecuteOperations = []string{}
+var SupportedExecuteOperations = []string{
+	OperationCreateCharge,
+}
 
 // Describe returns the integration_type manifest the orchestrator
 // stores at register-time. The shape is the standard
@@ -110,8 +130,24 @@ func Describe() contract.AdapterDescribeResponse {
 				},
 			},
 		},
-		ResourceTypes: []contract.IntegrationResourceType{},
-		ActionCatalog: []contract.IntegrationActionDefinition{},
+		ResourceTypes: []contract.IntegrationResourceType{
+			{
+				Name:             "charge",
+				CanonicalPrefix:  "thirdparty.efi.charge",
+				IdentityTemplate: "charge.{txid}",
+				Discoverable:     false,
+				DefaultActions:   []string{OperationCreateCharge},
+			},
+		},
+		ActionCatalog: []contract.IntegrationActionDefinition{
+			{
+				Name:          OperationCreateCharge,
+				Description:   "Create an immediate Pix charge (cob) per BCB API.",
+				ResourceTypes: []string{"charge"},
+				Idempotent:    false, // caller-provided txid makes it effectively idempotent
+				Category:      "capability",
+			},
+		},
 		Discovery: contract.IntegrationDiscoverySpec{
 			Mode:   "push",
 			Cursor: "none",
