@@ -58,6 +58,7 @@ var SupportedExecuteOperations = []string{
 	OperationRefundCharge,
 	OperationCreatePayout,
 	OperationGetStatement,
+	OperationHandleChargeback,
 }
 
 // Describe returns the integration_type manifest the orchestrator
@@ -148,7 +149,7 @@ func Describe() contract.AdapterDescribeResponse {
 				CanonicalPrefix:  "thirdparty.efi.pix",
 				IdentityTemplate: "pix.{e2eId}",
 				Discoverable:     false,
-				DefaultActions:   []string{OperationRefundCharge, OperationCreatePayout},
+				DefaultActions:   []string{OperationRefundCharge, OperationCreatePayout, OperationHandleChargeback},
 			},
 			{
 				Name:             "statement",
@@ -201,6 +202,13 @@ func Describe() contract.AdapterDescribeResponse {
 				Idempotent:    true,
 				Category:      "capability",
 			},
+			{
+				Name:          OperationHandleChargeback,
+				Description:   "Acknowledge an EFI chargeback. Pass-through, no HTTP call. Idempotent by chargeback_id.",
+				ResourceTypes: []string{"pix_transaction"},
+				Idempotent:    true,
+				Category:      "capability",
+			},
 		},
 		Discovery: contract.IntegrationDiscoverySpec{
 			Mode:   "push",
@@ -216,6 +224,7 @@ func Describe() contract.AdapterDescribeResponse {
 				OperationGetChargeStatus,
 				OperationRefundCharge,
 				OperationGetStatement,
+				OperationHandleChargeback,
 			},
 		},
 		Extensions: contract.IntegrationExtensionsSpec{
