@@ -5,6 +5,32 @@ All notable changes to integration-efi will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] — 2026-05-27
+
+### Changed
+
+- **Bumped `yggdrasil-sdk-go` v0.7.0 → v0.8.0**. SDK ships an opt-in
+  `DestroyWithDesired[D]` interface that lets reconcilers see the
+  FULL desired payload during destruction — closing the latent
+  destroy-credential bug at the SDK level per
+  INTEGRATION_CONTRACT.md §5.b.
+- **`chargeReconciler`, `dueChargeReconciler`,
+  `webhookSubscriptionReconciler` implement `DestroyWithDesired`**.
+  Each method merges the inbound ref into the desired payload the
+  SDK forwards (so `txid` / `chave` is present for handlers), then
+  routes through the same `dispatch()` helper Ensure / Observe use.
+  Reserved bridge keys (`_integration` / `instance_id`) propagate to
+  the destroy handler — mTLS cert path + EFI client_id reach
+  clientForInstance the same way ensure_* / observe_* see them.
+
+### Tests
+
+- New `TestSDKDispatch_DestroyCharge_PreservesReservedKeys` exercises
+  destroy_charge through reconcile.Dispatch end-to-end with the
+  bridge-stashed `_integration` blob — proves the v0.8.0 +
+  DestroyWithDesired combination propagates credentials to the
+  destroy handler.
+
 ## [Unreleased] — 2026-05-27 (operator wiring, no code change)
 
 ### Operator changes
