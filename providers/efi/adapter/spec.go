@@ -60,6 +60,7 @@ var SupportedExecuteOperations = []string{
 	OperationGetStatement,
 	OperationHandleChargeback,
 	OperationRegisterWebhookEndpoint,
+	OperationUnregisterWebhookEndpoint,
 }
 
 // Describe returns the integration_type manifest the orchestrator
@@ -164,7 +165,7 @@ func Describe() contract.AdapterDescribeResponse {
 				CanonicalPrefix:  "thirdparty.efi.webhook",
 				IdentityTemplate: "webhook.{chave}",
 				Discoverable:     false,
-				DefaultActions:   []string{OperationRegisterWebhookEndpoint},
+				DefaultActions:   []string{OperationRegisterWebhookEndpoint, OperationUnregisterWebhookEndpoint},
 			},
 		},
 		ActionCatalog: []contract.IntegrationActionDefinition{
@@ -224,6 +225,13 @@ func Describe() contract.AdapterDescribeResponse {
 				Idempotent:    true,
 				Category:      "capability",
 			},
+			{
+				Name:          OperationUnregisterWebhookEndpoint,
+				Description:   "Unregister a Pix webhook URL. DELETE /v2/webhook/{chave}. 404 treated as success.",
+				ResourceTypes: []string{"webhook"},
+				Idempotent:    true,
+				Category:      "capability",
+			},
 		},
 		Discovery: contract.IntegrationDiscoverySpec{
 			Mode:   "push",
@@ -241,6 +249,7 @@ func Describe() contract.AdapterDescribeResponse {
 				OperationGetStatement,
 				OperationHandleChargeback,
 				OperationRegisterWebhookEndpoint,
+				OperationUnregisterWebhookEndpoint,
 			},
 		},
 		Extensions: contract.IntegrationExtensionsSpec{
