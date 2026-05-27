@@ -12,24 +12,116 @@
       },
       "timeout_seconds": 30
     },
-    "capabilities": ["describe", "execute"],
+    "capabilities": [
+      "describe",
+      "execute"
+    ],
     "credential_schema": {
       "mode": "inline",
-      "required": ["efi_client_key_id", "efi_client_secret"],
+      "required": [
+        "efi_client_key_id",
+        "efi_client_secret"
+      ],
       "properties": {
-        "efi_client_key_id":      {"type": "string", "description": "EFI Pix API client key ID."},
-        "efi_client_secret":      {"type": "string", "description": "EFI Pix API client secret.", "secret": true},
-        "efi_certificate_base64": {"type": "string", "description": "Base64-encoded P12 mTLS certificate.", "secret": true}
+        "efi_client_key_id": {
+          "type": "string",
+          "description": "EFI Pix API client key ID."
+        },
+        "efi_client_secret": {
+          "type": "string",
+          "description": "EFI Pix API client secret.",
+          "secret": true
+        },
+        "efi_certificate_base64": {
+          "type": "string",
+          "description": "Base64-encoded P12 mTLS certificate.",
+          "secret": true
+        }
       }
     },
     "instance_schema": {
       "mode": "inline",
       "properties": {
-        "base_url":     {"type": "string", "default": "https://pix.api.efipay.com.br"},
-        "sandbox":      {"type": "boolean", "default": false},
-        "mtls_enabled": {"type": "boolean", "default": true},
-        "webhook_port": {"type": "integer", "default": 9079}
+        "base_url": {
+          "type": "string",
+          "default": "https://pix.api.efipay.com.br"
+        },
+        "sandbox": {
+          "type": "boolean",
+          "default": false
+        },
+        "mtls_enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "webhook_port": {
+          "type": "integer",
+          "default": 9079
+        }
       }
+    },
+    "resource_types": [
+      {
+        "name": "charge",
+        "discoverable": false,
+        "default_actions": [
+          "ensure_charge",
+          "ensure_due_charge",
+          "observe_charges",
+          "destroy_charge"
+        ],
+        "canonical_prefix": "thirdparty.efi.charge",
+        "identity_template": "charge.{id}"
+      },
+      {
+        "name": "pix_transaction",
+        "discoverable": false,
+        "default_actions": [
+          "refund_charge",
+          "create_payout",
+          "handle_chargeback",
+          "efi_webhook_received"
+        ],
+        "canonical_prefix": "thirdparty.efi.pix",
+        "identity_template": "pix_transaction.{id}"
+      },
+      {
+        "name": "webhook_subscription",
+        "discoverable": false,
+        "default_actions": [
+          "ensure_webhook_subscription",
+          "observe_webhook_subscriptions",
+          "destroy_webhook_subscription",
+          "verify_webhook_signature"
+        ],
+        "canonical_prefix": "thirdparty.efi.webhook_subscription",
+        "identity_template": "webhook_subscription.{id}"
+      }
+    ],
+    "discovery": {
+      "mode": "push",
+      "cursor": "none"
+    },
+    "normalization": {
+      "name_path": "metadata.name",
+      "owner_path": "metadata.namespace",
+      "external_id_path": "metadata.name",
+      "fallback_resource_prefix": "thirdparty.efi.custom"
+    },
+    "execution": {
+      "supports_dry_run": false,
+      "idempotent_actions": [
+        "ensure_charge",
+        "ensure_due_charge",
+        "observe_charges",
+        "destroy_charge",
+        "ensure_webhook_subscription",
+        "observe_webhook_subscriptions",
+        "destroy_webhook_subscription",
+        "verify_webhook_signature",
+        "handle_chargeback",
+        "efi_webhook_received"
+      ]
     }
   }
 }
