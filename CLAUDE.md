@@ -90,6 +90,24 @@ See spec `docs/superpowers/specs/2026-05-26-integration-efi-design.md` Section 6
 
 ## Recent significant work
 
+- 2026-05-27 — **v2.2.0 production runtime migration to
+  `sdk/reconcile.Dispatch`** via the Option B hybrid bridge (matches
+  integration-slack / integration-stripe v2.x pattern). 3 Reconcilers
+  authored (`chargeReconciler`, `dueChargeReconciler`,
+  `webhookSubscriptionReconciler`) in `providers/efi/adapter/reconcile.go`;
+  `WireReconcilers(a, instanceID)` installs them BEFORE the
+  `.Register(execute)` chain. §6.5 mutation event emission is now LIVE
+  for `efi.charge.{ensured,destroyed}`,
+  `efi.due_charge.{ensured,destroyed}`,
+  `efi.webhook_subscription.{ensured,destroyed}` when
+  `YGGDRASIL_CORE_URL` + `YGGDRASIL_RUN_TOKEN` are set in cluster.
+  Action allowlist (`refund_charge`, `create_payout`,
+  `handle_chargeback`), helper (`verify_webhook_signature`), and
+  reactor (`efi_webhook_received`) stay in the legacy
+  `adapter.Execute` switch path (they are not resource-typed
+  ensure_/observe_/destroy_ operations).
+- 2026-05-27 — v2.1.0 SDK pin bump v0.5.0 → v0.6.0 (adds `sdk/events`
+  package; reconcile.Dispatch migration deferred to v2.2.0).
 - 2026-05-27 — v2.0.0 universal capability convention rollout: 6 renames +
   1 merge + 2 net-new ops (`observe_webhook_subscriptions`, `destroy_charge`).
   SDK bumped to v0.5.0. v1.x compat shim in `LegacyOperationAliases` keeps
