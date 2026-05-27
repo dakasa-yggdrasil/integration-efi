@@ -64,9 +64,24 @@ func main() {
 		Version:         ad.AdapterVersion,
 		DefaultTimeout:  30 * time.Second,
 		Concurrency:     5,
-	}).
+	})
+
+	// Wire the SDK reconcile dispatch table BEFORE Register so the
+	// SDK auto-installs its execute handler. The custom ExecuteHandler
+	// below then clobbers that handler (last-write-wins) with the
+	// hybrid bridge that routes resource-typed ops through
+	// reconcile.Dispatch (activating §6.5 emission) and falls back to
+	// the legacy adapter.Execute switch for action helpers + reactor.
+	//
+	// instanceID is the fallback used when the inbound envelope carries
+	// no integration.instance.name; payload-bound values take
+	// precedence (integrationFromPayload in reconcile.go).
+	instanceID := strings.TrimSpace(os.Getenv("YGGDRASIL_INTEGRATION_INSTANCE_NAME"))
+	ad.WireReconcilers(a, instanceID)
+
+	a = a.
 		Register("describe", message.DescribeHandler(logger)).
-		Register("execute", message.ExecuteHandler(logger))
+		Register("execute", message.ExecuteHandler(logger, a))
 
 	switch transport := strings.ToLower(strings.TrimSpace(os.Getenv("YGGDRASIL_TRANSPORT"))); transport {
 	case "", "http", "http_json":
