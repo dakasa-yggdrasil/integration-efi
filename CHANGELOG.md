@@ -5,6 +5,21 @@ All notable changes to integration-efi will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — 2026-05-27 (operator wiring, no code change)
+
+### Operator changes
+
+- Wired `YGGDRASIL_CORE_BASE_URL` and `YGGDRASIL_WORKFLOW_RUN_TOKEN`
+  repository secrets via the new `integration-github` v2.4.0
+  `ensure_repository_secret` capability. The `emit-deploy-event.yml`
+  workflow's soft-skip path (commit `5059770`) is no longer reached —
+  `emit-deploy-event` now actively POSTs to `yggdrasil-core` on every
+  push to `main`. Verified via run #26522330088 (HTTP 201 from
+  `${YGGDRASIL_CORE_BASE_URL}/api/v1/workflow-runs`). Operator note:
+  the secret values were never logged; provisioning was idempotent
+  via the libsodium sealed-box GET-public-key → PUT-encrypted path
+  inside integration-github.
+
 ## [2.2.0] — 2026-05-27
 
 ### Added
