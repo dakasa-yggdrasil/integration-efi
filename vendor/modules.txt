@@ -1,0 +1,28 @@
+# github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.4.0
+## explicit; go 1.25.0
+github.com/dakasa-yggdrasil/yggdrasil-sdk-go/adapter
+github.com/dakasa-yggdrasil/yggdrasil-sdk-go/rpc
+github.com/dakasa-yggdrasil/yggdrasil-sdk-go/rpc/amqp
+github.com/dakasa-yggdrasil/yggdrasil-sdk-go/rpc/http
+# github.com/google/uuid v1.6.0
+## explicit
+github.com/google/uuid
+# github.com/rabbitmq/amqp091-go v1.10.0
+## explicit; go 1.20
+github.com/rabbitmq/amqp091-go
+# github.com/stretchr/testify v1.9.0
+## explicit; go 1.17
+# go.uber.org/multierr v1.10.0
+## explicit; go 1.19
+go.uber.org/multierr
+# go.uber.org/zap v1.28.0
+## explicit; go 1.19
+go.uber.org/zap
+go.uber.org/zap/buffer
+go.uber.org/zap/internal
+go.uber.org/zap/internal/bufferpool
+go.uber.org/zap/internal/color
+go.uber.org/zap/internal/exit
+go.uber.org/zap/internal/pool
+go.uber.org/zap/internal/stacktrace
+go.uber.org/zap/zapcore
