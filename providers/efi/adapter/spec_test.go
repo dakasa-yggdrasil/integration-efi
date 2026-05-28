@@ -36,8 +36,43 @@ func TestProviderConstants(t *testing.T) {
 	if IntegrationType != "efi" {
 		t.Fatalf("IntegrationType = %q, want efi", IntegrationType)
 	}
-	if AdapterVersion != "2.3.2" {
-		t.Fatalf("AdapterVersion = %q, want 2.3.2", AdapterVersion)
+	if AdapterVersion != "2.4.0" {
+		t.Fatalf("AdapterVersion = %q, want 2.4.0", AdapterVersion)
+	}
+}
+
+// TestSpec_UIMetadata_Section15 verifies §15 INTEGRATION_CONTRACT.md
+// compliance: every credential/instance schema property MUST carry UI metadata
+// (label, group, order) so surfaces render forms generically.
+func TestSpec_UIMetadata_Section15(t *testing.T) {
+	d := Describe()
+	for name, prop := range d.CredentialSchema.Properties {
+		if prop.Label == "" {
+			t.Errorf("CredentialSchema[%q]: missing Label (§15)", name)
+		}
+		if prop.LabelLocale == nil || prop.LabelLocale["pt-BR"] == "" || prop.LabelLocale["en-US"] == "" {
+			t.Errorf("CredentialSchema[%q]: missing LabelLocale pt-BR/en-US (§15)", name)
+		}
+		if prop.Group == "" {
+			t.Errorf("CredentialSchema[%q]: missing Group (§15)", name)
+		}
+		if prop.Order == 0 {
+			t.Errorf("CredentialSchema[%q]: missing Order (§15)", name)
+		}
+	}
+	for name, prop := range d.InstanceSchema.Properties {
+		if prop.Label == "" {
+			t.Errorf("InstanceSchema[%q]: missing Label (§15)", name)
+		}
+		if prop.Group == "" {
+			t.Errorf("InstanceSchema[%q]: missing Group (§15)", name)
+		}
+	}
+	// §15 DependsOn smoke check: efi_certificate_base64 is conditional on mtls_enabled.
+	if cert, ok := d.CredentialSchema.Properties["efi_certificate_base64"]; ok {
+		if cert.DependsOn == nil || cert.DependsOn.Field != "mtls_enabled" || cert.DependsOn.Value != true {
+			t.Errorf("efi_certificate_base64: expected DependsOn{Field:mtls_enabled,Value:true} (§15)")
+		}
 	}
 }
 

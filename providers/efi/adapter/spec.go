@@ -26,7 +26,7 @@ const (
 	// due_charge, webhook_subscription) and §6.5 mutation events emit
 	// live for ensure_/destroy_ on those resource types when
 	// YGGDRASIL_CORE_URL is wired in cluster.
-	AdapterVersion = "2.3.2"
+	AdapterVersion = "2.4.0"
 
 	// QueueDescribe / QueueExecute are the AMQP queue names used when
 	// transport=amqp. http_json mode uses the Endpoints instead.
@@ -137,16 +137,61 @@ func Describe() contract.AdapterDescribeResponse {
 				"efi_client_key_id": {
 					Type:        "string",
 					Description: "EFI Pix API client key ID.",
+					Label:       "EFI client key ID",
+					LabelLocale: map[string]string{"pt-BR": "Client Key ID EFI", "en-US": "EFI client key ID"},
+					Placeholder: "Client_Id_xxxxxxxxxxxx",
+					PlaceholderLocale: map[string]string{
+						"pt-BR": "Client_Id_xxxxxxxxxxxx",
+						"en-US": "Client_Id_xxxxxxxxxxxx",
+					},
+					DescriptionLocale: map[string]string{
+						"pt-BR": "Client key ID da EFI Pix. Encontre em EFI Pix dashboard → Configurações → Credenciais API.",
+						"en-US": "EFI Pix client key ID. Find it in EFI Pix dashboard → Settings → API Credentials.",
+					},
+					Group:       "EFI API credentials",
+					GroupLocale: map[string]string{"pt-BR": "Credenciais da API EFI", "en-US": "EFI API credentials"},
+					Order:       1,
+					Sensitive:   true,
 				},
 				"efi_client_secret": {
 					Type:        "string",
 					Description: "EFI Pix API client secret.",
 					Secret:      true,
+					Label:       "EFI client secret",
+					LabelLocale: map[string]string{"pt-BR": "Client secret EFI", "en-US": "EFI client secret"},
+					Placeholder: "Client_Secret_xxxxxxxxxxxx",
+					DescriptionLocale: map[string]string{
+						"pt-BR": "Client secret da EFI Pix. Par com o client key ID.",
+						"en-US": "EFI Pix client secret. Paired with the client key ID.",
+					},
+					Group:       "EFI API credentials",
+					GroupLocale: map[string]string{"pt-BR": "Credenciais da API EFI", "en-US": "EFI API credentials"},
+					Order:       2,
+					Sensitive:   true,
 				},
 				"efi_certificate_base64": {
 					Type:        "string",
 					Description: "Base64-encoded P12 mTLS certificate bytes (alternative to mounting EFI_CERTIFICATE file).",
 					Secret:      true,
+					Label:       "P12 mTLS certificate (base64)",
+					LabelLocale: map[string]string{"pt-BR": "Certificado mTLS P12 (base64)", "en-US": "P12 mTLS certificate (base64)"},
+					Placeholder: "Cole o P12 em base64 (alternativa ao arquivo EFI_CERTIFICATE)",
+					PlaceholderLocale: map[string]string{
+						"pt-BR": "Cole o P12 em base64",
+						"en-US": "Paste base64-encoded P12 here",
+					},
+					DescriptionLocale: map[string]string{
+						"pt-BR": "Certificado P12 mTLS codificado em base64. Alternativa a montar o arquivo via EFI_CERTIFICATE. EFI exige mTLS para chamadas Pix. Rotação: pod restart via secret-rotate workflow.",
+						"en-US": "Base64-encoded P12 mTLS certificate. Alternative to mounting an EFI_CERTIFICATE file. EFI requires mTLS for Pix calls. Rotation: pod restart via secret-rotate workflow.",
+					},
+					Group:       "mTLS",
+					GroupLocale: map[string]string{"pt-BR": "mTLS", "en-US": "mTLS"},
+					Order:       3,
+					Sensitive:   true,
+					DependsOn: &contract.IntegrationSchemaDependency{
+						Field: "mtls_enabled",
+						Value: true,
+					},
 				},
 			},
 		},
@@ -157,21 +202,59 @@ func Describe() contract.AdapterDescribeResponse {
 					Type:        "string",
 					Description: "EFI Pix API base URL (pix.api.efipay.com.br or pix-h.api.efipay.com.br for homologation).",
 					Default:     "https://pix.api.efipay.com.br",
+					Label:       "EFI Pix base URL",
+					LabelLocale: map[string]string{"pt-BR": "URL base da EFI Pix", "en-US": "EFI Pix base URL"},
+					Placeholder: "https://pix.api.efipay.com.br",
+					DescriptionLocale: map[string]string{
+						"pt-BR": "URL base da API EFI Pix. Use pix-h.api.efipay.com.br em homologação.",
+						"en-US": "EFI Pix API base URL. Use pix-h.api.efipay.com.br for homologation.",
+					},
+					Group:       "Endpoints",
+					GroupLocale: map[string]string{"pt-BR": "Endpoints", "en-US": "Endpoints"},
+					Order:       1,
+					Format:      "uri",
 				},
 				"sandbox": {
 					Type:        "boolean",
 					Description: "Whether this instance points at EFI homologation (pix-h).",
 					Default:     false,
+					Label:       "Sandbox / homologation",
+					LabelLocale: map[string]string{"pt-BR": "Sandbox / homologação", "en-US": "Sandbox / homologation"},
+					DescriptionLocale: map[string]string{
+						"pt-BR": "Marque quando apontar para o ambiente de homologação da EFI (pix-h).",
+						"en-US": "Enable when pointing at EFI homologation (pix-h).",
+					},
+					Group:       "Endpoints",
+					GroupLocale: map[string]string{"pt-BR": "Endpoints", "en-US": "Endpoints"},
+					Order:       2,
 				},
 				"mtls_enabled": {
 					Type:        "boolean",
 					Description: "Whether mTLS is enforced for outbound + inbound. Disable only for mock/test instances.",
 					Default:     true,
+					Label:       "Enable mTLS",
+					LabelLocale: map[string]string{"pt-BR": "Habilitar mTLS", "en-US": "Enable mTLS"},
+					DescriptionLocale: map[string]string{
+						"pt-BR": "mTLS bidirecional. Desabilite apenas para instâncias mock/teste.",
+						"en-US": "Bidirectional mTLS. Disable only for mock/test instances.",
+					},
+					Group:       "mTLS",
+					GroupLocale: map[string]string{"pt-BR": "mTLS", "en-US": "mTLS"},
+					Order:       3,
 				},
 				"webhook_port": {
 					Type:        "integer",
 					Description: "Port on which the adapter listens for inbound EFI webhook callbacks.",
 					Default:     9079,
+					Label:       "Webhook listener port",
+					LabelLocale: map[string]string{"pt-BR": "Porta do listener de webhook", "en-US": "Webhook listener port"},
+					DescriptionLocale: map[string]string{
+						"pt-BR": "Porta TCP em que o adapter escuta webhooks da EFI.",
+						"en-US": "TCP port the adapter listens on for inbound EFI webhooks.",
+					},
+					Group:       "Webhook",
+					GroupLocale: map[string]string{"pt-BR": "Webhook", "en-US": "Webhook"},
+					Order:       4,
 				},
 			},
 		},
