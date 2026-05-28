@@ -3,6 +3,11 @@
   "name": "efi",
   "spec": {
     "provider": "efi",
+    "domain": "payments",
+    "dashboard": {
+      "url": "https://sejaefi.com.br/conta",
+      "label": "Abrir EFI"
+    },
     "adapter": {
       "transport": "http_json",
       "version": "2.2.0",
