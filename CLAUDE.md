@@ -1,130 +1,155 @@
-# CLAUDE — integration-efi
+# Claude Code Context: integration-template
 
-Start with `AGENTS.md` for the non-negotiable rules. This file adds product
-context that AI assistants need to make safe edits.
+> ## 🔐 READ FIRST: `INTEGRATION_CONTRACT.md`
+>
+> Before doing anything in this repo or in any `dakasa-yggdrasil/integration-*` adapter, read **[`INTEGRATION_CONTRACT.md`](./INTEGRATION_CONTRACT.md)**. That document is the canonical definition of what a Yggdrasil integration IS (and IS NOT), the four capability prefixes (`ensure_/observe_/destroy_/discover_`), the **Lego principle** (no cloud / secret-store / broker / DB coupling — Yggdrasil is provider-agnostic by design), and the forbidden anti-patterns. New adapters and new capabilities MUST conform — yggdrasil-core's schema validator enforces a subset at registration time.
+>
+> If you find yourself naming a capability `create_*`, `list_*`, `delete_*`, `update_*` for a resource operation — STOP and re-read §5 + §10 (self-test checklist).
+>
+> If you find yourself hardcoding "AWS" / "Vault" / "RabbitMQ" / "Postgres" in adapter code — STOP and re-read §2 (Lego principle).
+
+Start with `AGENTS.md` for the rules-of-engagement summary. This file
+expands the context for Claude-style assistants.
 
 ## What this repo is
 
-Public Yggdrasil adapter for Brazilian Pix payments (Banco Central PIX API +
-EFI overlay). Single-provider layout (no multi-provider matrix like
-`integration-rabbitmq`).
+A **production-ready scaffold** for writing a new Yggdrasil integration
+adapter. Cloned by `yggdrasil new integration <name>` (the
+`internal/scaffoldcli/` path in the `dakasa-yggdrasil/yggdrasil` CLI),
+which rewrites the module path and integration name into the target
+repo. Out of the box: `go test ./...` passes, the worker boots against
+a local RabbitMQ, `/healthz` and `/readyz` are wired.
 
-Replaces:
-
-- The EFI provider in `dakasa-co/integration-webhooks-external`.
-- The in-process EFI client in `dakasa-app-fe/backend/dakasa-identities`
-  (`client/efi-bank.go`).
-
-Repo: `github.com/dakasa-yggdrasil/integration-efi` (open source, Apache 2.0).
+Repo: `github.com/dakasa-yggdrasil/integration-template` (open source,
+Apache 2.0). Public since 2026-05-26 (Path A: flipped to public via
+`update_repository_visibility` capability).
 
 ## Stack
 
 - Go 1.25.
-- `github.com/dakasa-yggdrasil/yggdrasil-sdk-go` (v0.5.0) — adapter,
-  rpc, mtls, webhookhttp, sig/hmac packages. v0.5.0 ships the
-  `sdk/reconcile` package; this adapter mirrors the same compat-shim
-  behavior (`LegacyOperationAliases`) in its local dispatch path.
-- `golang.org/x/crypto/pkcs12` — decode the P12 mTLS bundle.
+- `rabbitmq/amqp091-go v1.10.0` — direct AMQP usage in `main.go`
+  (does NOT go through `yggdrasil-sdk-go` yet — the template
+  currently ships its own minimal RPC layer in `controllers/message/`
+  to keep adopters' import surface small).
 - `go.uber.org/zap` — structured logging.
-- `github.com/prometheus/client_golang` — metrics on `/metrics`.
-- `go.opentelemetry.io/otel` — spans on every outbound EFI call.
 
 ## Repo layout
 
 ```
-cmd/adapter/                   # main.go (SDK bootstrap) + health.go (/healthz, /readyz, /metrics)
-providers/efi/
-  adapter/                     # spec.go (Describe), adapter.go (Execute switch),
-                               # client.go (HTTP+OAuth), mtls.go, webhook_server.go, metrics.go
-  adapter/capabilities/        # one file per capability (12 total in v2.0.0)
-  adapter/reactor/             # efi_webhook_received reactor
-  config/                      # env knobs loader
-  message/                     # DescribeHandler + ExecuteHandler + rpc helpers
-family/
-  contract/                    # AdapterDescribeResponse etc. — same shape as integration-rabbitmq
-  manifest.json                # integration_family manifest
-pkg/contractcheck/             # vendored from integration-template@95335d7 — lint Describe alignment
-manifest/
-  capabilities/                # 12 YAMLs (one per capability) in v2.0.0
-  integration_type.json
-  integration_instance.example.json
-integration_tests/             # //go:build integration; RUN_INTEGRATION_TESTS=true to run
-.github/workflows/             # ci, release, emit-deploy-event
+main.go                        # AMQP connect, signal handler, /healthz + /readyz
+controllers/message/           # AMQP RPC consumers (consume.go, describe.go, execute.go, rpc.go, register.go)
+internal/adapter/              # spec.go — `Describe()` contract + `Execute()` switch; lint.go enforces it
+internal/protocol/             # local RPC types (kept here, not imported from core, per AGENTS.md)
+pkg/contractcheck/             # PUBLIC lint pkg: catches describe-contract drift in adapter specs
+                               # — extracted (commit 95335d7) so integration-grafana and
+                               # integration-secrets-management can reuse the same check
+examples/                      # Sample run / wiring
+cmd/                           # (extension point)
+yggdrasil-quickstart.yaml      # Quickstart bundle so adopters can `yggdrasil install` this
+templates/                     # Reserved
 ```
 
-## Capabilities (12, v2.0.0)
+## Mandatory adapter contract
 
-| Capability                          | Idempotent | EFI endpoint                                       |
-|-------------------------------------|------------|----------------------------------------------------|
-| `ensure_charge`                     | yes        | POST /v2/cob or PUT /v2/cob/{txid}                 |
-| `ensure_due_charge`                 | yes        | PUT /v2/cobv/{txid}                                |
-| `observe_charges`                   | yes        | GET /v2/cob/{txid} OR GET /v2/cob?inicio=&fim=     |
-| `destroy_charge`                    | yes        | PATCH /v2/cob/{txid} status=REMOVIDA (404=success) |
-| `refund_charge`                     | via id     | PUT /v2/pix/{e2eId}/devolucao/{id}                 |
-| `create_payout`                     | via idEnvio| PUT /v3/gn/pix/{idEnvio} (IntermediateIrreversible)|
-| `handle_chargeback`                 | yes        | (internal — pass-through)                          |
-| `ensure_webhook_subscription`       | yes        | PUT /v2/webhook/{chave} (v3 fallback)              |
-| `observe_webhook_subscriptions`     | yes        | GET /v2/webhook OR GET /v2/webhook/{chave}         |
-| `destroy_webhook_subscription`      | yes        | DELETE /v2/webhook/{chave} (404=success)           |
-| `verify_webhook_signature`          | yes        | (internal — x509 DER parse)                        |
-| `efi_webhook_received` (reactor)    | yes        | (inbound :9079 → identities.efi.pix-receive.q)     |
+Every Yggdrasil integration adapter MUST:
 
-### v2.0.0 rename map (v1.x → v2.0.0)
+1. Register under a **family** (the contract) and one or more
+   **providers** (implementations).
+2. Expose three mandatory operation categories: `describe`, `execute`,
+   `health`.
+3. Declare a credential schema + instance schema at the family or
+   type manifest level (lives in `internal/adapter/spec.go`).
+4. Keep `Describe()` in sync with what `Execute()` actually accepts.
+   The `pkg/contractcheck` linter enforces this in CI; do NOT silence
+   it.
+5. Ship a `yggdrasil-quickstart.yaml` so adopters can install with
+   `yggdrasil install dakasa-org/integration-your-thing`.
 
-| v1.x (deprecated)              | v2.0.0 (canonical)              | Notes                                     |
-|--------------------------------|----------------------------------|-------------------------------------------|
-| `create_charge`                | `ensure_charge`                  | Same semantics, prefix realigned          |
-| `create_due_charge`            | `ensure_due_charge`              | Same semantics, prefix realigned          |
-| `get_charge_status`            | `observe_charges` (filter txid)  | Merged into single observe op             |
-| `get_statement`                | `observe_charges` (filter range) | Merged into single observe op             |
-| `register_webhook_endpoint`    | `ensure_webhook_subscription`    | Resource type webhook → webhook_subscription |
-| `unregister_webhook_endpoint`  | `destroy_webhook_subscription`   | Same                                      |
+## Runtime expectations
 
-v1.x names continue to route through the v2.0.0 dispatch path with a
-WARN log (`LegacyOperationAliases` in `providers/efi/adapter/spec.go`).
-The shim is removed in v3.0.0 (matches SDK v0.6.0 cadence).
+- Worker connects to RabbitMQ via `BROKER_URL` (no default — fatal if
+  unset).
+- `/healthz` is liveness only (always 200).
+- `/readyz` reflects RabbitMQ connection state (503 when closed).
+- Graceful shutdown on `SIGINT`/`SIGTERM`. The main loop also exits
+  when `conn.NotifyClose()` fires — kubelet then restarts the pod
+  (cleanest path; matches the pattern in `yggdrasil-core` commit
+  `9d30e34`).
+- Env knobs: `HEALTHCHECK_PORT` (default `8080`),
+  `HTTP_READ_HEADER_TIMEOUT_SECONDS`, `HTTP_READ_TIMEOUT_SECONDS`,
+  `HTTP_WRITE_TIMEOUT_SECONDS`, `HTTP_IDLE_TIMEOUT_SECONDS`.
 
-## Cutover plan
+## CI / image flow
 
-See spec `docs/superpowers/specs/2026-05-26-integration-efi-design.md` Section 6.
+`.github/workflows/`:
 
-## Recent significant work
+- `ci.yml` — go test + lint + contractcheck.
+- `release.yml` — publishes the worker image to
+  `ghcr.io/dakasa-yggdrasil/integration-template`.
+- `publish-oci.yml` — publishes the `yggdrasil-quickstart.yaml` as an
+  OCI artifact on tag (commit `2f47f0e`). The `yggdrasil install`
+  CLI consumes that with the `oci://` ref support added in
+  `dakasa-yggdrasil/yggdrasil` commit `6da5dfe`.
+- `emit-deploy-event.yml` — POSTs the deploy event into yggdrasil-core
+  (same soft-skip pattern as everywhere else).
+- `deploy.yml` — placeholder; this repo is a template, not a service.
+- `incident-escalation.yml` + `postmortem.yml` — Heimdall-driven ops
+  automation.
 
-- 2026-05-27 — **v2.2.0 production runtime migration to
-  `sdk/reconcile.Dispatch`** via the Option B hybrid bridge (matches
-  integration-slack / integration-stripe v2.x pattern). 3 Reconcilers
-  authored (`chargeReconciler`, `dueChargeReconciler`,
-  `webhookSubscriptionReconciler`) in `providers/efi/adapter/reconcile.go`;
-  `WireReconcilers(a, instanceID)` installs them BEFORE the
-  `.Register(execute)` chain. §6.5 mutation event emission is now LIVE
-  for `efi.charge.{ensured,destroyed}`,
-  `efi.due_charge.{ensured,destroyed}`,
-  `efi.webhook_subscription.{ensured,destroyed}` when
-  `YGGDRASIL_CORE_URL` + `YGGDRASIL_RUN_TOKEN` are set in cluster.
-  Action allowlist (`refund_charge`, `create_payout`,
-  `handle_chargeback`), helper (`verify_webhook_signature`), and
-  reactor (`efi_webhook_received`) stay in the legacy
-  `adapter.Execute` switch path (they are not resource-typed
-  ensure_/observe_/destroy_ operations).
-- 2026-05-27 — v2.1.0 SDK pin bump v0.5.0 → v0.6.0 (adds `sdk/events`
-  package; reconcile.Dispatch migration deferred to v2.2.0).
-- 2026-05-27 — v2.0.0 universal capability convention rollout: 6 renames +
-  1 merge + 2 net-new ops (`observe_webhook_subscriptions`, `destroy_charge`).
-  SDK bumped to v0.5.0. v1.x compat shim in `LegacyOperationAliases` keeps
-  callers working through the v2.x deprecation window (removed in v3.0.0).
-- 2026-05-26 — initial v1.0.0 scaffold + 11 capabilities + reactor + webhook
-  listener + Prometheus + OTel.
+Cross-org private action note: workflows that previously used
+`dakasa-yggdrasil/action-emit-workflow-run` should use **inline
+curl+jq** (see `~/.claude/projects/-Users-dakasa-projects/memory/reference_inline_curl_jq_cross_org_actions.md`).
+Now that this repo is public the cross-org constraint is relaxed, but
+the inline pattern stays the safer default.
 
-## Honest gotchas
+## Recent commits
 
-- **mTLS cert rotation**: P12 stored in AWS SM `dakasa/prod/efi-mtls`. The
-  adapter loads from `EFI_CERTIFICATE` (file path) at startup; rotation
-  requires pod restart via the Yggdrasil secret-rotate workflow.
-- **ECR Pull Through Cache delay**: images push to GHCR; ECR PTC cache lag
-  can be up to 12h. Trigger `ecr-pull-fresh` Yggdrasil workflow to force
-  refresh.
-- **Webhook dedup is downstream**: the adapter does NOT dedup. The
-  identities consumer enforces `webhook_event_efi.e2e_id` UNIQUE.
-- **`/v3/gn/webhook/{chave}` fallback**: some EFI accounts only accept the
-  v3 path. `ensure_webhook_subscription` tries v2 first then falls back to
-  v3 on 404 (mirrors legacy `client/efi-bank.go:383-391`).
+```
+95335d7 ✨ contractcheck: extract describe-contract lint to public pkg   ← now consumed by integration-grafana + integration-secrets-management
+fe2b853 ✨ lint: catch describe contract drift in adapter spec
+2f47f0e ✨ Add publish-oci GHA workflow: publish quickstart as OCI artifact on tag
+1d32ccb ✨ Production-ready scaffold: yggdrasil-quickstart stub + release workflow
+1fa8558 ✨ Public-ready: Apache 2.0 LICENSE + adopter-facing README
+1aa2a97 Document scheduling failure guardian signals
+7854402 Add incident escalation workflows
+6f1648f Document Heimdall lightweight support contract
+f10535a Accept remediation workflow inputs
+6fc3310 Use official workflow run action
+ae62b20 Add dogfood deploy workflows
+d241b97 Wait for broker in standalone and monorepo runtime
+ee7b42e Split monorepo and standalone Compose setups
+71f6a5d Align repository naming with integration-*
+281503e Initialize repository with production pack and AI context
+```
+
+## Validation
+
+```bash
+go test ./...
+task config
+task build:image
+task up         # local stack via compose
+task down
+```
+
+## Mandatory rules (from AGENTS.md, restated)
+
+- **Keep the plugin standalone.** Do not import runtime/domain code
+  from `yggdrasil-core` or the `yggdrasil` monorepo. Protocol types
+  stay local to this repo.
+- **`describe` MUST stay aligned with `execute`.** `pkg/contractcheck`
+  catches drift; don't silence it.
+- **Rename/add capabilities → update tests, examples, and README in
+  the same change.**
+- **Fail fast over silent degradation.** No swallowing AMQP errors,
+  no silent NACK loops.
+- **Business authority stays in `yggdrasil-core`.** This worker owns
+  integration runtime behavior only.
+
+## Where things live
+
+- Adapter spec (`Describe`/`Execute`) → `internal/adapter/spec.go`
+- Contract-drift lint → `internal/adapter/lint.go` + `pkg/contractcheck/`
+- AMQP consume / publish plumbing → `controllers/message/`
+- Health server → `main.go`
+- Quickstart for `yggdrasil install` → `yggdrasil-quickstart.yaml`
