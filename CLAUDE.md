@@ -84,12 +84,11 @@ on `EFI_WEBHOOK_PORT` (default `9079`, mTLS when a cert is loaded).
 wire-advertised in `Describe()` and version-checked in the describe
 handshake (`providers/efi/message/describe.go`).
 
-> ⚠️ **Manifest drift:** `manifest/integration_type.json` currently
-> pins `spec.adapter.version` = **`2.2.0`**, which is STALE vs
-> `spec.go`'s `2.4.0`. `manifest/` is the *registered* manifest (not an
-> example), so do not edit it as part of doc cleanup — bump it in a
-> deliberate manifest-release change (and run the contractcheck/spec
-> tests) when the manifest is next published.
+> `manifest/integration_type.json` (the *registered* manifest, not an
+> example) is synced to `spec.go` at `spec.adapter.version` = **`2.4.0`**.
+> No describe-dump tool exists in this repo, so when `AdapterVersion`
+> bumps, hand-edit that field in the same change and re-run the
+> contractcheck/spec tests (`go test ./...`).
 
 ## mTLS
 
