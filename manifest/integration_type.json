@@ -10,7 +10,7 @@
     },
     "adapter": {
       "transport": "http_json",
-      "version": "2.2.0",
+      "version": "2.4.0",
       "endpoints": {
         "describe": "/rpc/describe",
         "execute": "/rpc/execute"
