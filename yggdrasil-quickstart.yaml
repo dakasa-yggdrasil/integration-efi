@@ -1,19 +1,227 @@
-apiVersion: yggdrasil.io/v1
-kind: Quickstart
+apiVersion: yggdrasil.io/v1alpha1
+kind: integration_quickstart
+metadata:
+  name: efi
+  namespace: global
+  description: |
+    One-shot installer for the efi provider — Brazilian Pix payments
+    (Banco Central PIX API + EFI overlay, formerly Gerencianet). Single
+    webhook adapter with bidirectional mTLS.
+
+    Adopters install via:
+
+      yggdrasil install dakasa-yggdrasil/integration-efi
 spec:
-  integration_family:
-    namespace: global
-    name: efi
-    manifest_file: family/manifest.json
-  integration_type:
-    namespace: global
-    name: efi
-    manifest_file: manifest/integration_type.json
-  example_instance:
-    namespace: global
-    name: efi-prod
-    manifest_file: manifest/integration_instance.example.json
-  deploy:
-    component_name: integration-efi
-    image: ghcr.io/dakasa-yggdrasil/integration-efi
-    image_tag: v1.0.0
+  display_name: EFI / Pix
+  description: |
+    efi provider — Brazilian Pix charges (immediate cob + due-date cobv),
+    refunds and payouts, and Pix webhook subscriptions with inbound
+    callback handling. EFI requires bidirectional mTLS (P12 client
+    certificate) for all Pix API calls; the adapter listens for inbound
+    EFI webhook callbacks on a dedicated TLS port.
+  providers:
+    - id: efi
+      display_name: EFI Pix runtime adapter
+      description: |
+        HTTP client for the EFI Pix API (BCB PIX v2/v3). mTLS is loaded
+        from a base64-encoded P12 certificate per the EFI_* env
+        convention; the inbound webhook listener verifies the peer x509
+        cert on the handshake. Idempotent ensure_/observe_/destroy_ ops
+        keep reconcile loops from oscillating.
+      requires:
+        - kind: integration_family
+          name: kubernetes
+          reason: We deploy the adapter pod via kubernetes/apply_manifest.
+        - kind: cluster_capability
+          capability: kubernetes
+          reason: The adapter runs as a Deployment.
+      inputs:
+        - id: instance_name
+          label: integration_instance name
+          type: string
+          required: true
+          default: efi-prod
+          validate:
+            regex: ^[a-z][a-z0-9-]*$
+        - id: namespace
+          label: instance namespace (Yggdrasil)
+          type: string
+          default: global
+        - id: cluster_namespace
+          label: kubernetes namespace
+          type: string
+          default: yggdrasil-adapters
+        - id: image
+          label: adapter image
+          type: string
+          default: ghcr.io/dakasa-yggdrasil/integration-efi:latest
+        - id: efi_client_key_id
+          label: EFI client key ID
+          description: |
+            EFI Pix client key ID. Find it in EFI Pix dashboard →
+            Settings → API Credentials.
+          type: string
+          required: true
+          sensitive: true
+        - id: efi_client_secret
+          label: EFI client secret
+          description: EFI Pix client secret. Paired with the client key ID.
+          type: string
+          required: true
+          sensitive: true
+        - id: efi_certificate_base64
+          label: P12 mTLS certificate (base64)
+          description: |
+            Base64-encoded P12 mTLS certificate. EFI requires mTLS for
+            Pix calls. Required when mtls_enabled=true; leave empty only
+            for mock/test instances.
+          type: string
+          sensitive: true
+        - id: base_url
+          label: EFI Pix base URL
+          description: |
+            EFI Pix API base URL. Use https://pix-h.api.efipay.com.br for
+            homologation.
+          type: string
+          default: https://pix.api.efipay.com.br
+        - id: sandbox
+          label: Sandbox / homologation
+          description: Enable when pointing at EFI homologation (pix-h).
+          type: boolean
+          default: false
+        - id: mtls_enabled
+          label: Enable mTLS
+          description: |
+            Bidirectional mTLS for outbound + inbound. Disable only for
+            mock/test instances.
+          type: boolean
+          default: true
+      steps:
+        - id: apply-credentials-secret
+          description: |
+            Store EFI credentials + the P12 mTLS certificate in a
+            Kubernetes Secret so the adapter consumes them as env vars
+            without leaking them through the integration_instance config.
+          uses:
+            kind: integration
+            family: kubernetes
+            operation: apply_manifest
+          with:
+            manifest:
+              apiVersion: v1
+              kind: Secret
+              metadata:
+                name: integration-efi-credentials
+                namespace: "{{ inputs.cluster_namespace }}"
+              type: Opaque
+              stringData:
+                efi_client_key_id: "{{ inputs.efi_client_key_id }}"
+                efi_client_secret: "{{ inputs.efi_client_secret }}"
+                efi_certificate_base64: "{{ inputs.efi_certificate_base64 }}"
+        - id: apply-service-account
+          description: ServiceAccount used by the adapter pod.
+          uses:
+            kind: integration
+            family: kubernetes
+            operation: apply_manifest
+          with:
+            manifest:
+              apiVersion: v1
+              kind: ServiceAccount
+              metadata:
+                name: integration-efi
+                namespace: "{{ inputs.cluster_namespace }}"
+        - id: apply-adapter-deployment
+          description: |
+            Deploy the EFI adapter. It consumes the efi describe/execute
+            queues over AMQP and runs the inbound Pix webhook listener on
+            EFI_WEBHOOK_PORT (9079). mTLS is loaded from
+            EFI_CERTIFICATE_BASE64 per the SDK mtls.LoadFromEnv("EFI")
+            convention.
+          uses:
+            kind: integration
+            family: kubernetes
+            operation: apply_manifest
+          with:
+            manifest:
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: integration-efi-adapter
+                namespace: "{{ inputs.cluster_namespace }}"
+              spec:
+                replicas: 1
+                selector:
+                  matchLabels:
+                    app: integration-efi-adapter
+                template:
+                  metadata:
+                    labels:
+                      app: integration-efi-adapter
+                  spec:
+                    serviceAccountName: integration-efi
+                    containers:
+                      - name: adapter
+                        image: "{{ inputs.image }}"
+                        ports:
+                          - name: webhook
+                            containerPort: 9079
+                        env:
+                          - name: YGGDRASIL_TRANSPORT
+                            value: amqp
+                          - name: BROKER_URL
+                            valueFrom:
+                              secretKeyRef:
+                                name: yggdrasil-broker
+                                key: url
+                          - name: EFI_API_CLIENT_KEY_ID
+                            valueFrom:
+                              secretKeyRef:
+                                name: integration-efi-credentials
+                                key: efi_client_key_id
+                          - name: EFI_API_CLIENT_SECRET
+                            valueFrom:
+                              secretKeyRef:
+                                name: integration-efi-credentials
+                                key: efi_client_secret
+                          - name: EFI_CERTIFICATE_BASE64
+                            valueFrom:
+                              secretKeyRef:
+                                name: integration-efi-credentials
+                                key: efi_certificate_base64
+                          - name: EFI_BASE_URL
+                            value: "{{ inputs.base_url }}"
+                          - name: EFI_MTLS_ENABLED
+                            value: "{{ inputs.mtls_enabled }}"
+                          - name: EFI_WEBHOOK_PORT
+                            value: "9079"
+        - id: register-instance
+          description: |
+            Register the integration_instance pointing at the efi type.
+            Token + certificate credentials are passed via credentials_ref
+            so the values never land in the manifest.
+          uses:
+            kind: yggdrasil
+            operation: apply_manifest
+          with:
+            manifest:
+              apiVersion: yggdrasil.io/v1alpha1
+              kind: integration_instance
+              metadata:
+                name: "{{ inputs.instance_name }}"
+                namespace: "{{ inputs.namespace }}"
+              spec:
+                type_ref:
+                  namespace: global
+                  name: efi
+                credentials_ref: integration-efi-credentials
+                config:
+                  base_url: "{{ inputs.base_url }}"
+                  sandbox: "{{ inputs.sandbox }}"
+                  mtls_enabled: "{{ inputs.mtls_enabled }}"
+                  webhook_port: 9079
+      post_install_hints:
+        - "Create a Pix charge: kind=integration, family=efi, operation=ensure_charge (POST /v2/cob)."
+        - "Read a charge: family=efi, operation=observe_charges with txid=<txid> or {inicio, fim} for a statement window."
+        - "Register a Pix webhook: family=efi, operation=ensure_webhook_subscription — point EFI at the adapter's :9079 /efi/webhook/pix listener."
+        - "mTLS is mandatory for EFI Pix calls: EFI_CERTIFICATE_BASE64 must hold the P12 unless mtls_enabled=false (mock only)."
