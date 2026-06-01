@@ -1,22 +1,41 @@
 # GEMINI
 
-## 🔐 READ FIRST: `INTEGRATION_CONTRACT.md`
+`integration-efi` is a standalone Yggdrasil **integration adapter** for
+the EFI (formerly Gerencianet) **Brazilian Pix** payments provider:
+charges, payouts, refunds, webhook subscriptions, and inbound Pix
+webhook callbacks, over the Banco Central PIX API with OAuth
+client-credentials + **mTLS**.
 
-Before any change in this repo or any adapter cloned from it, read [`INTEGRATION_CONTRACT.md`](./INTEGRATION_CONTRACT.md). It defines:
-- **§0 ABSOLUTE: Yggdrasil scope vs Backend scope** — Yggdrasil = IDP for COMPANY's internal resources (webhook URL config, infra buckets, repo provisioning). Backend = END-USER business (charge user, refund order). Heuristic: resource follows company on ownership change → Yggdrasil; follows end-user → backend.
-- What a Yggdrasil integration IS / IS NOT
-- The four canonical capability prefixes (`ensure_/observe_/destroy_/discover_`)
-- **Lego principle** (no cloud/secret-store/broker/DB hardcoding)
-- **§6.5 mandatory mutation event emission** (golden rule)
-- Forbidden anti-patterns
+- `integration_type` / provider: `efi` (single-provider). Namespace:
+  `global`. Domain: `payments`.
+- **Authoritative contract: `Describe()` in
+  `providers/efi/adapter/spec.go`** (AdapterVersion `2.4.0`,
+  capabilities, schemas, resource types, transport). Trust it over any
+  prose. Read `CLAUDE.md` for the full repo map and `AGENTS.md` for the
+  rules-of-engagement summary.
 
-If you find yourself naming a capability `create_*`, `list_*`, `delete_*`, `update_*` for a resource — STOP and re-read §5 + §10.
-If you hardcode AWS / Vault / RabbitMQ / Postgres — STOP and re-read §2.
-If you're designing a capability to handle end-user business (charge, refund, subscribe) — STOP and re-read §0. That's backend territory.
+## Focus areas
 
-Then read `AGENTS.md` for repo-specific rules.
+- Keep this repository transport/runtime focused; do not import
+  `yggdrasil-core`/monorepo code. Local contract types live in
+  `family/contract/`; the only external Yggdrasil dep is
+  `yggdrasil-sdk-go`.
+- `describe` must stay aligned with `execute` — `pkg/contractcheck`
+  catches drift. Capability changes must update `spec.go`, the
+  capability impl+test, `manifest/`, and `docs/` together.
+- Capability naming uses `ensure_/observe_/destroy_` prefixes (plus
+  `verify_*` and the `*_received` reactor). Avoid
+  `create_*`/`list_*`/`delete_*` for resource operations.
 
-Focus areas:
-- Keep this repository transport/runtime focused.
-- Keep protocol types local.
-- Validate any capability change against README, tests, and examples.
+## Runtime
+
+- Transport via `YGGDRASIL_TRANSPORT`: `http_json` (default,
+  `/rpc/describe` + `/rpc/execute`) or `amqp`. Health on
+  `HEALTHCHECK_PORT` (8080); inbound webhook on `EFI_WEBHOOK_PORT`
+  (9079). mTLS from EFI-prefixed env via `LoadTLSConfig`
+  (`providers/efi/adapter/mtls.go`).
+- Validate with `go test ./...` (or `task test`).
+
+> `manifest/integration_type.json` pins `adapter.version` 2.2.0 — stale
+> vs `spec.go`'s 2.4.0. The registered manifest is bumped deliberately,
+> not as a doc edit.
