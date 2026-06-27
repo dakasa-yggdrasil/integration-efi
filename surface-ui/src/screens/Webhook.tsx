@@ -98,7 +98,7 @@ export function Webhook() {
       return (
         <EmptyState
           title="Nenhuma assinatura de webhook"
-          description="Esta conta EFI ainda não tem uma assinatura de webhook Pix registrada para este token. Sem ela, os callbacks Pix da EFI não são entregues."
+          description="Sem assinatura, os callbacks Pix da EFI não são entregues."
         />
       );
     }
@@ -111,11 +111,7 @@ export function Webhook() {
             ◦
           </span>
           <span style={{ fontSize: "var(--fs-sm)", color: "var(--mut)", lineHeight: 1.5 }}>
-            O webhook EFI é entregue por <strong>mTLS</strong> (o endpoint endurecido no Sec#2); a{" "}
-            <strong>verificação de assinatura</strong> é feita pelo adapter no recebimento (
-            <code>verify_webhook_signature</code> / handshake mTLS). A <strong>frescura da última entrega</strong>{" "}
-            (quando o último callback Pix chegou) não é lida por esta surface hoje (<em>needs-work</em>) — para o
-            histórico de entregas, abra o webhook na EFI (<strong>↗</strong>).
+            Webhook entregue por mTLS, assinatura verificada no recebimento. Histórico de entregas: abrir na EFI ↗.
           </span>
         </div>
 
@@ -142,7 +138,7 @@ export function Webhook() {
             </a>
           ) : (
             <span
-              title="Link para a EFI nativa indisponível: o host do console ainda não é exposto por um surface read."
+              title="Link para a EFI nativa indisponível."
               style={{ fontSize: "var(--fs-sm)", fontWeight: 700, color: "var(--mut)", opacity: 0.7 }}
             >
               Webhook na EFI <span aria-hidden="true">↗</span>
@@ -160,7 +156,7 @@ export function Webhook() {
       <TierTwoShell
         eyebrow="Conta"
         title="Webhook & mTLS"
-        subtitle="A assinatura de webhook Pix da EFI — chave, URL e o dot de mTLS (o webhook endurecido no Sec#2). A frescura da última entrega é needs-work."
+        subtitle="Chave, URL e mTLS por assinatura."
         teamChips={<EnvironmentBadge env={env} size="sm" />}
         kpis={chromeBusy ? undefined : kpis}
       >

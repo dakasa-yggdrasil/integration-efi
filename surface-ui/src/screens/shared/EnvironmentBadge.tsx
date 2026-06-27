@@ -57,8 +57,8 @@ export function EnvironmentBadge({ env, size = "lg" }: EnvironmentBadgeProps) {
       style={wrap}
       title={
         isProd
-          ? "Ambiente de PRODUÇÃO — Pix real (sandbox: false). Movimentação de dinheiro seria efetiva."
-          : "Ambiente de HOMOLOGAÇÃO (sandbox: true, base pix-h). Movimentação de dinheiro é recusada aqui."
+          ? "Produção — Pix real (sandbox: false)."
+          : "Homologação (sandbox: true, base pix-h). Dinheiro recusado aqui."
       }
     >
       <span aria-hidden="true" style={dot} />

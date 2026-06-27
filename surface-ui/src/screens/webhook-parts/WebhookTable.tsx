@@ -115,11 +115,7 @@ export function WebhookTable({ subscriptions }: WebhookTableProps) {
                     <StatusDot
                       tone={noMtls ? "crit" : "ok"}
                       label={noMtls ? "desligado" : "ativo"}
-                      title={
-                        noMtls
-                          ? "Esta assinatura foi registrada com a escotilha skip-mTLS — entrega sem mTLS"
-                          : "mTLS enforçado na entrega (webhook endurecido no Sec#2)"
-                      }
+                      title={noMtls ? "Entrega sem mTLS (skip-mTLS)." : "mTLS enforçado na entrega."}
                     />
                   </td>
                 </tr>

@@ -201,10 +201,8 @@ export function ChargeDetail() {
 
         {/* rule-#0 reminder */}
         <p style={{ margin: 0, fontSize: "var(--fs-sm)", color: "var(--mut)", lineHeight: 1.5 }}>
-          Detalhe por <strong>referência opaca</strong> (<code style={MONO}>{detail.txid}</code>) — <strong>sem dados de
-          pagador</strong>: sem nome, CPF/CNPJ, e-mail ou chave Pix, e sem <code>endToEndId</code>. As devoluções são o
-          histórico de dinheiro já movido (somente leitura). Devolver é admin e fica fora da v1; o estado real está na EFI
-          (<strong>↗</strong>).
+          Ref opaca (<code style={MONO}>{detail.txid}</code>) — sem dados de pagador. Devoluções: histórico, somente
+          leitura.
         </p>
 
         {/* identity refs */}
@@ -246,7 +244,7 @@ export function ChargeDetail() {
             </a>
           ) : (
             <span
-              title="Link para a EFI nativa indisponível: o host do console ainda não é exposto por um surface read."
+              title="Link para a EFI nativa indisponível."
               style={{ fontSize: "var(--fs-sm)", fontWeight: 700, color: "var(--mut)", opacity: 0.7 }}
             >
               Pix na EFI <span aria-hidden="true">↗</span>

@@ -79,10 +79,7 @@ export function GatedAction({ need, perms, env, eyebrow, label, cta = "Em breve"
           <button
             type="button"
             disabled
-            title={
-              hint ??
-              "Movimentação de dinheiro chega numa próxima etapa (admin) e seria recusada enquanto homolog."
-            }
+            title={hint ?? "Admin, em breve. Recusado em homolog."}
             style={{
               fontFamily: "var(--font-body)",
               fontSize: "var(--fs-xs)",
@@ -105,15 +102,11 @@ export function GatedAction({ need, perms, env, eyebrow, label, cta = "Em breve"
           </span>
           {homolog ? (
             <span>
-              Ambiente <strong>homolog</strong>: mesmo com o caminho de escrita ligado, mover dinheiro seria{" "}
-              <strong>recusado</strong> aqui — só vale em <strong>prod</strong>. E quem/quanto pagar é decidido pelo{" "}
-              <strong>workflow do cash-loop</strong>, nunca por esta surface.
+              Ambiente <strong>homolog</strong>: mover dinheiro é <strong>recusado</strong> — só vale em prod. O
+              cash-loop decide quem/quanto.
             </span>
           ) : (
-            <span>
-              Quem/quanto pagar é decidido pelo <strong>workflow do cash-loop</strong>, nunca por esta surface —
-              aqui só se confirma e observa.
-            </span>
+            <span>O cash-loop decide quem/quanto. Aqui é confirm + observe.</span>
           )}
         </p>
       </section>

@@ -32,46 +32,6 @@ const KPI_GRID = `
   @container (max-width: 560px) { .ef-po-kpis { grid-template-columns: 1fr; } }
 `;
 
-const SECTION_TITLE: CSSProperties = {
-  margin: 0,
-  fontFamily: "var(--font-heading)",
-  fontSize: "var(--fs-lg)",
-  fontWeight: 500,
-  color: "var(--ink)"
-};
-
-const CARD: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--sp-2)",
-  padding: "var(--sp-4) var(--sp-5)",
-  background: "var(--cream)",
-  border: "1px solid var(--line)",
-  borderRadius: "var(--r-md)"
-};
-
-// What this page WILL show once a payout read exists — framed honestly as
-// needs-work, NEVER fabricated as present data. There is no observe_payouts op,
-// and the prólabore decision lives in the cash-loop workflow, so faking a payout
-// list here would be the worst kind of lie on the money-movement rail.
-const NEEDS_WORK: Array<{ label: string; detail: string }> = [
-  {
-    label: "Histórico de payouts / repasses",
-    detail:
-      "Os Pix de saída (PUT /v3/gn/pix/{idEnvio}) já confirmados e agendados. O adapter não tem uma op observe_payouts hoje — create_payout é write-only (IntermediateIrreversible) e a EFI não expõe um list-envios que o adapter embrulhe. Por isso não mostramos uma lista — seria inventada."
-  },
-  {
-    label: "Prólabore (competência & valor)",
-    detail:
-      "A competência e o valor do pró-labore de cada sócio NÃO são decididos aqui. O seam é claro: o employment-clt decide competência/valor e o cash-loop workflow decide quem/quanto; a EFI apenas executa o Pix. Esta surface é confirm + observe — nunca a fonte da decisão."
-  },
-  {
-    label: "Confirmar + observar (não decidir)",
-    detail:
-      "Quando o caminho de escrita for ligado, esta página confirma um payout que o cash-loop já decidiu (com idempotência + auditoria) e observa o resultado — recusado enquanto homolog. Ela nunca origina o valor nem o destino."
-  }
-];
-
 export function Payouts() {
   const mock = mockEnabled();
   const liveScope = useCollaboratorScope();
@@ -102,41 +62,15 @@ export function Payouts() {
     }
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-6)" }}>
-        {/* the honest framing — surface NEVER decides who/how-much */}
-        <section
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--sp-3)",
-            padding: "var(--sp-5) var(--sp-6)",
-            background: "var(--sand2)",
-            border: "1px solid var(--line)",
-            borderRadius: "var(--r-lg)"
-          }}
-        >
-          <p style={{ margin: 0, fontSize: "var(--fs-md)", color: "var(--body)", lineHeight: 1.55 }}>
-            Esta surface <strong>nunca decide quem ou quanto pagar</strong>. O valor e o destino de um payout vêm do{" "}
-            <strong>workflow do cash-loop</strong> (e a competência/valor do pró-labore, do employment-clt); a EFI só{" "}
-            <strong>executa o Pix</strong>. Aqui o papel é <strong>confirmar + observar</strong> — não originar.
-          </p>
-          <p style={{ margin: 0, fontSize: "var(--fs-sm)", color: "var(--mut)", lineHeight: 1.55 }}>
-            O <strong>histórico de payouts / pró-labore</strong> não é lido por esta surface — não há op{" "}
-            <code>observe_payouts</code> no adapter (<em>needs-work</em>). Não inventamos uma lista de repasses.
-          </p>
-        </section>
+        {/* rule-#0 reminder — surface confirms, never decides */}
+        <p style={{ margin: 0, fontSize: "var(--fs-sm)", color: "var(--mut)", lineHeight: 1.5 }}>
+          O cash-loop decide quem/quanto; a EFI executa o Pix. Aqui é confirm + observe.
+        </p>
 
         {/* what's needs-work */}
-        <section style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
-          <h3 style={SECTION_TITLE}>O que falta conectar</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-            {NEEDS_WORK.map((v) => (
-              <div key={v.label} style={CARD}>
-                <span style={{ fontWeight: 600, color: "var(--ink)" }}>{v.label}</span>
-                <span style={{ fontSize: "var(--fs-sm)", color: "var(--mut)", lineHeight: 1.5 }}>{v.detail}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+        <p style={{ margin: 0, fontSize: "var(--fs-sm)", color: "var(--mut)", lineHeight: 1.5 }}>
+          Histórico de payouts: sem op de leitura.
+        </p>
 
         {/* money-movement: create_payout — admin-tier, gated + disabled, refused in homolog */}
         <GatedAction
@@ -144,8 +78,8 @@ export function Payouts() {
           perms={scope.perms}
           env={env}
           eyebrow="Remediação"
-          label="Disparar um payout (Pix de saída) é movimentação de dinheiro — admin, fora da v1. Quando o caminho de escrita for ligado, ela apenas confirma um payout que o cash-loop já decidiu (idempotente + auditável), nunca origina o valor/destino."
-          hint="create_payout é admin, fora da v1, e recusado enquanto homolog."
+          label="Disparar payout (Pix de saída) — admin, em breve."
+          hint="create_payout é admin e recusado em homolog."
         />
       </div>
     );
@@ -156,7 +90,7 @@ export function Payouts() {
       <TierTwoShell
         eyebrow="Conta"
         title="Payouts & Prólabore"
-        subtitle="Histórico de payouts é needs-work (sem op de leitura). A surface NUNCA decide quem/quanto pagar — o cash-loop decide; aqui é confirm + observe. Mover dinheiro é admin e recusado em homolog."
+        subtitle="Confirm + observe — o cash-loop decide."
         teamChips={<EnvironmentBadge env={env} size="sm" />}
         kpis={instanceLoading ? undefined : kpis}
       >

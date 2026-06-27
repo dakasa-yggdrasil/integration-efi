@@ -18,25 +18,9 @@ const ROW: CSSProperties = {
   minWidth: 0
 };
 
-const NOTE: CSSProperties = {
-  margin: 0,
-  fontSize: "var(--fs-sm)",
-  color: "var(--mut)",
-  lineHeight: 1.55
-};
-
 /**
- * The euphemized "Precisa de você" band. The tone is supportive, never "ALERTA".
- *
- * HONEST by construction: reconciliation drift and payout alerts are NOT
- * readable yet (drift needs a cross-system join EFI charges vs
- * identities.webhook_event_efi via core; payout history has no observe op and
- * the prólabore decision lives in the cash-loop workflow), so we never lead with
- * a fabricated "you have N drifts". The real, readable signals today are:
- * (1) NO webhook subscription at all (EFI deliveries would have nowhere to land)
- * and (2) a subscription with mTLS OFF (the Sec#2 hardening defeated). Those
- * lead. When nothing is readable-critical, we say so plainly and note what lands
- * once the cross-system join / cash-loop read is wired.
+ * The euphemized "Precisa de você" band. The readable signals today: (1) no
+ * webhook subscription at all, and (2) a subscription with mTLS off. Those lead.
  */
 export function AttentionBand({ webhooks }: AttentionBandProps) {
   if (webhooks.isLoading) {
@@ -45,15 +29,6 @@ export function AttentionBand({ webhooks }: AttentionBandProps) {
 
   const noWebhook = webhooks.items.length === 0;
   const mtlsOff = webhooks.items.filter(isMtlsOff).slice(0, 6);
-
-  const futureNote = (
-    <p style={NOTE}>
-      O <strong>drift de reconciliação</strong> (charges da EFI vs{" "}
-      <code>identities.webhook_event_efi</code>) e os <strong>alertas de payout / prólabore</strong> entram aqui quando
-      o join cross-system via core e a leitura do <strong>cash-loop</strong> forem ligados — por ora não são legíveis e
-      não inventamos um número.
-    </p>
-  );
 
   if (noWebhook) {
     return (
@@ -69,32 +44,28 @@ export function AttentionBand({ webhooks }: AttentionBandProps) {
             </span>
           </div>
         </div>
-        {futureNote}
       </div>
     );
   }
 
   if (mtlsOff.length === 0) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
-        <p
-          style={{
-            margin: 0,
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--sp-2)",
-            fontSize: "var(--fs-md)",
-            color: "var(--mut)",
-            lineHeight: 1.5
-          }}
-        >
-          <span aria-hidden="true" style={{ color: "var(--ok)", fontWeight: 700 }}>
-            ✓
-          </span>
-          <span>Nada crítico legível agora. O webhook está ativo com mTLS.</span>
-        </p>
-        {futureNote}
-      </div>
+      <p
+        style={{
+          margin: 0,
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--sp-2)",
+          fontSize: "var(--fs-md)",
+          color: "var(--mut)",
+          lineHeight: 1.5
+        }}
+      >
+        <span aria-hidden="true" style={{ color: "var(--ok)", fontWeight: 700 }}>
+          ✓
+        </span>
+        <span>Nada precisa de você.</span>
+      </p>
     );
   }
 
@@ -126,7 +97,6 @@ export function AttentionBand({ webhooks }: AttentionBandProps) {
           </div>
         ))}
       </div>
-      {futureNote}
     </div>
   );
 }

@@ -124,12 +124,11 @@ export function Home() {
 
   const mtlsOk = pulse.hasWebhook && pulse.webhooksMtlsOff === 0;
 
-  // The identity line: what the surface IS — a finance-OPS view, with the hard
-  // rule that money-movement and payer data are never here.
+  // The identity line: a finance-OPS index — money-movement and payer data are
+  // never here.
   const identityLine = [
     "Webhook & mTLS · charges & conciliação · payouts · refunds",
-    "ops de Pix — sem dados de pagador, sem mover dinheiro",
-    "quem/quanto paga é o cash-loop, não esta surface"
+    "sem dados de pagador, sem mover dinheiro"
   ].join(" · ");
 
   // Grouped nav — a calm, scannable index over every detail page, organized by

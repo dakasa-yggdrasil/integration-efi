@@ -133,7 +133,7 @@ export function Charges() {
       return (
         <EmptyState
           title="Nenhuma charge na janela"
-          description="A conta não expõe charges Pix visíveis para este token na janela atual."
+          description="Sem charges Pix visíveis para este token."
         />
       );
     }
@@ -144,22 +144,16 @@ export function Charges() {
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-6)" }}>
         {/* the rule-#0 reminder */}
         <p style={{ margin: 0, fontSize: "var(--fs-sm)", color: "var(--mut)", lineHeight: 1.5 }}>
-          Visão de <strong>ops de Pix</strong>: só referências opacas (<code>txid</code>, <code>valor</code>,{" "}
-          <code>status</code>, <code>tipo</code>, <code>created</code>) — <strong>sem coluna de pagador</strong>, sem
-          nome, CPF, e-mail ou chave Pix. O adapter dropa o <code>devedor</code> e esta tabela nunca o reintroduz.
+          Só refs opacas — sem dados de pagador.
         </p>
 
-        {/* the honest reconciliation-drift gap */}
+        {/* reconciliation-drift gap */}
         <div style={NOTE}>
           <span aria-hidden="true" style={{ color: "var(--mut)", fontWeight: 700, marginTop: "1px" }}>
             ◦
           </span>
           <span style={{ fontSize: "var(--fs-sm)", color: "var(--mut)", lineHeight: 1.5 }}>
-            O <strong>drift de reconciliação</strong> — casar as charges da EFI com{" "}
-            <code>identities.webhook_event_efi</code> — precisa de um <strong>join cross-system via core</strong> (o
-            lado EFI é legível aqui, mas o event-store vive no DB da enterprise e só é alcançável pelo core), então é{" "}
-            <em>needs-work</em>. Esta lista é o contexto de charges recentes, não o ledger fechado — não inventamos o
-            drift.
+            Drift de reconciliação: leitura ainda não conectada.
           </span>
         </div>
 
@@ -202,7 +196,7 @@ export function Charges() {
             </a>
           ) : (
             <span
-              title="Link para a EFI nativa indisponível: o host do console ainda não é exposto por um surface read."
+              title="Link para a EFI nativa indisponível."
               style={{ fontSize: "var(--fs-sm)", fontWeight: 700, color: "var(--mut)", opacity: 0.7 }}
             >
               Pix na EFI <span aria-hidden="true">↗</span>
@@ -220,7 +214,7 @@ export function Charges() {
       <TierTwoShell
         eyebrow="Conta"
         title="Charges & Reconciliação"
-        subtitle="Charges Pix recentes por referência opaca — sem dados de pagador. O drift de reconciliação (EFI vs identities.webhook_event_efi) é needs-work."
+        subtitle="Só refs opacas — sem dados de pagador."
         teamChips={<EnvironmentBadge env={env} size="sm" />}
         kpis={chromeBusy ? undefined : kpis}
       >
