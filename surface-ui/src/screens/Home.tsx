@@ -9,15 +9,13 @@ import {
   useEfiPulse,
   useWebhookSubscriptions,
   useEnvironment,
-  isMtlsOff,
   mockEnabled,
   mockCollaboratorScope,
   MOCK_INSTANCE_ID,
   MOCK_INSTANCE_LABEL
 } from "../data";
-import type { WebhookSubscriptionItem } from "../data";
-import { KpiStrip, AttentionBand, PillarPreview } from "./home-parts";
-import type { PillarRow } from "./home-parts";
+import { KpiStrip, AttentionBand, NavGroups } from "./home-parts";
+import type { NavGroupSpec } from "./home-parts";
 import { EnvironmentBadge } from "./shared/EnvironmentBadge";
 
 /* ---------------------------------------------------------------- layout */
@@ -51,19 +49,9 @@ const EYEBROW: CSSProperties = {
   color: "var(--honey)"
 };
 
-// Pillar grid: 4 columns → 2 → 1 by host width (not viewport).
-const PILLAR_GRID = `
-  .ef-home-pillars {
-    display: grid;
-    gap: var(--sp-4);
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    align-items: stretch;
-  }
-  @container (max-width: 900px) {
-    .ef-home-pillars { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
+// Narrow-host header reflow (by host width, not viewport).
+const HEADER_REFLOW = `
   @container (max-width: 560px) {
-    .ef-home-pillars { grid-template-columns: 1fr; }
     .ef-home-header { flex-direction: column; align-items: flex-start; }
   }
 `;
@@ -91,22 +79,6 @@ function headline(parts: {
     webhookFact,
     `${parts.charges} ${parts.charges === 1 ? "charge" : "charges"} na janela ${parts.windowDays}d`
   ].join(" · ");
-}
-
-function webhookRows(items: WebhookSubscriptionItem[]): PillarRow[] {
-  // Governance first: mTLS-off subscriptions. If none, a representative sample.
-  const off = items.filter(isMtlsOff);
-  const shown = (off.length > 0 ? off : items).slice(0, 3);
-  return shown.map((s) => {
-    const noMtls = isMtlsOff(s);
-    return {
-      key: s.chave || s.url,
-      title: s.url || s.chave,
-      sub: s.chave ? `chave ${s.chave}` : undefined,
-      tagLabel: noMtls ? "sem mTLS" : "mTLS",
-      tagTone: noMtls ? ("crit" as const) : ("ok" as const)
-    };
-  });
 }
 
 /* ---------------------------------------------------------------- screen */
@@ -160,9 +132,67 @@ export function Home() {
     "quem/quanto paga é o cash-loop, não esta surface"
   ].join(" · ");
 
+  // Grouped nav — a calm, scannable index over every detail page, organized by
+  // function. Ingestão = what comes IN (the mTLS-hardened webhook + the recent
+  // charges roster / reconciliação). Dinheiro = money OUT (payouts/prólabore +
+  // refunds), both honestly needs-work / admin-em-breve — the surface NEVER
+  // decides who/how-much to pay; that is the cash-loop. Each card carries a hard
+  // number (or honest "—"); bad signals (webhook sem mTLS) surface a pill so the
+  // operator's eye lands on them first.
+  const navGroups: NavGroupSpec[] = [
+    {
+      key: "ingestao",
+      title: "Ingestão",
+      cards: [
+        {
+          key: "webhook",
+          label: "Webhook & mTLS",
+          value: pulse.hasWebhook ? (mtlsOk ? "ativo" : "sem mTLS") : "—",
+          unit: pulse.hasWebhook ? "mTLS" : "ausente",
+          to: "/webhook",
+          tagLabel: pulse.webhooksMtlsOff > 0 ? `${pulse.webhooksMtlsOff} sem mTLS` : undefined,
+          tagTone: "crit"
+        },
+        {
+          key: "charges",
+          label: "Charges & Reconciliação",
+          value: pulse.charges,
+          unit: pulse.charges === 1 ? "charge" : "charges",
+          to: "/charges",
+          tagLabel: "drift needs-work",
+          tagTone: "neutral"
+        }
+      ]
+    },
+    {
+      key: "dinheiro",
+      title: "Dinheiro",
+      cards: [
+        {
+          key: "payouts",
+          label: "Payouts & Prólabore",
+          value: "—",
+          unit: "via cash-loop",
+          to: "/payouts",
+          tagLabel: "needs-work",
+          tagTone: "neutral"
+        },
+        {
+          key: "refunds",
+          label: "Refunds",
+          value: "—",
+          unit: "admin · em breve",
+          to: "/refunds",
+          tagLabel: "em breve",
+          tagTone: "neutral"
+        }
+      ]
+    }
+  ];
+
   return (
     <div className="atelier" style={PAGE}>
-      <style>{PILLAR_GRID}</style>
+      <style>{HEADER_REFLOW}</style>
 
       {/* ---------- header (account identity + MANDATORY env badge) ---------- */}
       <header
@@ -248,71 +278,9 @@ export function Home() {
         <AttentionBand webhooks={webhooks} />
       </section>
 
-      {/* ---------- pillars (hard numbers) ---------- */}
+      {/* ---------- grouped nav (Ingestão · Dinheiro) ---------- */}
       <section>
-        <div className="ef-home-pillars">
-          <PillarPreview
-            kicker="Webhook & mTLS"
-            value={pulse.hasWebhook ? (mtlsOk ? "ativo" : "sem mTLS") : "—"}
-            unit={pulse.hasWebhook ? "mTLS" : "ausente"}
-            rows={webhookRows(webhooks.items)}
-            emptyLabel="Nenhuma assinatura de webhook."
-            to="/webhook"
-          />
-          <PillarPreview
-            kicker="Charges & Reconciliação"
-            value={pulse.charges}
-            unit={pulse.charges === 1 ? "charge" : "charges"}
-            rows={[
-              {
-                key: "recon-refs",
-                title: "Charges recentes",
-                sub: "Refs opacas (txid, valor, status) — sem dados de pagador."
-              },
-              {
-                key: "recon-drift",
-                title: "Drift de reconciliação",
-                sub: "Join cross-system (EFI vs identities) via core — needs-work.",
-                tagLabel: "needs-work",
-                tagTone: "neutral"
-              }
-            ]}
-            emptyLabel="Sem charges na janela."
-            to="/charges"
-          />
-          <PillarPreview
-            kicker="Payouts & Prólabore"
-            value="—"
-            unit="needs-work"
-            rows={[
-              {
-                key: "payouts-note",
-                title: "Histórico de payouts",
-                sub: "Sem op de leitura; quem/quanto paga é o cash-loop.",
-                tagLabel: "needs-work",
-                tagTone: "neutral"
-              }
-            ]}
-            emptyLabel="Sem leitura de payouts."
-            to="/payouts"
-          />
-          <PillarPreview
-            kicker="Refunds"
-            value="—"
-            unit="admin · em breve"
-            rows={[
-              {
-                key: "refunds-note",
-                title: "Devoluções (refunds)",
-                sub: "Remediação admin, recusada em homolog — fora da v1.",
-                tagLabel: "em breve",
-                tagTone: "neutral"
-              }
-            ]}
-            emptyLabel="Sem histórico de refunds."
-            to="/refunds"
-          />
-        </div>
+        <NavGroups groups={navGroups} />
       </section>
     </div>
   );

@@ -61,6 +61,61 @@ export interface ChargeItem {
   created: string;
 }
 
+/**
+ * One devolução (refund) inside a {@link ChargeDetailObject} — from the
+ * `charge-detail` object's `devolucoes` array (flattened by the adapter from the
+ * charge's pix legs).
+ *
+ * RULE #0: only the opaque refund id + valor/status/created are read. A
+ * devolução is money already moved — read-only history here. The adapter DROPS
+ * the pix leg's endToEndId / chave that nests it; there is intentionally NO
+ * payer field.
+ */
+export interface DevolucaoItem {
+  /** The refund id the operator supplied to EFI (opaque ref shown mono). */
+  id: string;
+  /** The refunded amount as a decimal REAIS string ("50.00"), or "". */
+  valor: string;
+  /** BCB devolução status ("DEVOLVIDO" / "EM_PROCESSAMENTO" / "NAO_REALIZADO"). */
+  status: string;
+  /** Refund-request time (horario.solicitacao) as an RFC3339 string, or "". */
+  created: string;
+}
+
+/**
+ * The `charge-detail` object (param `txid`) — the drill-down read behind a txid
+ * in the Charges roster.
+ *
+ * The adapter projects observe_charges' single path (GET /v2/cob/{txid}) →
+ * `{txid, valor, status, tipo, created, expiracao,
+ * devolucoes:[{id, valor, status, created}]}`.
+ *
+ * RULE #0 (HARDEST in the family): only opaque/operational refs are read —
+ * never the payer `devedor` (nome / cpf / cnpj / email) EFI carries on the
+ * charge, never the pix legs (endToEndId / chave). The detail view NEVER renders
+ * a payer identity.
+ */
+export interface ChargeDetailObject {
+  /** The Pix transaction id (`txid`) — the opaque ref shown mono. */
+  txid: string;
+  /** The charge amount as a decimal REAIS string ("150.00"), or "". */
+  valor: string;
+  /** BCB charge status (uppercase: "ATIVA" / "CONCLUIDA" / "REMOVIDA" / …). */
+  status: string;
+  /** Charge kind: "cob" (immediate) or "cobv" (due charge / boleto-Pix). */
+  tipo: string;
+  /** Creation time as an RFC3339 string ("2026-05-10T12:00:00Z"), or "". */
+  created: string;
+  /**
+   * The charge's validity window: for a cob, the expiry in SECONDS ("3600");
+   * for a cobv, the due DATE ("2026-06-11"). Empty when absent. Rendered as a
+   * raw operational ref (never reinterpreted as payer data).
+   */
+  expiracao: string;
+  /** The charge's devoluções (money-already-moved history), newest first. */
+  devolucoes: DevolucaoItem[];
+}
+
 /** The envelope every list surface query returns: `{ items }`. */
 export interface ItemsEnvelope<T> {
   items: T[];

@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Home } from "./screens/Home";
 import { Webhook } from "./screens/Webhook";
 import { Charges } from "./screens/Charges";
+import { ChargeDetail } from "./screens/ChargeDetail";
 import { Payouts } from "./screens/Payouts";
 import { Refunds } from "./screens/Refunds";
 
@@ -10,7 +11,9 @@ import { Refunds } from "./screens/Refunds";
  * the 9-surface family, the SECOND payment-rail surface (mirrors the Stripe
  * template 1:1). The surface opens on a technical account-pulse Home, with four
  * pillar detail screens — Webhook & mTLS, Charges & Reconciliação, Payouts &
- * Prólabore, and Refunds.
+ * Prólabore, and Refunds — plus a charge drill-down (`/charge/:txid`) opened
+ * from a txid in the Charges roster. The Home nav is grouped by function
+ * (Ingestão / Dinheiro).
  *
  * CRITICAL RULE #0 (HARDEST in the family — EFI is the contract's FORBIDDEN
  * "pay your bill" example): this is a finance-OPS view for the platform team,
@@ -30,6 +33,7 @@ export function App() {
       <Route path="/" element={<Home />} />
       <Route path="/webhook" element={<Webhook />} />
       <Route path="/charges" element={<Charges />} />
+      <Route path="/charge/:txid" element={<ChargeDetail />} />
       <Route path="/payouts" element={<Payouts />} />
       <Route path="/refunds" element={<Refunds />} />
       <Route path="*" element={<Navigate to="/" replace />} />

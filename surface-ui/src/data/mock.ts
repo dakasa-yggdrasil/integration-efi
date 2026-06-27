@@ -18,7 +18,13 @@
 // anywhere — the adapter drops it and this fixture never reintroduces it.
 
 import type { CollaboratorScope } from "@dakasa-yggdrasil/surface-toolkit";
-import type { WebhookSubscriptionItem, ChargeItem, EfiEnvironment } from "./types";
+import type {
+  WebhookSubscriptionItem,
+  ChargeItem,
+  ChargeDetailObject,
+  DevolucaoItem,
+  EfiEnvironment
+} from "./types";
 
 /**
  * DEV `?mock` switch, shared across the hooks so every read short-circuits the
@@ -129,4 +135,83 @@ export function mockCharges(): ChargeItem[] {
     tipo,
     created: new Date(now - minutesAgo * 60_000).toISOString()
   }));
+}
+
+// ---------------------------------------------------------------- charge-detail
+
+// Scripted `charge-detail` fixtures for the drill-down, keyed by the full txid
+// (matching `mockCharges` rows). One charge carries devoluções (refunds — money
+// already moved, read-only history); another is a cobv with a due date and no
+// devoluções. Every other txid falls back to a synthesized concluída detail so
+// any row in the roster opens. RULE #0: ONLY opaque/operational refs — there is
+// NO payer (devedor / nome / cpf / email) and NO endToEndId anywhere here, just
+// as the adapter drops them.
+//
+// `created` / `devolucoes[].created` are filled at read time relative to now so
+// the relative timestamps stay fresh under `?mock`.
+interface ScriptedChargeDetail {
+  valor: string;
+  status: string;
+  tipo: string;
+  expiracao: string;
+  minutesAgo: number;
+  // [id, valor, status, minutesAgo]
+  devolucoes: Array<[string, string, string, number]>;
+}
+
+const CHARGE_DETAILS: Record<string, ScriptedChargeDetail> = {
+  // The CONCLUIDA cob from the roster — settled, with a partial devolução
+  // (refund) already processed and a second still in flight.
+  "efi-tx-a1concluida0001": {
+    valor: "150.00",
+    status: "CONCLUIDA",
+    tipo: "cob",
+    expiracao: "3600",
+    minutesAgo: 6,
+    devolucoes: [
+      ["dev-c5f1a2b3", "50.00", "DEVOLVIDO", 4],
+      ["dev-9e7d4c10", "10.00", "EM_PROCESSAMENTO", 1]
+    ]
+  },
+  // The CONCLUIDA cobv (due charge) — a due date in expiracao, no devoluções.
+  "efi-tx-a3concluida0003": {
+    valor: "1250.00",
+    status: "CONCLUIDA",
+    tipo: "cobv",
+    expiracao: "2026-07-10",
+    minutesAgo: 58,
+    devolucoes: []
+  }
+};
+
+export function mockChargeDetail(txid: string): ChargeDetailObject {
+  const now = Date.now();
+  const scripted = CHARGE_DETAILS[txid];
+  if (scripted) {
+    const devolucoes: DevolucaoItem[] = scripted.devolucoes.map(([id, valor, status, minutesAgo]) => ({
+      id,
+      valor,
+      status,
+      created: new Date(now - minutesAgo * 60_000).toISOString()
+    }));
+    return {
+      txid,
+      valor: scripted.valor,
+      status: scripted.status,
+      tipo: scripted.tipo,
+      created: new Date(now - scripted.minutesAgo * 60_000).toISOString(),
+      expiracao: scripted.expiracao,
+      devolucoes
+    };
+  }
+  // Fallback: a plain concluída immediate cob, no devoluções.
+  return {
+    txid,
+    valor: "48.20",
+    status: "CONCLUIDA",
+    tipo: "cob",
+    created: new Date(now - 7 * 60_000).toISOString(),
+    expiracao: "3600",
+    devolucoes: []
+  };
 }

@@ -4,6 +4,9 @@ export type { WebhookSubscriptionsResult } from "./useWebhookSubscriptions";
 export { useCharges } from "./useCharges";
 export type { ChargesResult } from "./useCharges";
 
+export { useChargeDetail } from "./useChargeDetail";
+export type { ChargeDetailResult } from "./useChargeDetail";
+
 export { useEfiPulse } from "./useEfiPulse";
 export type { EfiPulse } from "./useEfiPulse";
 
@@ -28,6 +31,8 @@ export {
 export type {
   WebhookSubscriptionItem,
   ChargeItem,
+  ChargeDetailObject,
+  DevolucaoItem,
   ItemsEnvelope,
   EfiEnvironment
 } from "./types";

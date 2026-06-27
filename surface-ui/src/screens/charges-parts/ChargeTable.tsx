@@ -1,3 +1,4 @@
+import { Link, useLocation } from "react-router-dom";
 import { Chip } from "@dakasa-yggdrasil/surface-toolkit";
 import type { ChargeItem } from "../../data";
 import { formatMoney } from "../../data";
@@ -61,11 +62,12 @@ function TipoChip({ tipo }: { tipo: string }) {
 
 /**
  * The recent-charges roster — reconciliation context, refs only. Columns: the
- * txid (mono opaque ref), the valor formatted to BRL (from EFI's decimal-reais
- * string), a status dot (CONCLUIDA/ATIVA/REMOVIDA, read from the field), the
- * tipo chip (cob/cobv), and the created timestamp. There is intentionally NO
- * payer column and NO "↗" per-row (EFI has no per-charge native deep-link the
- * adapter exposes; the page-level "↗" goes to the EFI Pix area).
+ * txid (mono opaque ref, a Link into the `/charge/:txid` drill-down), the valor
+ * formatted to BRL (from EFI's decimal-reais string), a status dot
+ * (CONCLUIDA/ATIVA/REMOVIDA, read from the field), the tipo chip (cob/cobv), and
+ * the created timestamp. There is intentionally NO payer column and NO "↗"
+ * per-row (EFI has no per-charge native deep-link the adapter exposes; the
+ * page-level "↗" goes to the EFI Pix area).
  */
 export function ChargeTable({ charges }: ChargeTableProps) {
   const rows = [...charges].sort((a, b) => {
@@ -73,6 +75,9 @@ export function ChargeTable({ charges }: ChargeTableProps) {
     const tb = new Date(b.created).getTime() || 0;
     return tb - ta;
   });
+  // Carry the current query string (e.g. `?mock`) into the drill-down so DEV
+  // review survives the round trip back to Charges.
+  const { search } = useLocation();
 
   return (
     <div className="ef-ch-table">
@@ -92,21 +97,29 @@ export function ChargeTable({ charges }: ChargeTableProps) {
             {rows.map((c) => (
               <tr key={c.txid} className="ef-ch-row">
                 <td style={{ maxWidth: 280 }}>
-                  <span
-                    className="ef-ch-txid ef-ch-mono"
-                    style={{
-                      fontWeight: 600,
-                      color: "var(--ink)",
-                      transition: "color 100ms ease",
-                      display: "block",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap"
-                    }}
-                    title={c.txid}
-                  >
-                    {c.txid || "—"}
-                  </span>
+                  {c.txid ? (
+                    <Link
+                      to={`/charge/${encodeURIComponent(c.txid)}${search}`}
+                      className="ef-ch-txid ef-ch-mono"
+                      style={{
+                        fontWeight: 600,
+                        color: "var(--ink)",
+                        textDecoration: "none",
+                        transition: "color 100ms ease",
+                        display: "block",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap"
+                      }}
+                      title={`Abrir detalhe de ${c.txid}`}
+                    >
+                      {c.txid}
+                    </Link>
+                  ) : (
+                    <span className="ef-ch-mono" style={{ color: "var(--mut)" }}>
+                      —
+                    </span>
+                  )}
                 </td>
                 <td className="amount">{formatMoney(c.valor)}</td>
                 <td>
