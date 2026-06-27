@@ -64,6 +64,13 @@ func onSurfaceQuery(ctx context.Context, c *efiapi.EfiClient, in map[string]any)
 		}
 		return out, nil
 
+	case "charge-detail":
+		out, err := surfaceChargeDetail(ctx, c, params)
+		if err != nil {
+			return nil, fmt.Errorf("charge-detail: %w", err)
+		}
+		return out, nil
+
 	default:
 		return nil, fmt.Errorf("unknown query: %q", queryName)
 	}
@@ -182,6 +189,117 @@ func surfaceCharges(ctx context.Context, c *efiapi.EfiClient, params map[string]
 		rows = []map[string]any{}
 	}
 	return map[string]any{"items": rows}, nil
+}
+
+// surfaceChargeDetail is the reconciliation drill-down: given a required
+// `txid` param it observes a single charge (the same observe_charges single
+// path as list-charges) and projects the richer detail shape the drill-down
+// renders — {txid, valor, status, tipo, created, expiracao, devolucoes}.
+//
+// It is a strict superset of projectCharge: it adds `expiracao` (the charge's
+// validity window — calendario.expiracao for an immediate cob, or
+// calendario.dataDeVencimento for a cobv) and `devolucoes` (the refunds,
+// flattened from the pix legs).
+//
+// rule #0 (HARDEST here): the upstream cob carries the payer `devedor` (nome /
+// cpf / cnpj / email) and the pix legs each carry endToEndId / chave. NONE of
+// that crosses into the projection — only opaque/operational refs. The
+// devoluções are flattened from pix[].devolucoes[] WITHOUT the endToEndId that
+// nests them.
+func surfaceChargeDetail(ctx context.Context, c *efiapi.EfiClient, params map[string]any) (map[string]any, error) {
+	txid := strings.TrimSpace(stringFromInput(params, "txid"))
+	if txid == "" {
+		return nil, fmt.Errorf("txid is required")
+	}
+
+	raw, err := capabilities.ObserveCharges(ctx, c, map[string]any{"txid": txid})
+	if err != nil {
+		return nil, err
+	}
+	return projectChargeDetail(raw), nil
+}
+
+// projectChargeDetail maps one raw BCB charge (cob or cobv) to the opaque
+// drill-down shape. It starts from projectCharge's allowlist
+// {txid, valor, status, tipo, created} and adds `expiracao` + `devolucoes`.
+// This is the rule #0 boundary: NOTHING else from the upstream object — in
+// particular `devedor`, the pix legs' endToEndId / chave, `infoAdicionais` —
+// crosses into the projection.
+func projectChargeDetail(m map[string]any) map[string]any {
+	out := projectCharge(m)
+
+	calendario, _ := m["calendario"].(map[string]any)
+	out["expiracao"] = chargeExpiracao(calendario)
+	out["devolucoes"] = projectDevolucoes(m)
+	return out
+}
+
+// chargeExpiracao returns the charge's validity window as an opaque operational
+// ref. An immediate cob carries calendario.expiracao (a validity window in
+// seconds); a cobv (due charge) carries calendario.dataDeVencimento (a date).
+// Returns "" when absent.
+func chargeExpiracao(calendario map[string]any) any {
+	if calendario == nil {
+		return ""
+	}
+	if v, ok := calendario["expiracao"]; ok {
+		return v
+	}
+	if v, ok := calendario["dataDeVencimento"]; ok {
+		return v
+	}
+	if v, ok := calendario["vencimento"]; ok {
+		return v
+	}
+	return ""
+}
+
+// projectDevolucoes flattens the refunds (devoluções) nested under each pix leg
+// of a charge into a single opaque-ref list. BCB nests them as
+// pix[].devolucoes[], each devolução carrying {id, valor, status, horario:{
+// solicitacao, liquidacao }}. We project ONLY {id, valor, status, created}
+// (created = horario.solicitacao) and DROP the pix leg's endToEndId / chave
+// that nests them. Always returns a non-nil slice.
+func projectDevolucoes(m map[string]any) []map[string]any {
+	out := make([]map[string]any, 0)
+	legs, ok := m["pix"].([]any)
+	if !ok {
+		return out
+	}
+	for _, leg := range legs {
+		legMap, ok := leg.(map[string]any)
+		if !ok {
+			continue
+		}
+		devolucoes, ok := legMap["devolucoes"].([]any)
+		if !ok {
+			continue
+		}
+		for _, dev := range devolucoes {
+			devMap, ok := dev.(map[string]any)
+			if !ok {
+				continue
+			}
+			out = append(out, projectDevolucao(devMap))
+		}
+	}
+	return out
+}
+
+// projectDevolucao maps one raw BCB devolução to {id, valor, status, created}.
+// `created` is the refund request time (horario.solicitacao). NOTHING else —
+// in particular no endToEndId, chave, or payer ref — crosses into the row.
+func projectDevolucao(m map[string]any) map[string]any {
+	var created string
+	if horario, ok := m["horario"].(map[string]any); ok {
+		created = stringFromInput(horario, "solicitacao")
+	}
+	return map[string]any{
+		"id":      stringFromInput(m, "id"),
+		"valor":   m["valor"],
+		"status":  stringFromInput(m, "status"),
+		"created": created,
+	}
 }
 
 // rawHasChargeArray reports whether raw[key] is a non-nil []any.

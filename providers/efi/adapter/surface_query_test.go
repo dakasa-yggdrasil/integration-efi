@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -256,6 +257,187 @@ func TestOnSurfaceQuery_ListCharges_ByTxid(t *testing.T) {
 		if _, present := row[k]; present {
 			t.Errorf("rule#0 VIOLATION: single-charge row projects forbidden key %q", k)
 		}
+	}
+}
+
+// TestOnSurfaceQuery_ChargeDetail projects the single-charge drill-down (GET
+// /v2/cob/{txid}) into the detail shape {txid, valor, status, tipo, created,
+// expiracao, devolucoes:[{id, valor, status, created}]}. It reuses the same
+// observe_charges single-txid path as list-charges, but adds the expiracao and
+// the flattened devoluções (refunds) the drill-down needs.
+//
+// RULE #0 (HARDEST here — EFI is the contract's FORBIDDEN "pay your bill"
+// example): the upstream cob carries the payer `devedor` (nome / cpf / cnpj /
+// email) and the pix legs (endToEndId / chave). NONE of that may appear in the
+// projection — only opaque/operational refs. The devoluções are flattened from
+// pix[].devolucoes[] WITHOUT carrying the endToEndId that nests them.
+func TestOnSurfaceQuery_ChargeDetail(t *testing.T) {
+	srv := newSurfaceTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/v2/cob/tx-detail" {
+			t.Errorf("unexpected request %s %s, want GET /v2/cob/tx-detail", r.Method, r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"txid":   "tx-detail",
+			"status": "CONCLUIDA",
+			"valor":  map[string]any{"original": "150.00"},
+			"calendario": map[string]any{
+				"criacao":   "2026-05-10T12:00:00Z",
+				"expiracao": 3600,
+			},
+			// PII the adapter must NOT project, on the charge or in the legs:
+			"devedor": map[string]any{"nome": "Fulano de Tal", "cpf": "12345678909", "email": "fulano@example.com"},
+			"pix": []any{
+				map[string]any{
+					"endToEndId": "E123ABC",
+					"valor":      "150.00",
+					"chave":      "pix@dakasa.me",
+					"devolucoes": []any{
+						map[string]any{
+							"id":      "dev-1",
+							"valor":   "50.00",
+							"status":  "DEVOLVIDO",
+							"horario": map[string]any{"solicitacao": "2026-05-11T09:00:00Z", "liquidacao": "2026-05-11T09:00:05Z"},
+						},
+						map[string]any{
+							"id":      "dev-2",
+							"valor":   "10.00",
+							"status":  "EM_PROCESSAMENTO",
+							"horario": map[string]any{"solicitacao": "2026-05-12T10:00:00Z"},
+						},
+					},
+				},
+			},
+		})
+	})
+
+	out := runSurfaceQuery(t, srv, "charge-detail", map[string]any{"txid": "tx-detail"})
+
+	if out["txid"] != "tx-detail" {
+		t.Errorf("txid = %v, want tx-detail", out["txid"])
+	}
+	if out["valor"] != "150.00" {
+		t.Errorf("valor = %v, want 150.00", out["valor"])
+	}
+	if out["status"] != "CONCLUIDA" {
+		t.Errorf("status = %v, want CONCLUIDA", out["status"])
+	}
+	if out["tipo"] != "cob" {
+		t.Errorf("tipo = %v, want cob", out["tipo"])
+	}
+	if out["created"] != "2026-05-10T12:00:00Z" {
+		t.Errorf("created = %v, want 2026-05-10T12:00:00Z", out["created"])
+	}
+	// An immediate cob's expiracao is the validity window (seconds) from the
+	// calendario — projected as-is (an opaque operational ref).
+	if fmt.Sprintf("%v", out["expiracao"]) != "3600" {
+		t.Errorf("expiracao = %v, want 3600", out["expiracao"])
+	}
+
+	devolucoes, ok := out["devolucoes"].([]map[string]any)
+	if !ok {
+		t.Fatalf("devolucoes must be []map[string]any, got %T", out["devolucoes"])
+	}
+	if len(devolucoes) != 2 {
+		t.Fatalf("len(devolucoes) = %d, want 2", len(devolucoes))
+	}
+	if devolucoes[0]["id"] != "dev-1" || devolucoes[0]["valor"] != "50.00" || devolucoes[0]["status"] != "DEVOLVIDO" {
+		t.Errorf("devolucoes[0] = %v", devolucoes[0])
+	}
+	if devolucoes[0]["created"] != "2026-05-11T09:00:00Z" {
+		t.Errorf("devolucoes[0].created = %v, want 2026-05-11T09:00:00Z (horario.solicitacao)", devolucoes[0]["created"])
+	}
+	if devolucoes[1]["id"] != "dev-2" || devolucoes[1]["status"] != "EM_PROCESSAMENTO" {
+		t.Errorf("devolucoes[1] = %v", devolucoes[1])
+	}
+
+	// RULE #0 — the charge object itself projects ONLY the allowlisted keys.
+	// `provider` is the dispatcher's own metadata (the adapter's provider name,
+	// "efi") that Execute seeds into every Output map — it is NOT payer data.
+	allowed := map[string]bool{"provider": true, "txid": true, "valor": true, "status": true, "tipo": true, "created": true, "expiracao": true, "devolucoes": true}
+	for k := range out {
+		if !allowed[k] {
+			t.Errorf("rule#0: charge-detail projects non-allowlisted key %q", k)
+		}
+	}
+	forbidden := []string{"devedor", "nome", "cpf", "cnpj", "email", "pix", "pixKey", "chave", "endToEndId"}
+	for _, k := range forbidden {
+		if _, present := out[k]; present {
+			t.Errorf("rule#0 VIOLATION: charge-detail projects forbidden payer/leg key %q", k)
+		}
+	}
+	// RULE #0 — and no devolução row may carry an endToEndId / payer key either.
+	devAllowed := map[string]bool{"id": true, "valor": true, "status": true, "created": true}
+	for i, dev := range devolucoes {
+		for k := range dev {
+			if !devAllowed[k] {
+				t.Errorf("rule#0: devolucoes[%d] projects non-allowlisted key %q", i, k)
+			}
+		}
+		for _, k := range []string{"endToEndId", "chave", "devedor", "nome", "cpf", "horario"} {
+			if _, present := dev[k]; present {
+				t.Errorf("rule#0 VIOLATION: devolucoes[%d] projects forbidden key %q", i, k)
+			}
+		}
+	}
+}
+
+// TestOnSurfaceQuery_ChargeDetail_CobvExpiracao asserts a due charge (cobv) is
+// classified tipo=cobv and its expiracao comes from the dataDeVencimento — and
+// that a charge with no pix legs yields an empty (non-nil) devolucoes list.
+func TestOnSurfaceQuery_ChargeDetail_CobvExpiracao(t *testing.T) {
+	srv := newSurfaceTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"txid":   "tx-cobv",
+			"status": "ATIVA",
+			"valor":  map[string]any{"original": "250.50"},
+			"calendario": map[string]any{
+				"criacao":          "2026-05-11T08:30:00Z",
+				"dataDeVencimento": "2026-06-11",
+			},
+			"devedor": map[string]any{"nome": "Beltrana", "cnpj": "12345678000199"},
+		})
+	})
+
+	out := runSurfaceQuery(t, srv, "charge-detail", map[string]any{"txid": "tx-cobv"})
+	if out["tipo"] != "cobv" {
+		t.Errorf("tipo = %v, want cobv (has dataDeVencimento)", out["tipo"])
+	}
+	if out["expiracao"] != "2026-06-11" {
+		t.Errorf("expiracao = %v, want 2026-06-11 (dataDeVencimento)", out["expiracao"])
+	}
+	devolucoes, ok := out["devolucoes"].([]map[string]any)
+	if !ok {
+		t.Fatalf("devolucoes must be []map[string]any (non-nil), got %T", out["devolucoes"])
+	}
+	if len(devolucoes) != 0 {
+		t.Errorf("len(devolucoes) = %d, want 0 (no pix legs)", len(devolucoes))
+	}
+	// rule #0 once more on the cobv path.
+	for _, k := range []string{"devedor", "nome", "cnpj"} {
+		if _, present := out[k]; present {
+			t.Errorf("rule#0 VIOLATION: cobv charge-detail projects forbidden key %q", k)
+		}
+	}
+}
+
+// TestOnSurfaceQuery_ChargeDetail_RequiresTxid asserts the drill-down requires
+// the txid param; the error is wrapped under the query name (an honest failure,
+// not an empty object).
+func TestOnSurfaceQuery_ChargeDetail_RequiresTxid(t *testing.T) {
+	srv := newSurfaceTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("must not reach EFI when txid is missing; got %s %s", r.Method, r.URL.Path)
+	})
+
+	_, err := Execute(contract.AdapterExecuteIntegrationRequest{
+		Operation:   OperationOnSurfaceQuery,
+		Integration: surfaceTestContext(srv),
+		Input:       map[string]any{"query_name": "charge-detail", "params": map[string]any{}},
+	})
+	if err == nil {
+		t.Fatal("expected error when txid is missing")
+	}
+	if !strings.Contains(err.Error(), "charge-detail") || !strings.Contains(err.Error(), "txid") {
+		t.Errorf("error must mention charge-detail and txid, got %v", err)
 	}
 }
 
