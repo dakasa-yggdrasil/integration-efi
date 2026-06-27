@@ -33,20 +33,6 @@ export function formatMoney(valor: string | number): string {
   }).format(reais);
 }
 
-/**
- * A compact form for KPI tiles: "R$ 48,2 mil" for large amounts, full
- * otherwise. Keeps the headline terse without losing the currency symbol.
- */
-export function formatMoneyCompact(valor: string | number): string {
-  const reais = parseReais(valor);
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    notation: "compact",
-    maximumFractionDigits: 1
-  }).format(reais);
-}
-
 /** Sum a list of EFI charge `valor` strings into a total number of reais. */
 export function sumReais(valores: Array<string | number>): number {
   return valores.reduce<number>((acc, v) => acc + parseReais(v), 0);

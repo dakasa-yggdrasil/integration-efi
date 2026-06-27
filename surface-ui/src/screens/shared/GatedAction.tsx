@@ -100,7 +100,7 @@ export function GatedAction({ need, perms, env, eyebrow, label, cta = "Em breve"
           </button>
         </div>
         <p style={REFUSE_NOTE}>
-          <span aria-hidden="true" style={{ color: homolog ? "var(--warn, var(--honey))" : "var(--crit, #b8531f)", fontWeight: 700 }}>
+          <span aria-hidden="true" style={{ color: homolog ? "var(--warn)" : "var(--crit)", fontWeight: 700 }}>
             ●
           </span>
           {homolog ? (

@@ -20,13 +20,6 @@ export function normalizeEfiBase(raw: string | undefined): string {
   return base;
 }
 
-/** The native EFI account home, or "" when the host is unknown. */
-export function consoleHref(base: string): string {
-  const host = normalizeEfiBase(base);
-  if (host === "") return "";
-  return host;
-}
-
 /** The native EFI Pix area (where charges/extrato live), or "". */
 export function pixHref(base: string): string {
   const host = normalizeEfiBase(base);

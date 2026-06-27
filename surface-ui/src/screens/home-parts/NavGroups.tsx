@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Pill } from "@dakasa-yggdrasil/surface-toolkit";
 import type { PillTone } from "@dakasa-yggdrasil/surface-toolkit";
 
@@ -67,9 +67,9 @@ const CARD: CSSProperties = {
   minWidth: 0
 };
 
-function NavCard({ card }: { card: NavCardSpec }) {
+function NavCard({ card, search }: { card: NavCardSpec; search: string }) {
   return (
-    <Link to={card.to} className="ef-nav-card" style={CARD} aria-label={card.label}>
+    <Link to={`${card.to}${search}`} className="ef-nav-card" style={CARD} aria-label={card.label}>
       <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "space-between", gap: "var(--sp-2)" }}>
         <span
           className="ef-nav-label"
@@ -111,9 +111,11 @@ function NavCard({ card }: { card: NavCardSpec }) {
  * an un-readable fact) + a hover-revealed "↗" and links to its detail page — a
  * calm, scannable index. Bad signals (webhook sem mTLS, charges needs-work)
  * carry a status pill so the operator's eye lands on them first. Stays
- * technical, no AI-look copy.
+ * technical, no AI-look copy. Each link carries the current query string (e.g.
+ * `?mock`) so a DEV offline review survives the drill-down.
  */
 export function NavGroups({ groups }: NavGroupsProps) {
+  const { search } = useLocation();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-5)" }}>
       <style>{GROUPS_CSS}</style>
@@ -122,7 +124,7 @@ export function NavGroups({ groups }: NavGroupsProps) {
           <h3 style={GROUP_TITLE}>{g.title}</h3>
           <div className="ef-nav-grid">
             {g.cards.map((c) => (
-              <NavCard key={c.key} card={c} />
+              <NavCard key={c.key} card={c} search={search} />
             ))}
           </div>
         </div>

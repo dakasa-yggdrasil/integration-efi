@@ -59,7 +59,7 @@ export function KpiStrip({ pulse }: KpiStripProps) {
         <KpiTile
           eyebrow={`Charges (${pulse.chargeWindowDays}d)`}
           value={pulse.charges}
-          chart={kpiSubtext("refs, sem dados de cliente", false)}
+          chart={kpiSubtext("refs, sem dados de pagador", false)}
         />
         <KpiTile eyebrow="Reconciliação" value="—" chart={kpiSubtext("needs-work", false)} />
         <KpiTile eyebrow="Payouts" value="—" chart={kpiSubtext("needs-work", false)} />

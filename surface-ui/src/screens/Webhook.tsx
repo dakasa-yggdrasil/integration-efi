@@ -98,7 +98,7 @@ export function Webhook() {
       return (
         <EmptyState
           title="Nenhuma assinatura de webhook"
-          description="Esta conta EFI ainda não tem uma assinatura de webhook Pix registrada para este token. Sem ela, as entregas Pix não têm onde aterrissar."
+          description="Esta conta EFI ainda não tem uma assinatura de webhook Pix registrada para este token. Sem ela, os callbacks Pix da EFI não são entregues."
         />
       );
     }

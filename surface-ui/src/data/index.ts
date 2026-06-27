@@ -13,9 +13,9 @@ export type { EfiPulse } from "./useEfiPulse";
 export { useEfiBase } from "./useEfiBase";
 export { useEnvironment } from "./useEnvironment";
 
-export { normalizeEfiBase, consoleHref, pixHref, webhookHref } from "./efiLink";
+export { normalizeEfiBase, pixHref, webhookHref } from "./efiLink";
 
-export { formatMoney, formatMoneyCompact, parseReais, sumReais } from "./money";
+export { formatMoney, parseReais, sumReais } from "./money";
 
 export { formatCreated, relativeCreated } from "./time";
 

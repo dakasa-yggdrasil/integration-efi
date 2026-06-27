@@ -4,8 +4,8 @@ export type DotTone = "ok" | "warn" | "crit" | "mut";
 
 const TONE_VAR: Record<DotTone, string> = {
   ok: "var(--ok)",
-  warn: "var(--warn, var(--honey))",
-  crit: "var(--crit, #b3261e)",
+  warn: "var(--warn)",
+  crit: "var(--crit)",
   mut: "var(--mut)"
 };
 
