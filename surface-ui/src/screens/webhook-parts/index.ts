@@ -1,0 +1,1 @@
+export { WebhookTable } from "./WebhookTable";

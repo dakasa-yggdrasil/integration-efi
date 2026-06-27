@@ -1,0 +1,8 @@
+node_modules/
+node_modules
+dist/
+*.log
+.env*
+# Lockfile is generated in CI against GHCR npm (local dev uses a symlinked
+# toolkit), so never commit a symlink-generated lockfile — see Dockerfile.
+package-lock.json

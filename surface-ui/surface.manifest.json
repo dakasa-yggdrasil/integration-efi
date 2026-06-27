@@ -1,0 +1,40 @@
+{
+  "apiVersion": "yggdrasil.io/v1alpha1",
+  "kind": "integration_surface",
+  "metadata": {
+    "name": "surface-efi",
+    "namespace": "global",
+    "integration_type": "efi"
+  },
+  "spec": {
+    "category": "integration",
+    "owners": ["team:platform"],
+    "runtime": {
+      "kind": "spa",
+      "exposure": "public",
+      "base_path": "/s/efi",
+      "health_path": "/healthz",
+      "image": "ghcr.io/dakasa-yggdrasil/surface-efi"
+    },
+    "display": {
+      "title": "EFI · Pix",
+      "subtitle": "Webhook mTLS, charges e conciliação",
+      "icon": "efi",
+      "color_token": "brand.efi",
+      "appears_on": ["ops-integrations"]
+    },
+    "core_contracts": [
+      "authorization",
+      "integration_catalog",
+      "external_identity",
+      "workflow_runs",
+      "action_catalog"
+    ],
+    "capabilities": [
+      {
+        "name": "integration-admin",
+        "tabs": ["overview", "webhook", "charges", "payouts", "refunds"]
+      }
+    ]
+  }
+}
