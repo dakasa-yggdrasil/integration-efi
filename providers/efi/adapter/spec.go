@@ -51,6 +51,17 @@ const (
 	OperationDestroyWebhookSubscription  = "destroy_webhook_subscription"
 	OperationVerifyWebhookSignature    = "verify_webhook_signature"
 	OperationEfiWebhookReceived        = "efi_webhook_received"
+
+	// OperationOnSurfaceQuery is the read-only aggregator invoked by core's
+	// /api/v1/integrations/{instance_id}/surface-query proxy on behalf of the
+	// EFI/Pix finance-ops operator surface. The surface passes
+	// { query_name, params } as Input; the adapter routes by query_name to a
+	// read aggregator (see surface_query.go). Its "on_" prefix classifies it
+	// as a "reactor" (framework-invoked, hidden from grant pickers) — same
+	// convention as the integration-stripe sibling and the
+	// kubernetes/aws/grafana adapters. It is a pure GET wrapper over the
+	// existing observe_* handlers; it mutates nothing and moves no money.
+	OperationOnSurfaceQuery = "on_surface_query"
 )
 
 // SDK-only dispatch operations. The Reconciler[D,O] registration in
@@ -87,6 +98,7 @@ var SupportedExecuteOperations = []string{
 	OperationDestroyWebhookSubscription,
 	OperationVerifyWebhookSignature,
 	OperationEfiWebhookReceived,
+	OperationOnSurfaceQuery,
 }
 
 // SDKOnlyOperations names the operations registered ONLY in the SDK
@@ -372,6 +384,13 @@ func Describe() contract.AdapterDescribeResponse {
 				Idempotent:    true,
 				Category:      "reactor",
 			},
+			{
+				Name:          OperationOnSurfaceQuery,
+				Description:   "Surface-driven read aggregator invoked by core's /api/v1/integrations/{instance_id}/surface-query proxy on behalf of the EFI/Pix finance-ops operator surface. Accepts { query_name, params }; routes by query_name to a read aggregator. Supported: list-webhook-subscriptions (webhook-health pillar — {chave,url,status,mtls} from observe_webhook_subscriptions; the mTLS-hardened webhook is the headline), list-charges (recent charges for reconciliation context — {txid,valor,status,tipo,created} from observe_charges; params {txid} OR {inicio,fim[,status]}). RULE #0: payer-identifying fields (devedor/nome/cpf/cnpj/email/payer pix key) are NEVER projected — only opaque refs. Read-only; never mutates, moves no money.",
+				ResourceTypes: []string{"webhook_subscription"},
+				Idempotent:    true,
+				Category:      "reactor",
+			},
 		},
 		Discovery: contract.IntegrationDiscoverySpec{
 			Mode:   "push",
@@ -394,6 +413,7 @@ func Describe() contract.AdapterDescribeResponse {
 				OperationDestroyWebhookSubscription,
 				OperationVerifyWebhookSignature,
 				OperationEfiWebhookReceived,
+				OperationOnSurfaceQuery,
 			},
 		},
 		Extensions: contract.IntegrationExtensionsSpec{

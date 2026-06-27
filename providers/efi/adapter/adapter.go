@@ -165,6 +165,17 @@ func Execute(req contract.AdapterExecuteIntegrationRequest) (contract.AdapterExe
 		for k, v := range got {
 			output[k] = v
 		}
+	case OperationOnSurfaceQuery:
+		// Read-only surface aggregator: routes by query_name to a
+		// projection over the existing observe_* handlers. Never mutates;
+		// rule #0 PII suppression lives in the projections (surface_query.go).
+		got, err := onSurfaceQuery(ctx, client, req.Input)
+		if err != nil {
+			return contract.AdapterExecuteIntegrationResponse{}, err
+		}
+		for k, v := range got {
+			output[k] = v
+		}
 	default:
 		return contract.AdapterExecuteIntegrationResponse{}, fmt.Errorf("unsupported operation %q", operation)
 	}
