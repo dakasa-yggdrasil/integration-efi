@@ -1,4 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { useCollaboratorScope, SurfaceViewGate, LoadingState } from "@dakasa-yggdrasil/surface-toolkit";
+import { mockEnabled, mockCollaboratorScope } from "./data";
 import { Home } from "./screens/Home";
 import { Webhook } from "./screens/Webhook";
 import { Charges } from "./screens/Charges";
@@ -28,8 +30,23 @@ import { Refunds } from "./screens/Refunds";
  * `BrowserRouter basename="/s/efi"` lives in main.tsx.
  */
 export function App() {
+  // Resolve the viewer scope once at the root (mock-aware: `?mock` stubs an
+  // admin/all-perms scope so live-review still renders the full surface).
+  const mock = mockEnabled();
+  const liveScope = useCollaboratorScope();
+  const scope = mock ? mockCollaboratorScope() : liveScope;
+
+  if (scope.isLoading) {
+    return (
+      <div className="atelier" style={{ padding: "var(--sp-7)" }}>
+        <LoadingState label="Carregando…" />
+      </div>
+    );
+  }
+
   return (
-    <Routes>
+    <SurfaceViewGate provider="efi" perms={scope.perms} surfaceTitle="EFI">
+      <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/webhook" element={<Webhook />} />
       <Route path="/charges" element={<Charges />} />
@@ -37,6 +54,7 @@ export function App() {
       <Route path="/payouts" element={<Payouts />} />
       <Route path="/refunds" element={<Refunds />} />
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      </Routes>
+    </SurfaceViewGate>
   );
 }
