@@ -54,7 +54,7 @@ vendor/                            # vendored deps (go.mod uses vendoring)
 ## Stack
 
 - Go 1.25, vendored deps.
-- `github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.8.3` — the adapter
+- `github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.9.1` — the adapter
   uses the SDK `adapter`, `rpc`, `mtls`, and `sdk/reconcile` packages.
   This is NOT a from-scratch RPC layer; describe/execute go through the
   SDK adapter (`adapter.New(...)` in `cmd/adapter/main.go`).
@@ -79,13 +79,13 @@ on `EFI_WEBHOOK_PORT` (default `9079`, mTLS when a cert is loaded).
 
 ## AdapterVersion
 
-**`2.4.0`** — the single source of truth is
+**`2.4.1`** — the single source of truth is
 `adapter.AdapterVersion` in `providers/efi/adapter/spec.go`. It is
 wire-advertised in `Describe()` and version-checked in the describe
 handshake (`providers/efi/message/describe.go`).
 
 > `manifest/integration_type.json` (the *registered* manifest, not an
-> example) is synced to `spec.go` at `spec.adapter.version` = **`2.4.0`**.
+> example) is synced to `spec.go` at `spec.adapter.version` = **`2.4.1`**.
 > No describe-dump tool exists in this repo, so when `AdapterVersion`
 > bumps, hand-edit that field in the same change and re-run the
 > contractcheck/spec tests (`go test ./...`).

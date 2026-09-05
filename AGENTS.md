@@ -12,7 +12,7 @@ over OAuth client-credentials + **mTLS**.
 - `integration_type` / provider: `efi` (single-provider, type ==
   provider). Manifest `namespace`: `global`. Domain: `payments`.
 - **The authoritative contract is `Describe()` in
-  `providers/efi/adapter/spec.go`** — AdapterVersion (`2.4.0`),
+  `providers/efi/adapter/spec.go`** — AdapterVersion (`2.4.1`),
   capabilities, schemas, resource types, and transport all live there
   and are asserted by `spec_test.go` + the `pkg/contractcheck` lint.
   Trust `spec.go` over any prose. See `CLAUDE.md` for the full repo map.
@@ -47,9 +47,8 @@ over OAuth client-credentials + **mTLS**.
   `providers/efi/adapter/mtls.go`.
 - Graceful shutdown on `SIGINT`/`SIGTERM`.
 
-> Note: `manifest/integration_type.json` pins `adapter.version` 2.2.0,
-> stale vs `spec.go`'s 2.4.0. `manifest/` is the registered manifest —
-> bump it deliberately in a manifest release, not as a doc edit.
+> `manifest/integration_type.json` is the registered manifest and is aligned
+> with `spec.go` at 2.4.1.
 
 ## Commands
 

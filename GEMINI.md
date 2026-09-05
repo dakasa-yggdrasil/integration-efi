@@ -9,7 +9,7 @@ client-credentials + **mTLS**.
 - `integration_type` / provider: `efi` (single-provider). Namespace:
   `global`. Domain: `payments`.
 - **Authoritative contract: `Describe()` in
-  `providers/efi/adapter/spec.go`** (AdapterVersion `2.4.0`,
+  `providers/efi/adapter/spec.go`** (AdapterVersion `2.4.1`,
   capabilities, schemas, resource types, transport). Trust it over any
   prose. Read `CLAUDE.md` for the full repo map and `AGENTS.md` for the
   rules-of-engagement summary.
@@ -36,6 +36,4 @@ client-credentials + **mTLS**.
   (`providers/efi/adapter/mtls.go`).
 - Validate with `go test ./...` (or `task test`).
 
-> `manifest/integration_type.json` pins `adapter.version` 2.2.0 — stale
-> vs `spec.go`'s 2.4.0. The registered manifest is bumped deliberately,
-> not as a doc edit.
+> `manifest/integration_type.json` is aligned with `spec.go` at 2.4.1.
