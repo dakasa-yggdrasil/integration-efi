@@ -12,6 +12,7 @@ import {
   useEnvironment,
   webhookHref,
   isMtlsOff,
+  isMtlsUnknown,
   mockEnabled,
   MOCK_INSTANCE_ID
 } from "../data";
@@ -57,7 +58,8 @@ export function Webhook() {
 
   const total = webhooks.items.length;
   const mtlsOff = webhooks.items.filter(isMtlsOff).length;
-  const mtlsOn = total - mtlsOff;
+  const mtlsUnknown = webhooks.items.filter(isMtlsUnknown).length;
+  const mtlsOn = total - mtlsOff - mtlsUnknown;
 
   const kpis = (
     <div style={{ containerType: "inline-size", width: "100%" }}>
@@ -68,13 +70,15 @@ export function Webhook() {
           eyebrow="Com mTLS"
           value={mtlsOn}
           delta={kpiDelta(`${mtlsOff} sem mTLS`, mtlsOff > 0)}
-          chart={kpiSubtext("endurecido (Sec#2)", mtlsOff > 0)}
+          chart={kpiSubtext("confirmado pela leitura", mtlsOff > 0)}
         />
         <KpiTile
-          eyebrow="Sem mTLS"
-          value={mtlsOff}
-          delta={kpiDelta("escotilha skip-mTLS", mtlsOff > 0)}
-          chart={kpiSubtext("nenhuma", mtlsOff > 0)}
+          eyebrow="Não observado"
+          value={mtlsUnknown}
+          chart={kpiSubtext(
+            mtlsUnknown > 0 ? "exige prova de callback" : "todos observados",
+            false
+          )}
         />
       </div>
     </div>
@@ -105,13 +109,14 @@ export function Webhook() {
     const dashHref = webhookHref(efiBase);
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-6)" }}>
-        {/* verify-signature + freshness diagnostic note */}
+        {/* mTLS evidence boundary */}
         <div style={NOTE}>
           <span aria-hidden="true" style={{ color: "var(--mut)", fontWeight: 700, marginTop: "1px" }}>
             ◦
           </span>
           <span style={{ fontSize: "var(--fs-sm)", color: "var(--mut)", lineHeight: 1.5 }}>
-            Webhook entregue por mTLS, assinatura verificada no recebimento. Histórico de entregas: abrir na EFI ↗.
+            A API de leitura da EFI não informa o modo mTLS do cadastro. Estado &quot;não observado&quot;
+            exige uma entrega autenticada ou inspeção do terminador TLS.
           </span>
         </div>
 

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useSurfaceQuery } from "@dakasa-yggdrasil/surface-toolkit";
 import type { ItemsEnvelope, ChargeItem } from "./types";
 import { mockEnabled, mockCharges } from "./mock";
@@ -46,13 +47,20 @@ export function useCharges(
   const windowDays = opts.windowDays ?? 30;
   const mock = mockEnabled();
 
-  const params: Record<string, unknown> = {
-    inicio: isoDaysAgo(windowDays),
-    fim: isoNow()
-  };
-  if (opts.status && opts.status.trim() !== "") {
-    params.status = opts.status.trim();
-  }
+  const status = opts.status?.trim() ?? "";
+  // Freeze the read window for this mounted query. Recomputing "now" on every
+  // render would continuously change the query key and can trigger a refetch
+  // loop in query clients that hash params by value.
+  const params = useMemo<Record<string, unknown>>(() => {
+    const next: Record<string, unknown> = {
+      inicio: isoDaysAgo(windowDays),
+      fim: isoNow()
+    };
+    if (status !== "") {
+      next.status = status;
+    }
+    return next;
+  }, [windowDays, status]);
 
   const query = useSurfaceQuery<ItemsEnvelope<ChargeItem>>(
     mock ? undefined : instanceId,

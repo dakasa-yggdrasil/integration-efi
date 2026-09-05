@@ -74,15 +74,25 @@ func TestOnSurfaceQuery_ListWebhookSubscriptions(t *testing.T) {
 		if r.Method != http.MethodGet || r.URL.Path != "/v2/webhook" {
 			t.Errorf("unexpected request %s %s, want GET /v2/webhook", r.Method, r.URL.Path)
 		}
+		if r.URL.Query().Get("inicio") != "2026-05-01T00:00:00Z" || r.URL.Query().Get("fim") != "2026-06-01T00:00:00Z" {
+			t.Errorf("explicit webhook range missing: %v", r.URL.Query())
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
+			"parametros": map[string]any{"paginacao": map[string]any{
+				"paginaAtual":         0,
+				"quantidadeDePaginas": 2,
+			}},
 			"webhooks": []any{
-				map[string]any{"chave": "pix@dakasa.me", "webhookUrl": "https://webhook-h.dakasa.me/efi/webhook/pix", "criacao": "2026-05-27T00:00:00Z"},
-				map[string]any{"chave": "pix2@dakasa.me", "webhookUrl": "https://webhook-h.dakasa.me/efi/webhook/pix2", "criacao": "2026-05-28T00:00:00Z"},
+				map[string]any{"chave": "pix@dakasa.me", "webhookUrl": "https://webhook-h.dakasa.me/efi/webhook?hmac=surface-secret&ignorar=", "criacao": "2026-05-27T00:00:00Z"},
+				map[string]any{"chave": "pix2@dakasa.me", "webhookUrl": "https://webhook-h.dakasa.me/efi/alternate", "criacao": "2026-05-28T00:00:00Z"},
 			},
 		})
 	})
 
-	out := runSurfaceQuery(t, srv, "list-webhook-subscriptions", nil)
+	out := runSurfaceQuery(t, srv, "list-webhook-subscriptions", map[string]any{
+		"inicio": "2026-05-01T00:00:00Z",
+		"fim":    "2026-06-01T00:00:00Z",
+	})
 	items, ok := out["items"].([]map[string]any)
 	if !ok {
 		t.Fatalf("items must be []map[string]any, got %T", out["items"])
@@ -95,17 +105,23 @@ func TestOnSurfaceQuery_ListWebhookSubscriptions(t *testing.T) {
 	if first["chave"] != "pix@dakasa.me" {
 		t.Errorf("chave = %v, want pix@dakasa.me", first["chave"])
 	}
-	if first["url"] != "https://webhook-h.dakasa.me/efi/webhook/pix" {
-		t.Errorf("url = %v", first["url"])
+	observedURL, _ := first["url"].(string)
+	if strings.Contains(observedURL, "surface-secret") {
+		t.Errorf("surface URL leaked query secret: %v", observedURL)
+	}
+	if !strings.Contains(observedURL, "https://webhook-h.dakasa.me/efi/webhook") || !strings.Contains(observedURL, "hmac=") {
+		t.Errorf("surface URL lost safe drift evidence: %v", observedURL)
 	}
 	if first["status"] != "active" {
 		t.Errorf("status = %v, want active", first["status"])
 	}
-	// mTLS reflects the headline pillar (Sec#2 hardened webhook). EFI's list
-	// endpoint does not carry a per-row mtls flag, so it defaults to true
-	// (the adapter enforces mTLS unless an instance opts out).
-	if first["mtls"] != true {
-		t.Errorf("mtls = %v, want true", first["mtls"])
+	// EFI's documented read response does not expose the registration-time
+	// mTLS flag, so the adapter must not infer a healthy state.
+	if first["mtls"] != nil {
+		t.Errorf("mtls = %v, want unknown", first["mtls"])
+	}
+	if out["cursor"] != "1" {
+		t.Errorf("cursor = %v, want 1", out["cursor"])
 	}
 }
 
@@ -121,7 +137,10 @@ func TestOnSurfaceQuery_ListWebhookSubscriptions_RespectsMtlsField(t *testing.T)
 		})
 	})
 
-	out := runSurfaceQuery(t, srv, "list-webhook-subscriptions", nil)
+	out := runSurfaceQuery(t, srv, "list-webhook-subscriptions", map[string]any{
+		"inicio": "2026-05-01T00:00:00Z",
+		"fim":    "2026-06-01T00:00:00Z",
+	})
 	items := out["items"].([]map[string]any)
 	if len(items) != 1 {
 		t.Fatalf("len(items) = %d, want 1", len(items))

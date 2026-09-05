@@ -78,20 +78,29 @@ func onSurfaceQuery(ctx context.Context, c *efiapi.EfiClient, in map[string]any)
 
 // surfaceWebhookSubscriptions is the headline pillar — the mTLS-hardened
 // webhook subscription (Sec#2). It delegates to observe_webhook_subscriptions
-// (GET /v2/webhook list, or GET /v2/webhook/{chave} when params.chave is set)
-// and projects each subscription to {chave, url, status, mtls}.
+// (GET /v2/webhook list with explicit inicio/fim, or GET
+// /v2/webhook/{chave} when params.chave is set) and projects each
+// subscription to {chave, url, status, mtls}.
 //
 //   - status: EFI's webhook API has no explicit per-subscription status field
 //     (a subscription either exists or is absent), so a present subscription
 //     is reported "active".
-//   - mtls: EFI enforces mTLS on webhook delivery unless the subscription was
-//     registered with the skip-mtls escape hatch. When upstream returns an
-//     explicit skip indicator (skipMtls / mtls), we reflect it; otherwise we
-//     report true (the hardened default this surface exists to highlight).
+//   - mtls: when upstream returns an explicit skip indicator (skipMtls / mtls),
+//     reflect it. EFI's documented GET response omits this field, so absence is
+//     reported as unknown (nil), never optimistically treated as true.
 func surfaceWebhookSubscriptions(ctx context.Context, c *efiapi.EfiClient, params map[string]any) (map[string]any, error) {
 	in := map[string]any{}
 	if chave := strings.TrimSpace(stringFromInput(params, "chave")); chave != "" {
 		in["chave"] = chave
+	} else {
+		// EFI's list endpoint requires an explicit time window. Preserve it
+		// verbatim from the surface caller and never invent a moving default
+		// that could silently hide older subscriptions.
+		for _, key := range []string{"inicio", "fim", "page", "page_size", "cursor"} {
+			if value, present := params[key]; present {
+				in[key] = value
+			}
+		}
 	}
 	raw, err := capabilities.ObserveWebhookSubscriptions(ctx, c, in)
 	if err != nil {
@@ -114,18 +123,22 @@ func surfaceWebhookSubscriptions(ctx context.Context, c *efiapi.EfiClient, param
 	if rows == nil {
 		rows = []map[string]any{}
 	}
-	return map[string]any{"items": rows}, nil
+	out := map[string]any{"items": rows}
+	if cursor, ok := raw["cursor"].(string); ok {
+		out["cursor"] = cursor
+	}
+	return out, nil
 }
 
-// projectWebhookSubscription maps one raw BCB webhook subscription to the
-// opaque surface shape {chave, url, status, mtls}. The webhook URL is an
-// operator-owned endpoint (not payer PII), so it is safe to project.
+// projectWebhookSubscription maps one sanitized BCB webhook subscription to the
+// opaque surface shape {chave, url, status, mtls}. Observe redacts URL query
+// values before this projection so an HMAC cannot cross into the surface.
 func projectWebhookSubscription(m map[string]any) map[string]any {
 	row := map[string]any{
 		"chave":  stringFromInput(m, "chave"),
 		"url":    firstNonEmptyString(m, "webhookUrl", "url"),
 		"status": "active",
-		"mtls":   true,
+		"mtls":   nil,
 	}
 	// Reflect an explicit upstream mTLS / skip-mTLS indicator when present.
 	if skip, ok := boolFromInput(m, "skipMtls"); ok {

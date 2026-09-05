@@ -100,7 +100,7 @@ export function mockCollaboratorScope(): CollaboratorScope {
 //
 // [chave, url, status, mtls]
 const WEBHOOK_ROWS: Array<[string, string, string, boolean]> = [
-  ["pix@dakasa.me", "https://webhook-h.dakasa.me/efi/webhook/pix", "active", true]
+  ["pix@dakasa.me", "https://webhook-h.dakasa.me/efi/webhook", "active", true]
 ];
 
 export function mockWebhookSubscriptions(): WebhookSubscriptionItem[] {

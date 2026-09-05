@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/efiapi"
 )
@@ -18,10 +20,11 @@ import (
 // Required input: chave.
 func DestroyWebhookSubscription(ctx context.Context, c *efiapi.EfiClient, in map[string]any) (map[string]any, error) {
 	chave, _ := in["chave"].(string)
+	chave = strings.TrimSpace(chave)
 	if chave == "" {
 		return nil, fmt.Errorf("destroy_webhook_subscription: chave is required")
 	}
-	err := efiapi.DoRaw(ctx, c, http.MethodDelete, "/v2/webhook/"+chave, nil, nil)
+	err := efiapi.DoRaw(ctx, c, http.MethodDelete, "/v2/webhook/"+url.PathEscape(chave), nil, nil)
 	if err == nil {
 		return map[string]any{"destroyed": true, "chave": chave}, nil
 	}

@@ -1,17 +1,40 @@
 name: observe_webhook_subscriptions
-description: Observe Pix webhook subscriptions. Filter {chave} returns the single subscription (GET /v2/webhook/{chave}); empty filter lists all (GET /v2/webhook). Read-only.
+description: Observe Pix webhook subscriptions. Filter {chave} returns one subscription; filter {inicio, fim[, page, page_size, cursor]} returns a windowed page from GET /v2/webhook. EFI requires a valid ordered RFC3339 inicio/fim range. URL query values are redacted from normal output. Read-only.
 category: capability
 resource_types: [webhook_subscription]
 idempotent: true
 input_schema:
+  description: "Caller MUST supply either {chave} OR {inicio, fim}. Pagination only applies to the time-range variant."
   properties:
     chave:
       type: string
-      description: When set, returns the single subscription matching this chave; otherwise lists all subscriptions on the account.
+      description: When set, returns the single subscription matching this chave.
+    inicio:
+      type: string
+      format: date-time
+      description: RFC3339 start of the creation window. Required with fim.
+    fim:
+      type: string
+      format: date-time
+      description: RFC3339 end of the creation window. Required with inicio.
+    page:
+      type: integer
+      minimum: 0
+      description: Provider page number. Mutually exclusive with cursor.
+    page_size:
+      type: integer
+      minimum: 1
+      maximum: 1000
+      description: Items per provider page.
+    cursor:
+      type: string
+      description: Opaque cursor returned by the previous page. Mutually exclusive with page.
 output_schema:
-  description: "Raw upstream payload. Single-chave variant: {chave, webhookUrl, criacao}. List variant: {webhooks: [...]}."
+  description: "Normalized upstream payload. Single-chave variant: {chave, webhookUrl, criacao}. List variant: {parametros, webhooks: [...], cursor}. Query values in webhookUrl are redacted."
   properties:
     chave: {type: string}
     webhookUrl: {type: string}
+    parametros: {type: object}
     webhooks:
       type: array
+    cursor: {type: string}

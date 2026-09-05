@@ -200,18 +200,18 @@ func newProductionEmitFunc(coreBaseURL, token string, logger *zap.Logger) reacto
 		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, coreBaseURL+"/api/v1/workflow-runs", bytes.NewReader(raw))
 		if err != nil {
-			return err
+			return errors.New("build yggdrasil publish_message request")
 		}
 		req.Header.Set("Authorization", "Bearer "+token)
 		req.Header.Set("Content-Type", "application/json")
 		resp, err := httpClient.Do(req)
 		if err != nil {
-			return err
+			return errors.New("yggdrasil publish_message request failed")
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode >= 400 {
-			b, _ := io.ReadAll(resp.Body)
-			return fmt.Errorf("yggdrasil publish_message failed (status=%d): %s", resp.StatusCode, string(b))
+			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1024*1024))
+			return fmt.Errorf("yggdrasil publish_message failed (status=%d)", resp.StatusCode)
 		}
 		return nil
 	}

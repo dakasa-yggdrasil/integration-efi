@@ -39,18 +39,18 @@ const (
 // an import cycle: the capabilities subpackage already imports
 // `adapter` for EfiClient + DoRaw.
 const (
-	OperationEnsureCharge              = "ensure_charge"
-	OperationEnsureDueCharge           = "ensure_due_charge"
-	OperationObserveCharges            = "observe_charges"
-	OperationDestroyCharge             = "destroy_charge"
-	OperationRefundCharge              = "refund_charge"
-	OperationCreatePayout              = "create_payout"
-	OperationHandleChargeback          = "handle_chargeback"
+	OperationEnsureCharge                = "ensure_charge"
+	OperationEnsureDueCharge             = "ensure_due_charge"
+	OperationObserveCharges              = "observe_charges"
+	OperationDestroyCharge               = "destroy_charge"
+	OperationRefundCharge                = "refund_charge"
+	OperationCreatePayout                = "create_payout"
+	OperationHandleChargeback            = "handle_chargeback"
 	OperationEnsureWebhookSubscription   = "ensure_webhook_subscription"
 	OperationObserveWebhookSubscriptions = "observe_webhook_subscriptions"
 	OperationDestroyWebhookSubscription  = "destroy_webhook_subscription"
-	OperationVerifyWebhookSignature    = "verify_webhook_signature"
-	OperationEfiWebhookReceived        = "efi_webhook_received"
+	OperationVerifyWebhookSignature      = "verify_webhook_signature"
+	OperationEfiWebhookReceived          = "efi_webhook_received"
 
 	// OperationOnSurfaceQuery is the read-only aggregator invoked by core's
 	// /api/v1/integrations/{instance_id}/surface-query proxy on behalf of the
@@ -351,14 +351,14 @@ func Describe() contract.AdapterDescribeResponse {
 			},
 			{
 				Name:          OperationEnsureWebhookSubscription,
-				Description:   "Ensure a Pix webhook subscription exists. PUT /v2/webhook/{chave} (v3 fallback on 404). Idempotent — repeat calls reconcile URL/headers without creating duplicates.",
+				Description:   "Ensure a Pix webhook subscription exists. PUT /v2/webhook/{chave} (v3 fallback on 404). webhook_url is the HTTPS receiver base URL; EFI appends /pix to real deliveries. Idempotent: repeat calls reconcile URL/headers without creating duplicates.",
 				ResourceTypes: []string{"webhook_subscription"},
 				Idempotent:    true,
 				Category:      "capability",
 			},
 			{
 				Name:          OperationObserveWebhookSubscriptions,
-				Description:   "Observe Pix webhook subscriptions. Filter {chave} returns the single subscription (GET /v2/webhook/{chave}); empty filter lists all (GET /v2/webhook). Read-only.",
+				Description:   "Observe Pix webhook subscriptions. Filter {chave} returns one subscription; filter {inicio, fim[, page, page_size, cursor]} returns a windowed page from GET /v2/webhook. EFI requires a valid ordered RFC3339 inicio/fim range. URL query values are redacted from normal output. Read-only.",
 				ResourceTypes: []string{"webhook_subscription"},
 				Idempotent:    true,
 				Category:      "capability",
@@ -386,7 +386,7 @@ func Describe() contract.AdapterDescribeResponse {
 			},
 			{
 				Name:          OperationOnSurfaceQuery,
-				Description:   "Surface-driven read aggregator invoked by core's /api/v1/integrations/{instance_id}/surface-query proxy on behalf of the EFI/Pix finance-ops operator surface. Accepts { query_name, params }; routes by query_name to a read aggregator. Supported: list-webhook-subscriptions (webhook-health pillar — {chave,url,status,mtls} from observe_webhook_subscriptions; the mTLS-hardened webhook is the headline), list-charges (recent charges for reconciliation context — {txid,valor,status,tipo,created} from observe_charges; params {txid} OR {inicio,fim[,status]}), charge-detail (single-charge drill-down — {txid,valor,status,tipo,created,expiracao,devolucoes:[{id,valor,status,created}]} from observe_charges' single path; param {txid} required). RULE #0: payer-identifying fields (devedor/nome/cpf/cnpj/email/payer pix key) and the pix legs' endToEndId are NEVER projected — only opaque refs. Read-only; never mutates, moves no money.",
+				Description:   "Surface-driven read aggregator invoked by core's /api/v1/integrations/{instance_id}/surface-query proxy on behalf of the EFI/Pix finance-ops operator surface. Accepts { query_name, params }; routes by query_name to a read aggregator. Supported: list-webhook-subscriptions (webhook-health pillar; params {chave} OR {inicio,fim[,page,page_size,cursor]}; returns {chave,url,status,mtls}), list-charges (recent charges for reconciliation context; params {txid} OR {inicio,fim[,status]}; returns {txid,valor,status,tipo,created}), charge-detail (single-charge drill-down; param {txid} required; returns {txid,valor,status,tipo,created,expiracao,devolucoes:[{id,valor,status,created}]}). RULE #0: payer-identifying fields (devedor/nome/cpf/cnpj/email/payer pix key) and the pix legs' endToEndId are NEVER projected. Read-only; never mutates or moves money.",
 				ResourceTypes: []string{"webhook_subscription"},
 				Idempotent:    true,
 				Category:      "reactor",
@@ -479,12 +479,12 @@ func SupportsExecuteCapability(value string) bool {
 // Mirror of yggdrasil-sdk-go v0.5.0 sdk/reconcile.WithLegacyNames —
 // the same idea expressed in this adapter's local dispatch path.
 var LegacyOperationAliases = map[string]string{
-	"create_charge":                OperationEnsureCharge,
-	"create_due_charge":            OperationEnsureDueCharge,
-	"get_charge_status":            OperationObserveCharges,
-	"get_statement":                OperationObserveCharges,
-	"register_webhook_endpoint":    OperationEnsureWebhookSubscription,
-	"unregister_webhook_endpoint":  OperationDestroyWebhookSubscription,
+	"create_charge":               OperationEnsureCharge,
+	"create_due_charge":           OperationEnsureDueCharge,
+	"get_charge_status":           OperationObserveCharges,
+	"get_statement":               OperationObserveCharges,
+	"register_webhook_endpoint":   OperationEnsureWebhookSubscription,
+	"unregister_webhook_endpoint": OperationDestroyWebhookSubscription,
 }
 
 // CanonicalOperationFor returns the v2.0.0 canonical operation name

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useSurfaceQuery } from "@dakasa-yggdrasil/surface-toolkit";
 import type { ItemsEnvelope, WebhookSubscriptionItem } from "./types";
 import { mockEnabled, mockWebhookSubscriptions } from "./mock";
@@ -9,6 +10,12 @@ export interface WebhookSubscriptionsResult {
   error: unknown;
 }
 
+// Pix did not exist before 2020. Use an explicit, stable lower bound so the
+// provider-required list window covers every possible DaKasa subscription
+// without silently dropping an older registration. The upper bound remains
+// the time of the read so newly-created subscriptions are visible.
+const WEBHOOK_HISTORY_START = "2020-01-01T00:00:00.000Z";
+
 // The adapter emits flat values; normalize every row into the strict shape the
 // table relies on, dropping nothing and never throwing on a missing field.
 function normalize(raw: Record<string, unknown>): WebhookSubscriptionItem {
@@ -16,15 +23,20 @@ function normalize(raw: Record<string, unknown>): WebhookSubscriptionItem {
     chave: (raw.chave ?? "").toString(),
     url: (raw.url ?? "").toString(),
     status: (raw.status ?? "").toString(),
-    // `mtls` is the headline (Sec#2). Default to true only when truly absent —
-    // a present `false` from the adapter (skip-mtls escape hatch) is preserved.
-    mtls: raw.mtls === undefined ? true : raw.mtls === true
+    // Preserve all three honest states. EFI's documented observer response
+    // omits this field, which is unknown rather than healthy by default.
+    mtls: raw.mtls === true ? true : raw.mtls === false ? false : null
   };
 }
 
 /** True when mTLS is NOT enforced on this subscription — the one bad signal. */
 export function isMtlsOff(s: WebhookSubscriptionItem): boolean {
-  return s.mtls !== true;
+  return s.mtls === false;
+}
+
+/** True when EFI's read API did not prove the registration-time mTLS mode. */
+export function isMtlsUnknown(s: WebhookSubscriptionItem): boolean {
+  return s.mtls === null;
 }
 
 /**
@@ -35,13 +47,17 @@ export function isMtlsOff(s: WebhookSubscriptionItem): boolean {
  */
 export function useWebhookSubscriptions(instanceId: string | undefined): WebhookSubscriptionsResult {
   const mock = mockEnabled();
+  const params = useMemo<Record<string, unknown>>(
+    () => ({ inicio: WEBHOOK_HISTORY_START, fim: new Date().toISOString() }),
+    [instanceId]
+  );
   // Under `?mock` pass an undefined handle so `useSurfaceQuery` stays disabled
   // (`enabled: !!instanceId`) — the hook is still called for stable order, but
   // it issues zero network and we return the fixture below.
   const query = useSurfaceQuery<ItemsEnvelope<WebhookSubscriptionItem>>(
     mock ? undefined : instanceId,
     "list-webhook-subscriptions",
-    {}
+    params
   );
 
   if (mock) {

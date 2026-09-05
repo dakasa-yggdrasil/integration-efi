@@ -21,18 +21,19 @@
  * The adapter projects observe_webhook_subscriptions →
  * `{chave, url, status, mtls}`. `status` is "active" for any present
  * subscription (EFI's webhook API has no per-subscription status field).
- * `mtls` reflects the Sec#2-hardened mTLS posture — `true` unless the
- * subscription was registered with the skip-mTLS escape hatch.
+ * `mtls` reflects an explicit provider field when present. The documented EFI
+ * read response omits it, in which case the value is null and requires a live
+ * callback/TLS proof.
  */
 export interface WebhookSubscriptionItem {
   /** The Pix key the subscription is registered against (operator-owned). */
   chave: string;
-  /** The webhook URL EFI POSTs Pix callbacks to (operator-owned, not PII). */
+  /** Registered base URL; EFI appends /pix on delivery. Query values are redacted. */
   url: string;
   /** "active" for any present subscription. */
   status: string;
-  /** Whether mTLS is enforced on delivery (the hardened default). */
-  mtls: boolean;
+  /** Whether mTLS is enforced on delivery, or null when EFI does not report it. */
+  mtls: boolean | null;
 }
 
 /**
@@ -116,9 +117,10 @@ export interface ChargeDetailObject {
   devolucoes: DevolucaoItem[];
 }
 
-/** The envelope every list surface query returns: `{ items }`. */
+/** The envelope every list surface query returns: `{ items, cursor? }`. */
 export interface ItemsEnvelope<T> {
   items: T[];
+  cursor?: string;
 }
 
 /**
