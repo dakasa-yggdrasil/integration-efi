@@ -148,8 +148,8 @@ curl -sS -X POST \
 | Due-date (boleto-style) charge | `ensure_due_charge` | `txid, valor, chave, calendario, devedor` |
 | Refund a Pix | `refund_charge` | `e2eId, id, valor` |
 | Send a payout | `create_payout` | `idEnvio, valor, pagador, favorecido` |
-| Register a webhook | `ensure_webhook_subscription` | `chave, webhook_url` |
-| List/inspect webhooks | `observe_webhook_subscriptions` | `{chave}` or empty |
+| Register a webhook | `ensure_webhook_subscription` | `chave, webhook_url` (base URL, without `/pix`) |
+| List/inspect webhooks | `observe_webhook_subscriptions` | `{chave}` or `{inicio, fim[, page, page_size, cursor]}` |
 
 Full input/output schemas: [CAPABILITIES.md](CAPABILITIES.md).
 
@@ -161,6 +161,12 @@ reactor normalizes each event and emits it onto the bus
 (`identities.efi.pix-receive.q`). This is **not** something you call — see
 [OPERATIONS.md → Webhooks](OPERATIONS.md#webhooks) and
 [CAPABILITIES.md → efi_webhook_received](CAPABILITIES.md#efi_webhook_received--reactor).
+
+The registered `webhook_url` is the receiver base path, not that final delivery
+path. EFI validates the base during registration and appends `/pix` to real Pix
+notifications. For DaKasa production, register
+`https://webhook.dakasa.me/efi/webhook`; EFI then delivers to
+`https://webhook.dakasa.me/efi/webhook/pix`.
 
 ## 7. Local dev loop
 

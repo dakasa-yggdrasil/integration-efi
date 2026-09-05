@@ -1,4 +1,4 @@
-export { useWebhookSubscriptions, isMtlsOff } from "./useWebhookSubscriptions";
+export { useWebhookSubscriptions, isMtlsOff, isMtlsUnknown } from "./useWebhookSubscriptions";
 export type { WebhookSubscriptionsResult } from "./useWebhookSubscriptions";
 
 export { useCharges } from "./useCharges";

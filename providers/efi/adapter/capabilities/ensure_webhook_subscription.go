@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/efiapi"
 )
@@ -19,17 +21,19 @@ import (
 //
 // Required input: chave, webhook_url.
 // Optional:       skip_mtls_validation (bool) — adds
-//                 `x-skip-mtls-checking: true` request header.
+//
+//	`x-skip-mtls-checking: true` request header.
 //
 // Idempotent — repeated calls reconcile the same subscription.
 func EnsureWebhookSubscription(ctx context.Context, c *efiapi.EfiClient, in map[string]any) (map[string]any, error) {
 	chave, _ := in["chave"].(string)
+	chave = strings.TrimSpace(chave)
 	if chave == "" {
 		return nil, fmt.Errorf("ensure_webhook_subscription: chave is required")
 	}
-	webhookURL, _ := in["webhook_url"].(string)
-	if webhookURL == "" {
-		return nil, fmt.Errorf("ensure_webhook_subscription: webhook_url is required")
+	webhookURL, err := normalizeWebhookBaseURL(stringValue(in, "webhook_url"))
+	if err != nil {
+		return nil, fmt.Errorf("ensure_webhook_subscription: %w", err)
 	}
 
 	body := map[string]any{"webhookUrl": webhookURL}
@@ -38,7 +42,8 @@ func EnsureWebhookSubscription(ctx context.Context, c *efiapi.EfiClient, in map[
 		headers["x-skip-mtls-checking"] = "true"
 	}
 
-	err := efiapi.DoRawWithHeaders(ctx, c, http.MethodPut, "/v2/webhook/"+chave, body, nil, headers)
+	pathChave := url.PathEscape(chave)
+	err = efiapi.DoRawWithHeaders(ctx, c, http.MethodPut, "/v2/webhook/"+pathChave, body, nil, headers)
 	if err == nil {
 		return map[string]any{"ensured": true, "chave": chave, "endpoint": "v2"}, nil
 	}
@@ -46,11 +51,16 @@ func EnsureWebhookSubscription(ctx context.Context, c *efiapi.EfiClient, in map[
 	var apiErr *efiapi.EfiAPIError
 	if errors.As(err, &apiErr) && apiErr.Status == http.StatusNotFound {
 		// Some EFI accounts only accept the v3 path.
-		if err2 := efiapi.DoRawWithHeaders(ctx, c, http.MethodPut, "/v3/gn/webhook/"+chave, body, nil, headers); err2 == nil {
+		if err2 := efiapi.DoRawWithHeaders(ctx, c, http.MethodPut, "/v3/gn/webhook/"+pathChave, body, nil, headers); err2 == nil {
 			return map[string]any{"ensured": true, "chave": chave, "endpoint": "v3"}, nil
 		} else {
 			return nil, fmt.Errorf("ensure_webhook_subscription: v2 returned 404, v3 fallback also failed: %w", err2)
 		}
 	}
 	return nil, fmt.Errorf("ensure_webhook_subscription: %w", err)
+}
+
+func stringValue(in map[string]any, key string) string {
+	value, _ := in[key].(string)
+	return value
 }

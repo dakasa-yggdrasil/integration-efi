@@ -223,5 +223,5 @@ spec:
       post_install_hints:
         - "Create a Pix charge: kind=integration, family=efi, operation=ensure_charge (POST /v2/cob)."
         - "Read a charge: family=efi, operation=observe_charges with txid=<txid> or {inicio, fim} for a statement window."
-        - "Register a Pix webhook: family=efi, operation=ensure_webhook_subscription — point EFI at the adapter's :9079 /efi/webhook/pix listener."
+        - "Register a Pix webhook: family=efi, operation=ensure_webhook_subscription. Supply the backend receiver base URL without /pix; EFI appends /pix to real deliveries."
         - "mTLS is mandatory for EFI Pix calls: EFI_CERTIFICATE_BASE64 must hold the P12 unless mtls_enabled=false (mock only)."

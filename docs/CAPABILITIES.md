@@ -153,22 +153,34 @@ Idempotent — repeat calls reconcile URL/headers without creating duplicates.
 | Input | Type | Required | Notes |
 |---|---|:--:|---|
 | `chave` | string | yes | The Pix key the webhook is attached to. |
-| `webhook_url` | string | yes | Callback URL EFI should POST to. |
+| `webhook_url` | string | yes | HTTPS receiver **base** URL. Do not include `/pix`; EFI probes this URL during registration and appends `/pix` for real deliveries. DaKasa production uses `https://webhook.dakasa.me/efi/webhook`, which delivers to `/efi/webhook/pix`. |
 | `skip_mtls_validation` | boolean | no | Sets EFI's `x-skip-mtls-checking` header (default `false`). |
 
 **Output:** `ensured` (bool), `chave`, `endpoint`.
 
 ### `observe_webhook_subscriptions`
 
-Observe Pix webhook subscriptions. **Read-only.** `{chave}` → single subscription
-(`GET /v2/webhook/{chave}`); empty filter → list all (`GET /v2/webhook`).
+Observe Pix webhook subscriptions. **Read-only.** `{chave}` returns one
+subscription (`GET /v2/webhook/{chave}`). Listing requires an explicit
+`{inicio, fim}` window because EFI rejects an unbounded `GET /v2/webhook`.
+Optional pagination uses `page`, `page_size`, or the `cursor` returned by the
+previous page. The adapter maps them to the BCB query names.
 
 | Input | Type | Required | Notes |
 |---|---|:--:|---|
-| `chave` | string | no | When set, returns the single subscription; otherwise lists all. |
+| `chave` | string | one-of | Single-subscription variant. |
+| `inicio` | string | one-of | RFC3339 start of the creation window, with `fim`. |
+| `fim` | string | one-of | RFC3339 end of the creation window, with `inicio`. |
+| `page` | integer | no | Zero-based provider page, mutually exclusive with `cursor`. |
+| `page_size` | integer | no | Items per page, from 1 through 1000. |
+| `cursor` | string | no | Next-page cursor returned by the prior call, mutually exclusive with `page`. |
 
-**Output (raw upstream):** single-chave variant `{ chave, webhookUrl, criacao }`;
-list variant `{ webhooks: [...] }`.
+**Output (normalized upstream):** single-chave variant
+`{ chave, webhookUrl, criacao }`; list variant
+`{ parametros, webhooks: [...], cursor }`. Empty `cursor` means the last page.
+Query values embedded in `webhookUrl` are redacted so HMAC-style URL secrets do
+not enter workflow history, logs, or surfaces; query parameter names remain
+visible for drift diagnosis.
 
 ### `destroy_webhook_subscription`
 

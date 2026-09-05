@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { Chip, Pill, LoadingState } from "@dakasa-yggdrasil/surface-toolkit";
 import type { WebhookSubscriptionsResult } from "../../data";
-import { isMtlsOff } from "../../data";
+import { isMtlsOff, isMtlsUnknown } from "../../data";
 
 export interface AttentionBandProps {
   webhooks: WebhookSubscriptionsResult;
@@ -20,7 +20,8 @@ const ROW: CSSProperties = {
 
 /**
  * The euphemized "Precisa de você" band. The readable signals today: (1) no
- * webhook subscription at all, and (2) a subscription with mTLS off. Those lead.
+ * webhook subscription at all, (2) a subscription with mTLS off, and (3) an
+ * EFI read that cannot prove the registration-time mTLS mode. Those lead.
  */
 export function AttentionBand({ webhooks }: AttentionBandProps) {
   if (webhooks.isLoading) {
@@ -28,7 +29,9 @@ export function AttentionBand({ webhooks }: AttentionBandProps) {
   }
 
   const noWebhook = webhooks.items.length === 0;
-  const mtlsOff = webhooks.items.filter(isMtlsOff).slice(0, 6);
+  const needsEvidence = webhooks.items
+    .filter((item) => isMtlsOff(item) || isMtlsUnknown(item))
+    .slice(0, 6);
 
   if (noWebhook) {
     return (
@@ -48,7 +51,7 @@ export function AttentionBand({ webhooks }: AttentionBandProps) {
     );
   }
 
-  if (mtlsOff.length === 0) {
+  if (needsEvidence.length === 0) {
     return (
       <p
         style={{
@@ -72,7 +75,7 @@ export function AttentionBand({ webhooks }: AttentionBandProps) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-        {mtlsOff.map((s) => (
+        {needsEvidence.map((s) => (
           <div key={s.chave || s.url} style={ROW}>
             <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, flex: 1 }}>
               <span
@@ -91,7 +94,11 @@ export function AttentionBand({ webhooks }: AttentionBandProps) {
               </span>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "var(--sp-2)" }}>
                 <Chip label="webhook" tone="team" />
-                <Pill label="mTLS desligado" tone="crit" preserveCase />
+                <Pill
+                  label={isMtlsOff(s) ? "mTLS desligado" : "mTLS não observado"}
+                  tone={isMtlsOff(s) ? "crit" : "neutral"}
+                  preserveCase
+                />
               </span>
             </div>
           </div>

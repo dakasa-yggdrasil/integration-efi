@@ -42,6 +42,20 @@ export function KpiStrip({ pulse }: KpiStripProps) {
   const noWebhook = !pulse.hasWebhook;
   const mtlsBad = pulse.webhooksMtlsOff > 0;
   const webhookBad = noWebhook || mtlsBad;
+  const webhookValue = noWebhook
+    ? "—"
+    : mtlsBad
+      ? "sem mTLS"
+      : pulse.webhooksMtlsUnknown > 0
+        ? "a confirmar"
+        : "ativo";
+  const webhookQualifier = noWebhook
+    ? "sem webhook"
+    : mtlsBad
+      ? `${pulse.webhooksMtlsOff} sem mTLS`
+      : pulse.webhooksMtlsUnknown > 0
+        ? `${pulse.webhooksMtlsUnknown} de ${pulse.webhooks} não observado(s)`
+        : `${pulse.webhooksMtls} de ${pulse.webhooks} com mTLS confirmado`;
 
   return (
     <div style={WRAP}>
@@ -49,12 +63,9 @@ export function KpiStrip({ pulse }: KpiStripProps) {
       <div className="ef-kpi-strip">
         <KpiTile
           eyebrow="Webhook mTLS"
-          value={noWebhook ? "—" : pulse.webhooksMtls > 0 ? "ativo" : "inativo"}
-          delta={kpiDelta(noWebhook ? "sem webhook" : "mTLS desligado", webhookBad)}
-          chart={kpiSubtext(
-            noWebhook ? "nenhuma assinatura" : `${pulse.webhooksMtls} de ${pulse.webhooks} com mTLS`,
-            webhookBad
-          )}
+          value={webhookValue}
+          delta={kpiDelta(webhookQualifier, webhookBad)}
+          chart={kpiSubtext(webhookQualifier, webhookBad)}
         />
         <KpiTile
           eyebrow={`Charges (${pulse.chargeWindowDays}d)`}

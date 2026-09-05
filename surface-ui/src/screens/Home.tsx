@@ -65,15 +65,17 @@ function headline(parts: {
   label: string;
   env: string;
   hasWebhook: boolean;
-  mtlsOk: boolean;
+  mtlsState: "active" | "off" | "unknown";
   charges: number;
   windowDays: number;
 }): string {
   const webhookFact = !parts.hasWebhook
     ? "sem webhook"
-    : parts.mtlsOk
+    : parts.mtlsState === "active"
       ? "webhook mTLS ativo"
-      : "webhook sem mTLS";
+      : parts.mtlsState === "off"
+        ? "webhook sem mTLS"
+        : "webhook mTLS não observado";
   return [
     `EFI Pix · ${parts.env}`,
     webhookFact,
@@ -122,7 +124,13 @@ export function Home() {
     );
   }
 
-  const mtlsOk = pulse.hasWebhook && pulse.webhooksMtlsOff === 0;
+  const mtlsState =
+    pulse.webhooksMtlsOff > 0
+      ? "off"
+      : pulse.webhooksMtlsUnknown > 0
+        ? "unknown"
+        : "active";
+  const mtlsOk = pulse.hasWebhook && mtlsState === "active";
 
   // The identity line: a finance-OPS index — money-movement and payer data are
   // never here.
@@ -137,7 +145,8 @@ export function Home() {
   // refunds), both honestly needs-work / admin-em-breve — the surface NEVER
   // decides who/how-much to pay; that is the cash-loop. Each card carries a hard
   // number (or honest "—"); bad signals (webhook sem mTLS) surface a pill so the
-  // operator's eye lands on them first.
+  // operator's eye lands on them first. An unknown mTLS registration mode stays
+  // visibly distinct from a confirmed skip-mTLS registration.
   const navGroups: NavGroupSpec[] = [
     {
       key: "ingestao",
@@ -146,11 +155,22 @@ export function Home() {
         {
           key: "webhook",
           label: "Webhook & mTLS",
-          value: pulse.hasWebhook ? (mtlsOk ? "ativo" : "sem mTLS") : "—",
+          value: pulse.hasWebhook
+            ? mtlsState === "active"
+              ? "ativo"
+              : mtlsState === "off"
+                ? "sem mTLS"
+                : "a confirmar"
+            : "—",
           unit: pulse.hasWebhook ? "mTLS" : "ausente",
           to: "/webhook",
-          tagLabel: pulse.webhooksMtlsOff > 0 ? `${pulse.webhooksMtlsOff} sem mTLS` : undefined,
-          tagTone: "crit"
+          tagLabel:
+            pulse.webhooksMtlsOff > 0
+              ? `${pulse.webhooksMtlsOff} sem mTLS`
+              : pulse.webhooksMtlsUnknown > 0
+                ? `${pulse.webhooksMtlsUnknown} não observado(s)`
+                : undefined,
+          tagTone: pulse.webhooksMtlsOff > 0 ? "crit" : "neutral"
         },
         {
           key: "charges",
@@ -237,7 +257,13 @@ export function Home() {
               marginTop: "var(--sp-1)"
             }}
           >
-            {pulse.hasWebhook ? (mtlsOk ? "mTLS ativo" : "sem mTLS") : "ausente"}
+            {pulse.hasWebhook
+              ? mtlsState === "active"
+                ? "mTLS ativo"
+                : mtlsState === "off"
+                  ? "sem mTLS"
+                  : "mTLS não observado"
+              : "ausente"}
           </div>
         </div>
       </header>
@@ -259,7 +285,7 @@ export function Home() {
             label: instanceLabel,
             env,
             hasWebhook: pulse.hasWebhook,
-            mtlsOk,
+            mtlsState,
             charges: pulse.charges,
             windowDays: pulse.chargeWindowDays
           })}

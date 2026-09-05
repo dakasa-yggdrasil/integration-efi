@@ -1,5 +1,5 @@
 import type { WebhookSubscriptionItem } from "../../data";
-import { isMtlsOff } from "../../data";
+import { isMtlsOff, isMtlsUnknown } from "../../data";
 import { StatusDot } from "../shared/StatusDot";
 
 export interface WebhookTableProps {
@@ -42,15 +42,16 @@ const TABLE_CSS = `
  * The webhook subscriptions roster — the real data page, the contract's
  * canonical readable signal. Columns: the Pix `chave` (mono), the endpoint URL
  * (mono), a status dot (subscription present = active), and the mTLS dot
- * (ativo = ok / desligado = crit, read straight from the projection — the Sec#2
- * hardened webhook is the headline). The webhook URL is operator-owned, not
- * payer PII (rule #0), so it is safe to show; there is no payer column.
+ * (ativo = ok / desligado = crit / não observado = warn). EFI's documented read
+ * response does not report the registration-time mTLS flag. The adapter redacts
+ * query values from the registered base URL before the surface sees it; there is
+ * no payer column.
  */
 export function WebhookTable({ subscriptions }: WebhookTableProps) {
-  // mTLS-off subscriptions first (they need attention), then by URL.
+  // mTLS-off subscriptions first, then unknown evidence, then confirmed mTLS.
   const rows = [...subscriptions].sort((a, b) => {
-    const da = isMtlsOff(a) ? 0 : 1;
-    const db = isMtlsOff(b) ? 0 : 1;
+    const da = isMtlsOff(a) ? 0 : isMtlsUnknown(a) ? 1 : 2;
+    const db = isMtlsOff(b) ? 0 : isMtlsUnknown(b) ? 1 : 2;
     if (da !== db) return da - db;
     return (a.url || a.chave).localeCompare(b.url || b.chave);
   });
@@ -71,6 +72,7 @@ export function WebhookTable({ subscriptions }: WebhookTableProps) {
           <tbody>
             {rows.map((s) => {
               const noMtls = isMtlsOff(s);
+              const unknownMtls = isMtlsUnknown(s);
               return (
                 <tr key={s.chave || s.url} className="ef-wh-row">
                   <td style={{ maxWidth: 220 }}>
@@ -113,9 +115,15 @@ export function WebhookTable({ subscriptions }: WebhookTableProps) {
                   </td>
                   <td>
                     <StatusDot
-                      tone={noMtls ? "crit" : "ok"}
-                      label={noMtls ? "desligado" : "ativo"}
-                      title={noMtls ? "Entrega sem mTLS (skip-mTLS)." : "mTLS enforçado na entrega."}
+                      tone={noMtls ? "crit" : unknownMtls ? "warn" : "ok"}
+                      label={noMtls ? "desligado" : unknownMtls ? "não observado" : "ativo"}
+                      title={
+                        noMtls
+                          ? "Entrega sem mTLS (skip-mTLS)."
+                          : unknownMtls
+                            ? "A leitura da EFI não informa o modo mTLS; valide uma entrega autenticada."
+                            : "mTLS informado como ativo na entrega."
+                      }
                     />
                   </td>
                 </tr>

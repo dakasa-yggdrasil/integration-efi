@@ -40,8 +40,9 @@ func (c *EfiClient) Token() string { return c.token }
 // client.
 //
 // The supplied tlsConfig is used as the http.Transport.TLSClientConfig.
-// Pass nil (when EFI_MTLS_ENABLED=false) to disable mTLS — the OAuth
-// call still happens but the server-cert chain is NOT validated.
+// Pass nil (when EFI_MTLS_ENABLED=false) to omit the client certificate. The
+// default transport still validates the provider's server certificate against
+// the host system roots.
 func NewEfiClient(cfg config.Config, tlsConfig *tls.Config) (*EfiClient, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	if tlsConfig != nil {
@@ -55,7 +56,7 @@ func NewEfiClient(cfg config.Config, tlsConfig *tls.Config) (*EfiClient, error) 
 	body := strings.NewReader(`{"grant_type": "client_credentials"}`)
 	req, err := http.NewRequest(http.MethodPost, cfg.BaseURL+"/oauth/token", body)
 	if err != nil {
-		return nil, fmt.Errorf("efi: build oauth request: %w", err)
+		return nil, errors.New("efi: build oauth request")
 	}
 	req.SetBasicAuth(cfg.ClientKeyID, cfg.ClientSecret)
 	req.Header.Set("Content-Type", "application/json")
@@ -63,16 +64,21 @@ func NewEfiClient(cfg config.Config, tlsConfig *tls.Config) (*EfiClient, error) 
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("efi: oauth request: %w", err)
+		return nil, &EfiTransportError{Operation: "oauth", Err: err}
 	}
 	defer resp.Body.Close()
 
-	raw, err := io.ReadAll(resp.Body)
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
 	if err != nil {
 		return nil, fmt.Errorf("efi: read oauth response: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, &EfiAPIError{Status: resp.StatusCode, Name: "oauth_failed", Message: string(raw)}
+		apiErr := newEfiAPIError(resp.StatusCode, "oauth_failed")
+		// OAuth responses are external and untrusted. Never forward their
+		// free-form detail because it can reflect credential material into RPC
+		// errors and logs.
+		apiErr.Message = "authentication failed"
+		return nil, apiErr
 	}
 
 	var token struct {
@@ -136,7 +142,7 @@ func (c *EfiClient) do(ctx context.Context, method, path string, body, dest any,
 	defer span.End()
 	span.SetAttributes(
 		attribute.String("http.method", method),
-		attribute.String("http.path", path),
+		attribute.String("efi.operation", op),
 	)
 
 	start := time.Now()
@@ -168,7 +174,7 @@ func (c *EfiClient) doInner(ctx context.Context, method, path string, body, dest
 	}
 	req, err := http.NewRequestWithContext(ctx, method, c.cfg.BaseURL+path, reader)
 	if err != nil {
-		return fmt.Errorf("efi: build request: %w", err)
+		return errors.New("efi: build provider request")
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Accept", "application/json")
@@ -180,7 +186,7 @@ func (c *EfiClient) doInner(ctx context.Context, method, path string, body, dest
 	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("efi: do request %s %s: %w", method, path, err)
+		return &EfiTransportError{Operation: classifyPath(path), Err: err}
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
@@ -188,7 +194,7 @@ func (c *EfiClient) doInner(ctx context.Context, method, path string, body, dest
 		return fmt.Errorf("efi: read response body: %w", err)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return &EfiAPIError{Status: resp.StatusCode, Name: resp.Status, Message: strings.TrimSpace(string(raw))}
+		return newEfiAPIError(resp.StatusCode, "provider_error")
 	}
 	if dest != nil && len(raw) > 0 {
 		if err := json.Unmarshal(raw, dest); err != nil {
@@ -196,6 +202,56 @@ func (c *EfiClient) doInner(ctx context.Context, method, path string, body, dest
 		}
 	}
 	return nil
+}
+
+// EfiTransportError preserves the underlying network error for retry and
+// errors.Is/errors.As decisions while keeping request URLs, Pix keys, query
+// secrets, and HTTP-client diagnostics out of Error(), RPC responses, logs,
+// and trace events.
+type EfiTransportError struct {
+	Operation string
+	Err       error
+}
+
+func (e *EfiTransportError) Error() string {
+	operation := sanitizeProviderText(e.Operation, 64)
+	if operation == "" {
+		operation = "provider"
+	}
+	return fmt.Sprintf("efi: %s transport request failed", operation)
+}
+
+func (e *EfiTransportError) Unwrap() error { return e.Err }
+
+// newEfiAPIError intentionally does not forward the provider response body.
+// Validation errors can reflect Pix keys, webhook URLs with HMAC query values,
+// or credentials. No heuristic redactor can prove an arbitrary secret is absent,
+// so only the HTTP status and a caller-owned static name cross the boundary.
+func newEfiAPIError(status int, staticName string) *EfiAPIError {
+	name := sanitizeProviderText(staticName, 96)
+	message := http.StatusText(status)
+	if name == "" {
+		name = "provider_error"
+	}
+	if message == "" {
+		message = "provider request failed"
+	}
+	return &EfiAPIError{Status: status, Name: name, Message: message}
+}
+
+func sanitizeProviderText(value string, maxRunes int) string {
+	value = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, value)
+	value = strings.Join(strings.Fields(value), " ")
+	runes := []rune(value)
+	if len(runes) > maxRunes {
+		value = string(runes[:maxRunes]) + "..."
+	}
+	return value
 }
 
 // DoRaw is exported so capability subpackages can issue authenticated

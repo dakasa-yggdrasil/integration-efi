@@ -3,6 +3,7 @@ package adapter
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"io"
@@ -31,6 +32,9 @@ type WebhookServer struct {
 // NewWebhookServer builds a *WebhookServer that will listen on addr
 // (e.g. ":9079"). Pass nil tlsConfig for HTTP-only (mock mode).
 func NewWebhookServer(addr string, tlsConfig *tls.Config, emit reactor.EmitFunc, logger *zap.Logger) *WebhookServer {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/efi/webhook/pix", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
@@ -76,9 +80,21 @@ func NewWebhookServer(addr string, tlsConfig *tls.Config, emit reactor.EmitFunc,
 		w.WriteHeader(http.StatusAccepted)
 	})
 
-	tlsCopy := tlsConfig
-	if tlsCopy != nil {
+	var tlsCopy *tls.Config
+	if tlsConfig != nil {
+		// A tls.Config must not be mutated after it has been handed to a
+		// client or server. LoadTLSConfig is also the outbound EFI client
+		// config, so keep the inbound-only ClientAuth policy on a clone.
+		tlsCopy = tlsConfig.Clone()
 		tlsCopy.ClientAuth = tls.RequireAndVerifyClientCert
+		if tlsCopy.ClientCAs == nil {
+			// A nil ClientCAs pool makes x509 verification fall back to broad
+			// host roots. The outbound EFI client config intentionally carries
+			// only RootCAs, so install an empty explicit pool and reject every
+			// inbound client until the caller supplies EFI's dedicated webhook
+			// CA chain.
+			tlsCopy.ClientCAs = x509.NewCertPool()
+		}
 	}
 	return &WebhookServer{
 		addr:      addr,
@@ -112,12 +128,22 @@ func (s *WebhookServer) ListenAndServe(ctx context.Context) error {
 		}
 		close(errCh)
 	}()
-	<-ctx.Done()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	_ = s.srv.Shutdown(shutdownCtx)
-	if err, ok := <-errCh; ok && err != nil {
-		return err
+
+	select {
+	case err, ok := <-errCh:
+		if ok {
+			return err
+		}
+		return nil
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.srv.Shutdown(shutdownCtx); err != nil {
+			return err
+		}
+		if err, ok := <-errCh; ok && err != nil {
+			return err
+		}
+		return nil
 	}
-	return nil
 }

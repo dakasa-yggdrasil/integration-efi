@@ -35,7 +35,7 @@ func TestEnsureWebhookSubscription_PutsToV2WithUrl(t *testing.T) {
 
 	got, err := EnsureWebhookSubscription(context.Background(), c, map[string]any{
 		"chave":                "pix@dakasa.me",
-		"webhook_url":          "https://webhook.dakasa.me/efi/webhook/pix",
+		"webhook_url":          "https://webhook.dakasa.me/efi/webhook",
 		"skip_mtls_validation": true,
 	})
 	if err != nil {
@@ -50,11 +50,50 @@ func TestEnsureWebhookSubscription_PutsToV2WithUrl(t *testing.T) {
 	if gotSkipMTLS != "true" {
 		t.Fatalf("x-skip-mtls-checking = %q, want true", gotSkipMTLS)
 	}
-	if !strings.Contains(string(gotBody), `"webhookUrl":"https://webhook.dakasa.me/efi/webhook/pix"`) {
+	if !strings.Contains(string(gotBody), `"webhookUrl":"https://webhook.dakasa.me/efi/webhook"`) {
 		t.Fatalf("body missing webhookUrl: %s", string(gotBody))
 	}
 	if got["ensured"] != true {
 		t.Fatalf("ensured = %v", got["ensured"])
+	}
+}
+
+func TestEnsureWebhookSubscription_RejectsFinalPixDeliveryPath(t *testing.T) {
+	for _, webhookURL := range []string{
+		"https://webhook.dakasa.me/efi/webhook/pix",
+		"https://webhook.dakasa.me/efi/webhook/pix/",
+	} {
+		_, err := normalizeWebhookBaseURL(webhookURL)
+		if err == nil || !strings.Contains(err.Error(), "EFI appends /pix") {
+			t.Fatalf("webhook_url %q: expected appended-/pix validation error, got %v", webhookURL, err)
+		}
+	}
+}
+
+func TestEnsureWebhookSubscription_ValidatesSecureBaseURLWithoutEchoingIt(t *testing.T) {
+	for _, webhookURL := range []string{
+		"http://webhook.dakasa.me/efi/webhook",
+		"https://user:password@webhook.dakasa.me/efi/webhook",
+		"https://webhook.dakasa.me/efi/webhook#secret-fragment",
+	} {
+		_, err := normalizeWebhookBaseURL(webhookURL)
+		if err == nil {
+			t.Fatalf("webhook_url %q: expected validation error", webhookURL)
+		}
+		if strings.Contains(err.Error(), webhookURL) || strings.Contains(err.Error(), "password") || strings.Contains(err.Error(), "secret-fragment") {
+			t.Fatalf("validation error echoed sensitive URL material: %v", err)
+		}
+	}
+}
+
+func TestEnsureWebhookSubscription_AllowsDocumentedQueryFormOnBaseURL(t *testing.T) {
+	want := "https://receiver.example/efi/webhook?hmac=opaque&ignorar="
+	got, err := normalizeWebhookBaseURL(want)
+	if err != nil {
+		t.Fatalf("normalizeWebhookBaseURL() error = %v", err)
+	}
+	if got != want {
+		t.Fatalf("normalized URL = %q, want %q", got, want)
 	}
 }
 

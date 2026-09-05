@@ -1,5 +1,5 @@
 name: ensure_webhook_subscription
-description: Ensure a Pix webhook subscription exists. PUT /v2/webhook/{chave} with /v3/gn/webhook/{chave} fallback on 404. Idempotent — repeat calls reconcile URL/headers without creating duplicates.
+description: Ensure a Pix webhook subscription exists. PUT /v2/webhook/{chave} with /v3/gn/webhook/{chave} fallback on 404. webhook_url is the HTTPS receiver base URL; EFI appends /pix to real deliveries. Idempotent; repeat calls reconcile URL/headers without creating duplicates.
 category: capability
 resource_types: [webhook_subscription]
 idempotent: true
@@ -7,10 +7,14 @@ input_schema:
   required: [chave, webhook_url]
   properties:
     chave: {type: string}
-    webhook_url: {type: string}
+    webhook_url:
+      type: string
+      format: uri
+      description: HTTPS receiver base URL. Do not include the final /pix path; EFI appends /pix when delivering a real notification.
     skip_mtls_validation:
       type: boolean
       default: false
+      description: EFI webhook mTLS validation bypass. Keep false outside explicitly isolated test/shared-hosting cases.
 output_schema:
   properties:
     ensured: {type: boolean}
