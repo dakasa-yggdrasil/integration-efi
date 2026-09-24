@@ -27,7 +27,7 @@ This applies:
 - a deploy ref for `ghcr.io/dakasa-yggdrasil/integration-efi`
 
 > Pin an immutable published tag (`sha-<short>` from the `release` workflow, or
-> `v2.5.0`) — the running binary advertises adapter version `2.5.0`. See
+> `v2.5.1`). The running binary advertises adapter version `2.5.1`. See
 > [CONFIGURATION.md → Version truth](CONFIGURATION.md#version-truth).
 
 ## 2. Configure the instance
@@ -49,8 +49,7 @@ instance manifest:
     "config": {
       "base_url":     "https://pix.api.efipay.com.br",
       "sandbox":      false,
-      "mtls_enabled": true,
-      "webhook_port": 9079
+      "mtls_enabled": true
     },
     "discovery": { "enabled": false }
   }
@@ -92,11 +91,13 @@ yggdrasil apply -f efi-charge-example.yaml
 ```
 
 Or trigger a one-off execute run directly against core's HTTP API (the shape the
-staging runbook uses):
+staging runbook uses). `CORE_URL` is your yggdrasil-core base URL and
+`CORE_TOKEN` a core API bearer allowed to start workflow runs; neither is an
+adapter setting:
 
 ```bash
 curl -sS -X POST \
-  -H "Authorization: Bearer $YGGDRASIL_WORKFLOW_RUN_TOKEN" \
+  -H "Authorization: Bearer $CORE_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "workflow": {"name": "integration-execute", "namespace": "global"},
@@ -109,7 +110,7 @@ curl -sS -X POST \
       }
     }
   }' \
-  "$YGGDRASIL_CORE_BASE_URL/api/v1/workflow-runs" | jq
+  "$CORE_URL/api/v1/workflow-runs" | jq
 ```
 
 **Expected output** from `ensure_charge`:
@@ -156,11 +157,11 @@ Full input/output schemas: [CAPABILITIES.md](CAPABILITIES.md).
 
 ## 6. Receiving inbound Pix callbacks
 
-After `ensure_webhook_subscription`, EFI POSTs Pix callbacks to the adapter's
-mTLS webhook listener on `:9079` (`/efi/webhook/pix`). The `efi_webhook_received`
-reactor normalizes each event and emits it onto the bus
-(`identities.efi.pix-receive.q`). This is **not** something you call — see
-[OPERATIONS.md → Webhooks](OPERATIONS.md#webhooks) and
+After `ensure_webhook_subscription`, EFI POSTs Pix callbacks to the registered
+`webhook_url` plus `/pix`. The service behind that URL receives them; this
+adapter has had no inbound listener since 2.5.1. The `efi_webhook_received`
+reactor stays in the contract without an event sink, so it is **not** something
+you call. See [OPERATIONS.md → Webhooks](OPERATIONS.md#webhooks) and
 [CAPABILITIES.md → efi_webhook_received](CAPABILITIES.md#efi_webhook_received--reactor).
 
 The registered `webhook_url` is the receiver base path, not that final delivery

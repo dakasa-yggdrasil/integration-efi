@@ -61,8 +61,8 @@ Example instance `credentials` block (`manifest/integration_instance.example.jso
 |---|---|---|---|
 | `base_url` | string | `https://pix.api.efipay.com.br` | EFI Pix API base URL. Use `https://pix-h.api.efipay.com.br` for homologation. |
 | `sandbox` | boolean | `false` | Whether this instance points at EFI homologation (`pix-h`). |
-| `mtls_enabled` | boolean | `true` | Enforce mTLS for outbound + inbound. Disable only for mock/test instances. |
-| `webhook_port` | integer | `9079` | Port the adapter listens on for inbound EFI webhook callbacks. |
+| `mtls_enabled` | boolean | `true` | Enforce mTLS for outbound EFI calls. Disable only for mock/test instances. |
+| `webhook_port` | integer | `9079` | Deprecated and ignored since 2.5.1: the adapter runs no inbound webhook listener. Kept in the schema so existing instance configs stay valid. |
 
 Example instance `config` block:
 
@@ -70,8 +70,7 @@ Example instance `config` block:
 "config": {
   "base_url":     "https://pix.api.efipay.com.br",
   "sandbox":      false,
-  "mtls_enabled": true,
-  "webhook_port": 9079
+  "mtls_enabled": true
 }
 ```
 
@@ -92,7 +91,9 @@ Read at process boot by `config.Load()` (`providers/efi/config/config.go`) and
 | `EFI_CERTIFICATE_BASE64` | _(empty)_ | `CertificateBase64` | **Secret.** Base64 P12 bytes — used when no `EFI_CERTIFICATE` path is set. |
 | `EFI_BASE_URL` | `https://pix.api.efipay.com.br` | `BaseURL` | EFI Pix API base URL. |
 | `EFI_MTLS_ENABLED` | `true` | `MTLSEnabled` | `true/1/yes` enable, `false/0/no` disable. |
-| `EFI_WEBHOOK_PORT` | `9079` | `WebhookPort` | Inbound webhook listener port. |
+
+`cmd/adapter/main.go` loads the TLS config from these knobs once at boot, so an
+unusable certificate stops the worker before it serves a call.
 
 ### Adapter / transport knobs
 
@@ -104,21 +105,28 @@ Read at process boot by `config.Load()` (`providers/efi/config/config.go`) and
 | `BROKER_URL` | _(empty)_ | RabbitMQ URL. **Required and fatal-if-empty** only when `YGGDRASIL_TRANSPORT=amqp`. |
 | `YGGDRASIL_INTEGRATION_INSTANCE_NAME` | _(empty)_ | Fallback instance ID used when an inbound envelope carries no `integration.instance.name`. Payload-bound values take precedence. |
 
-### Event emission (webhook reactor → core)
+### Event emission (§6.5 mutation events → core)
 
-The webhook reactor POSTs a `publish_message` workflow run back to
-yggdrasil-core. Without these, the reactor logs a warning and skips emit (dev
-mode).
+`ensure_*` and `destroy_*` on the `charge`, `due_charge` and
+`webhook_subscription` resource types emit §6.5 mutation events through the SDK
+HTTP emitter (`newEmitterFromEnv` in `providers/efi/adapter/reconcile.go`).
+`ensure_automatic_webhook` emits `efi.automatic_webhook.ensured` through the
+same emitter (`providers/efi/adapter/automatic_webhook_events.go`).
+With `YGGDRASIL_CORE_URL` unset it falls back to a no-op emitter, which keeps
+dev and unit runs deterministic. Emission is best-effort: a failure logs a WARN
+and never fails the capability call.
 
 | Env var | Default | Notes |
 |---|---|---|
-| `YGGDRASIL_CORE_BASE_URL` | _(empty)_ | Base URL of yggdrasil-core. Empty → emit skipped (dev mode). |
-| `YGGDRASIL_WORKFLOW_RUN_TOKEN` | _(empty)_ | **Secret.** Bearer token for `POST /api/v1/workflow-runs`. |
+| `YGGDRASIL_CORE_URL` | _(empty)_ | Base URL of yggdrasil-core for mutation events. Empty → no-op emitter. |
+| `YGGDRASIL_RUN_TOKEN` | _(empty)_ | **Secret.** Bearer the event publisher presents to core. |
 
-> The §6.5 mutation-event auto-emission path (for `ensure_*`/`destroy_*` on
-> resource types) reads the same core URL + token; the in-tree reconcile bridge
-> falls back to a no-op emitter when they are unset, keeping dev/unit runs
-> deterministic.
+> **Removed in 2.5.1.** `YGGDRASIL_CORE_BASE_URL` and
+> `YGGDRASIL_WORKFLOW_RUN_TOKEN` fed a `publish_message` workflow-run dispatch
+> whose workflow was never registered, and `EFI_WEBHOOK_PORT` sized the webhook
+> listener that fed it. The adapter no longer reads any of the three; drop them
+> from deployments. Older releases never required them, so removing them first
+> is safe.
 
 ### Observability
 
@@ -145,19 +153,18 @@ Surfaced via `docker-compose.yml` for the worker's HTTP servers; defaults shown.
 |---|---|---|
 | `8080` | Health + readiness + metrics (`/healthz`, `/readyz`, `/metrics`) | `cmd/adapter/health.go` |
 | `8081` | RPC HTTP (`/rpc/describe`, `/rpc/execute`) | `cmd/adapter/main.go` |
-| `9079` | Inbound EFI Pix webhook listener (`/efi/webhook/pix`, mTLS) | `providers/efi/adapter/webhook_server.go` |
 
 The Kubernetes `Service` (`deploy/service.yaml`) exposes named ports `health`
-(8080) and `rpc` (8081). Webhook port 9079 is deliberately **not** in the
-Service — that ingress is routed separately behind the external webhook receiver
-/ mTLS terminator.
+(8080) and `rpc` (8081). There is no webhook port: the `9079` listener was
+removed in 2.5.1, and EFI Pix callbacks go to the service behind the registered
+`webhook_url`.
 
 ---
 
 ## Version truth
 
 The wire-advertised adapter version is the `AdapterVersion` constant in
-`providers/efi/adapter/spec.go` — currently **`2.5.0`**. The `describe` handshake
+`providers/efi/adapter/spec.go`, currently **`2.5.1`**. The `describe` handshake
 returns it, and yggdrasil-core compares it against any `expected_version` the
 caller passes.
 
@@ -165,10 +172,10 @@ Current release metadata:
 
 | Source | Version |
 |---|---|
-| `providers/efi/adapter/spec.go` (`AdapterVersion`) | **`2.5.0`** |
-| `manifest/integration_type.json` (`adapter.version`) | `2.5.0` |
-| `CHANGELOG.md` (top entry) | `2.5.0` |
+| `providers/efi/adapter/spec.go` (`AdapterVersion`) | **`2.5.1`** |
+| `manifest/integration_type.json` (`adapter.version`) | `2.5.1` |
+| `CHANGELOG.md` (top entry) | `2.5.1` |
 
 When pinning a deployment, prefer an immutable image tag published by the
-`release` workflow (`sha-<short>`, or `v2.5.0` on the release tag).
+`release` workflow (`sha-<short>`, or `v2.5.1` on the release tag).
 </content>

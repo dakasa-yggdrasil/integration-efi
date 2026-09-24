@@ -28,7 +28,9 @@ const (
 	// YGGDRASIL_CORE_URL is wired in cluster.
 	// v2.5.0: adds the automatic_webhook resource (Pix Automatico
 	// /v2/webhookrec and /v2/webhookcobr) with ensure_ and observe_ only.
-	AdapterVersion = "2.5.0"
+	// v2.5.1: drops the dead publish_message workflow-run dispatch and
+	// the inbound webhook listener that only fed it.
+	AdapterVersion = "2.5.1"
 
 	// QueueDescribe / QueueExecute are the AMQP queue names used when
 	// transport=amqp. http_json mode uses the Endpoints instead.
@@ -260,7 +262,7 @@ func Describe() contract.AdapterDescribeResponse {
 				},
 				"mtls_enabled": {
 					Type:        "boolean",
-					Description: "Whether mTLS is enforced for outbound + inbound. Disable only for mock/test instances.",
+					Description: "Whether mTLS is enforced for outbound EFI calls. Disable only for mock/test instances.",
 					Default:     true,
 					Label:       "Enable mTLS",
 					LabelLocale: map[string]string{"pt-BR": "Habilitar mTLS", "en-US": "Enable mTLS"},
@@ -274,13 +276,13 @@ func Describe() contract.AdapterDescribeResponse {
 				},
 				"webhook_port": {
 					Type:        "integer",
-					Description: "Port on which the adapter listens for inbound EFI webhook callbacks.",
+					Description: "Deprecated and ignored since 2.5.1: the adapter runs no inbound webhook listener. Kept so existing instance configs stay valid.",
 					Default:     9079,
 					Label:       "Webhook listener port",
 					LabelLocale: map[string]string{"pt-BR": "Porta do listener de webhook", "en-US": "Webhook listener port"},
 					DescriptionLocale: map[string]string{
-						"pt-BR": "Porta TCP em que o adapter escuta webhooks da EFI.",
-						"en-US": "TCP port the adapter listens on for inbound EFI webhooks.",
+						"pt-BR": "Obsoleto e ignorado desde a 2.5.1: o adapter não escuta webhooks da EFI.",
+						"en-US": "Deprecated and ignored since 2.5.1: the adapter does not listen for EFI webhooks.",
 					},
 					Group:       "Webhook",
 					GroupLocale: map[string]string{"pt-BR": "Webhook", "en-US": "Webhook"},
@@ -407,7 +409,7 @@ func Describe() contract.AdapterDescribeResponse {
 			},
 			{
 				Name:          OperationEfiWebhookReceived,
-				Description:   "Reactor: handle an inbound EFI Pix webhook callback. Emits to identities.efi.pix-receive.q.",
+				Description:   "Reactor kept for contract compatibility: normalize an EFI Pix callback body. The adapter wires no event sink, so a non-empty pix array fails and an empty one returns emitted=false.",
 				ResourceTypes: []string{"webhook_subscription"},
 				Idempotent:    true,
 				Category:      "reactor",

@@ -1,10 +1,10 @@
 # Repo Summary (generated)
 
-_Generated from HEAD at: 2026-09-24T14:42:05-03:00_
+_Generated from HEAD at: 2026-09-24T19:10:48-03:00_
 
 ## Languages
 
-- `.go`: 60 files
+- `.go`: 57 files
 - `.json`: 6 files
 - `.yaml`: 16 files
 - `.yml`: 7 files
@@ -22,21 +22,21 @@ _Generated from HEAD at: 2026-09-24T14:42:05-03:00_
 ## Top Directories by File Count
 
 - providers/efi/adapter/capabilities: 25 files (89.8 KB)
-- providers/efi/adapter: 15 files (137.8 KB)
 - manifest/capabilities: 14 files (12.3 KB)
-- .: 4 files (11.1 KB)
+- providers/efi/adapter: 14 files (131.1 KB)
+- .: 4 files (10.6 KB)
 - .github/workflows: 4 files (12.8 KB)
 - providers/efi/efiapi: 4 files (17.0 KB)
 - providers/efi/message: 4 files (14.0 KB)
-- cmd/adapter: 3 files (9.0 KB)
 - surface-ui: 3 files (2.0 KB)
-- integration_tests: 2 files (3.3 KB)
-- manifest: 2 files (4.3 KB)
+- cmd/adapter: 2 files (5.7 KB)
+- manifest: 2 files (4.2 KB)
 - pkg/contractcheck: 2 files (9.4 KB)
+- providers/efi/adapter/reactor: 2 files (3.5 KB)
 
 ## Heaviest Files
 
-- providers/efi/adapter/spec.go: 24.1 KB
+- providers/efi/adapter/spec.go: 24.4 KB
 - providers/efi/adapter/surface_query_test.go: 20.8 KB
 - providers/efi/adapter/reconcile_test.go: 17.0 KB
 - providers/efi/adapter/capabilities/automatic_webhook_test.go: 15.5 KB
@@ -46,8 +46,8 @@ _Generated from HEAD at: 2026-09-24T14:42:05-03:00_
 - providers/efi/adapter/capabilities/observe_webhook_subscriptions_test.go: 10.1 KB
 - providers/efi/adapter/capabilities/automatic_webhook.go: 9.6 KB
 - providers/efi/adapter/automatic_webhook_test.go: 9.3 KB
-- yggdrasil-quickstart.yaml: 9.0 KB
 - providers/efi/efiapi/client.go: 8.8 KB
+- yggdrasil-quickstart.yaml: 8.6 KB
 
 ## Ops & Messaging
 

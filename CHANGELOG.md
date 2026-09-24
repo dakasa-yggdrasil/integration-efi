@@ -5,6 +5,51 @@ All notable changes to integration-efi will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1] - 2026-09-24
+
+### Removed
+
+- The `publish_message` workflow-run dispatch in `cmd/adapter/main.go`
+  (`newProductionEmitFunc`) and its env reads, `YGGDRASIL_CORE_BASE_URL` and
+  `YGGDRASIL_WORKFLOW_RUN_TOKEN`. It posted `global/publish-message` to
+  `/api/v1/workflow-runs` against the `global/rabbitmq-runtime` instance,
+  neither of which exists in the Yggdrasil catalog, so nothing it sent was
+  ever delivered. It was the adapter's only use of
+  `YGGDRASIL_WORKFLOW_RUN_TOKEN`.
+- The inbound webhook listener on `EFI_WEBHOOK_PORT` (9079). It existed only
+  to feed that dispatch and had no Service or ingress. The `EFI_WEBHOOK_PORT`
+  knob, the `efi_webhook_received_total` metric and the 9079 container,
+  compose and quickstart wiring go with it. EFI Pix callbacks reach the
+  service behind the `webhook_url` registered through
+  `ensure_webhook_subscription`, never this adapter.
+
+### Changed
+
+- `efi_webhook_received` stays in the contract but has no event sink.
+  Through Execute, a non-empty `pix` array now fails with `ErrNoReactorSink`
+  instead of reporting `emitted: true` for an event nothing published. An
+  empty `pix` array still returns `emitted: false`.
+- The `webhook_port` instance field is deprecated and ignored. It stays in
+  the schema so existing instance configs keep validating.
+- `YGGDRASIL_CORE_URL` and `YGGDRASIL_RUN_TOKEN` (the §6.5 mutation-event
+  publisher, ADR-0279) are unchanged, and so is everything 2.5.0 added.
+
+### Operations
+
+- Production must drop the `YGGDRASIL_WORKFLOW_RUN_TOKEN`,
+  `YGGDRASIL_CORE_BASE_URL` and `EFI_WEBHOOK_PORT` env entries from
+  `yggdrasil/dakasa/workflows/deploy-integration-efi-production.json` in
+  dakasa-system. Keep `YGGDRASIL_CORE_URL` and `YGGDRASIL_RUN_TOKEN`.
+- Removing those entries first is safe. 2.5.0 and 2.4.1 read
+  `YGGDRASIL_WORKFLOW_RUN_TOKEN` with a plain `os.Getenv`, with no validation
+  and no fatal error, so an absent token is an empty string on a path that
+  never receives traffic. They also fall back to 9079 when `EFI_WEBHOOK_PORT`
+  is absent and skip the dead dispatch when `YGGDRASIL_CORE_BASE_URL` is
+  absent. The entries can go before this rollout, with it, or after it.
+- Drop the pod env entry before deleting the `YGGDRASIL_WORKFLOW_RUN_TOKEN`
+  key from `yggdrasil-secrets`: a non-optional `secretKeyRef` to a missing
+  key keeps the pod from starting.
+
 ## [2.5.0] - 2026-09-24
 
 ### Added

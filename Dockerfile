@@ -29,7 +29,7 @@ WORKDIR /app
 
 COPY --from=build /bin/integration-efi /app/integration-efi
 
-# 8080 health, 8081 RPC HTTP, 9079 webhook HTTP
-EXPOSE 8080 8081 9079
+# 8080 health, 8081 RPC HTTP
+EXPOSE 8080 8081
 
 ENTRYPOINT ["/app/integration-efi"]

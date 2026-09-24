@@ -1,5 +1,5 @@
 name: efi_webhook_received
-description: Reactor — handle an inbound EFI Pix webhook callback. Emits to identities.efi.pix-receive.q via integration-rabbitmq-runtime publish_message.
+description: Reactor kept for contract compatibility. Normalizes an EFI Pix callback body; the adapter wires no event sink, so a non-empty pix array fails and an empty one returns emitted=false.
 category: reactor
 resource_types: [webhook]
 idempotent: true

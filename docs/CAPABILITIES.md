@@ -1,9 +1,9 @@
 # Capabilities — integration-efi
 
 14 capabilities: **13 user-dispatched** (`category: capability`) + **1 reactor**
-(`efi_webhook_received`, `category: reactor`, webhook-fired). Each section below
-is derived from `manifest/capabilities/*.yaml` and the route/idempotency
-metadata in `providers/efi/adapter/spec.go`.
+(`efi_webhook_received`, `category: reactor`, no event sink since 2.5.1). Each
+section below is derived from `manifest/capabilities/*.yaml` and the
+route/idempotency metadata in `providers/efi/adapter/spec.go`.
 
 ← Back to the [README](../README.md) · see also
 [USAGE.md](USAGE.md) · [CONFIGURATION.md](CONFIGURATION.md).
@@ -207,21 +207,23 @@ computation — no HTTP call.**
 
 ### `efi_webhook_received` — reactor
 
-**Reactor, not user-dispatched.** Invoked by the webhook server
-(`providers/efi/adapter/webhook_server.go`) on an inbound `POST /efi/webhook/pix`.
-It extracts the first `pix[]` entry, builds a normalized envelope, and emits it
-to `identities.efi.pix-receive.q` via the `publish_message` workflow run
-(routed to `integration-rabbitmq-runtime`).
+**Reactor, not user-dispatched; kept for contract compatibility.** Up to 2.5.0
+the adapter's webhook listener invoked it and it emitted through a
+`publish_message` workflow run that was never registered. 2.5.1 removed both,
+so it now runs only through Execute, where `adapter.DefaultReactorEmit` has no
+sink: it extracts the first `pix[]` entry, builds the normalized envelope below,
+and fails with `ErrNoReactorSink` instead of emitting it.
 
 | Input | Type | Required | Notes |
 |---|---|:--:|---|
 | `pix` | array | yes | Array of Pix objects; each `{ endToEndId, txid, valor, status, chave, horario, devolucoes[] }`. |
 
-**Output:** `emitted` (bool), `e2eId`. Empty `pix[]` → `{ emitted: false }` (the
-webhook returns 204). The adapter does **not** dedup — the identities consumer
-enforces `webhook_event_efi.e2e_id UNIQUE`.
+**Output:** `emitted` (bool), `e2eId`. Empty `pix[]` → `{ emitted: false }`
+without touching the emitter. A non-empty `pix[]` returns an error. The adapter
+does **not** dedup.
 
-The emitted envelope (`providers/efi/adapter/reactor/efi_webhook_received.go`):
+The envelope it builds (`providers/efi/adapter/reactor/efi_webhook_received.go`),
+addressed to `identities.efi.pix-receive.q`:
 
 ```json
 {
@@ -237,7 +239,8 @@ The emitted envelope (`providers/efi/adapter/reactor/efi_webhook_received.go`):
 }
 ```
 
-See [OPERATIONS.md → Webhooks](OPERATIONS.md#webhooks) for the full flow.
+See [OPERATIONS.md → Webhooks](OPERATIONS.md#webhooks) for who receives Pix
+callbacks now.
 
 ---
 

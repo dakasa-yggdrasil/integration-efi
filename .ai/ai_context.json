@@ -1,28 +1,28 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-09-24T14:42:05-03:00",
+  "generated_at": "2026-09-24T19:10:48-03:00",
   "primary_language": "go",
   "languages": {
-    ".go": 60,
+    ".go": 57,
     ".json": 6,
     ".yaml": 16,
     ".yml": 7
   },
   "provenance": {
-    "commit": "5d9f5251a2d7f2e38654ad60b48240bf33fb4ce9",
+    "commit": "534ae7b7e946e9810720386fa3319e7396e4403b",
     "dirty": false,
     "files": [
       {
         "path": "AGENTS.md",
-        "sha256": "83d9291ba26c6705159127a9ee97d46a68d22d138902720978e537efb8a0ffd9"
+        "sha256": "0ba5794aefa640a2253ff1e3f38a16d0395fab5df3917426c775a77346a2718a"
       },
       {
         "path": "CLAUDE.md",
-        "sha256": "ed91816a5c81949ca15450fea7cd483e0b7831811a75bda6d9ccd9659125d782"
+        "sha256": "b1702e4e44614d56bcdccfa113ca549510527ee758cc30f2fff8d7540f4539d6"
       },
       {
         "path": "README.md",
-        "sha256": "3a002007965864e88d91981fe165772b4c16ace496d80af9bd5dbcdb85fa5915"
+        "sha256": "67764c7f87216e269a6da88a34925c5e21bbbb12cebd4227a5f9860036b990e3"
       },
       {
         "path": "Taskfile.yml",
@@ -30,11 +30,11 @@
       },
       {
         "path": "Dockerfile",
-        "sha256": "bf01e6a8dafac44471a61c9bd16522a897a5d2529ea58cc6e6c4e8e600f183b6"
+        "sha256": "05dfc552da1d63fd3d0917923983c9e73e94cdc66061d08929d8295e038c9cc3"
       },
       {
         "path": "docker-compose.yml",
-        "sha256": "691d57609d65863912a10ce3b52842759ff29f09ec4e702489bdc5cc3e94c7ee"
+        "sha256": "606b138b8bfaf9f005240d903ccb74374cde6cd0e1485acef9882f5bb93f984a"
       },
       {
         "path": "go.mod",
@@ -50,19 +50,19 @@
       "kb": 89
     },
     {
-      "path": "providers/efi/adapter",
-      "files": 15,
-      "kb": 137
-    },
-    {
       "path": "manifest/capabilities",
       "files": 14,
       "kb": 12
     },
     {
+      "path": "providers/efi/adapter",
+      "files": 14,
+      "kb": 131
+    },
+    {
       "path": ".",
       "files": 4,
-      "kb": 11
+      "kb": 10
     },
     {
       "path": ".github/workflows",
@@ -80,19 +80,14 @@
       "kb": 13
     },
     {
-      "path": "cmd/adapter",
-      "files": 3,
-      "kb": 9
-    },
-    {
       "path": "surface-ui",
       "files": 3,
       "kb": 1
     },
     {
-      "path": "integration_tests",
+      "path": "cmd/adapter",
       "files": 2,
-      "kb": 3
+      "kb": 5
     },
     {
       "path": "manifest",
@@ -103,6 +98,11 @@
       "path": "pkg/contractcheck",
       "files": 2,
       "kb": 9
+    },
+    {
+      "path": "providers/efi/adapter/reactor",
+      "files": 2,
+      "kb": 3
     }
   ],
   "top_files_by_size": [
@@ -147,11 +147,11 @@
       "kb": 9
     },
     {
-      "path": "yggdrasil-quickstart.yaml",
-      "kb": 9
+      "path": "providers/efi/efiapi/client.go",
+      "kb": 8
     },
     {
-      "path": "providers/efi/efiapi/client.go",
+      "path": "yggdrasil-quickstart.yaml",
       "kb": 8
     }
   ],
