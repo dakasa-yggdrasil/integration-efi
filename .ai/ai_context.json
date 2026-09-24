@@ -1,0 +1,212 @@
+{
+  "schema_version": 2,
+  "generated_at": "2026-09-24T14:42:05-03:00",
+  "primary_language": "go",
+  "languages": {
+    ".go": 60,
+    ".json": 6,
+    ".yaml": 16,
+    ".yml": 7
+  },
+  "provenance": {
+    "commit": "5d9f5251a2d7f2e38654ad60b48240bf33fb4ce9",
+    "dirty": false,
+    "files": [
+      {
+        "path": "AGENTS.md",
+        "sha256": "83d9291ba26c6705159127a9ee97d46a68d22d138902720978e537efb8a0ffd9"
+      },
+      {
+        "path": "CLAUDE.md",
+        "sha256": "ed91816a5c81949ca15450fea7cd483e0b7831811a75bda6d9ccd9659125d782"
+      },
+      {
+        "path": "README.md",
+        "sha256": "3a002007965864e88d91981fe165772b4c16ace496d80af9bd5dbcdb85fa5915"
+      },
+      {
+        "path": "Taskfile.yml",
+        "sha256": "92cb24abc4043d2fdf9a6685d13f259dbcaf0fb60e1b729fe052573446c42f0d"
+      },
+      {
+        "path": "Dockerfile",
+        "sha256": "bf01e6a8dafac44471a61c9bd16522a897a5d2529ea58cc6e6c4e8e600f183b6"
+      },
+      {
+        "path": "docker-compose.yml",
+        "sha256": "691d57609d65863912a10ce3b52842759ff29f09ec4e702489bdc5cc3e94c7ee"
+      },
+      {
+        "path": "go.mod",
+        "sha256": "197086bba0456b1802a77621716ce9247d3761041d76049422f8e142e7e70715"
+      }
+    ]
+  },
+  "service": {},
+  "top_dirs": [
+    {
+      "path": "providers/efi/adapter/capabilities",
+      "files": 25,
+      "kb": 89
+    },
+    {
+      "path": "providers/efi/adapter",
+      "files": 15,
+      "kb": 137
+    },
+    {
+      "path": "manifest/capabilities",
+      "files": 14,
+      "kb": 12
+    },
+    {
+      "path": ".",
+      "files": 4,
+      "kb": 11
+    },
+    {
+      "path": ".github/workflows",
+      "files": 4,
+      "kb": 12
+    },
+    {
+      "path": "providers/efi/efiapi",
+      "files": 4,
+      "kb": 16
+    },
+    {
+      "path": "providers/efi/message",
+      "files": 4,
+      "kb": 13
+    },
+    {
+      "path": "cmd/adapter",
+      "files": 3,
+      "kb": 9
+    },
+    {
+      "path": "surface-ui",
+      "files": 3,
+      "kb": 1
+    },
+    {
+      "path": "integration_tests",
+      "files": 2,
+      "kb": 3
+    },
+    {
+      "path": "manifest",
+      "files": 2,
+      "kb": 4
+    },
+    {
+      "path": "pkg/contractcheck",
+      "files": 2,
+      "kb": 9
+    }
+  ],
+  "top_files_by_size": [
+    {
+      "path": "providers/efi/adapter/spec.go",
+      "kb": 24
+    },
+    {
+      "path": "providers/efi/adapter/surface_query_test.go",
+      "kb": 20
+    },
+    {
+      "path": "providers/efi/adapter/reconcile_test.go",
+      "kb": 16
+    },
+    {
+      "path": "providers/efi/adapter/capabilities/automatic_webhook_test.go",
+      "kb": 15
+    },
+    {
+      "path": "providers/efi/adapter/reconcile.go",
+      "kb": 15
+    },
+    {
+      "path": "providers/efi/adapter/surface_query.go",
+      "kb": 14
+    },
+    {
+      "path": "family/contract/types.go",
+      "kb": 13
+    },
+    {
+      "path": "providers/efi/adapter/capabilities/observe_webhook_subscriptions_test.go",
+      "kb": 10
+    },
+    {
+      "path": "providers/efi/adapter/capabilities/automatic_webhook.go",
+      "kb": 9
+    },
+    {
+      "path": "providers/efi/adapter/automatic_webhook_test.go",
+      "kb": 9
+    },
+    {
+      "path": "yggdrasil-quickstart.yaml",
+      "kb": 9
+    },
+    {
+      "path": "providers/efi/efiapi/client.go",
+      "kb": 8
+    }
+  ],
+  "contracts": {
+    "openapi": false,
+    "openapi_endpoints_estimated": 0,
+    "event_schemas": 0
+  },
+  "database": {
+    "migrations": 0
+  },
+  "docs": {
+    "glossary": false,
+    "readme": true
+  },
+  "dependencies": {
+    "go_modules": [
+      "github.com/beorn7/perks v1.0.1 // indirect",
+      "github.com/cenkalti/backoff/v5 v5.0.3 // indirect",
+      "github.com/cespare/xxhash/v2 v2.3.0 // indirect",
+      "github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.9.1",
+      "github.com/go-logr/logr v1.4.4 // indirect",
+      "github.com/go-logr/stdr v1.2.2 // indirect",
+      "github.com/google/uuid v1.6.0",
+      "github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect",
+      "github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect",
+      "github.com/prometheus/client_golang v1.23.2",
+      "github.com/prometheus/client_model v0.6.2 // indirect",
+      "github.com/prometheus/common v0.66.1 // indirect",
+      "github.com/prometheus/procfs v0.16.1 // indirect",
+      "github.com/rabbitmq/amqp091-go v1.13.0 // indirect",
+      "go.opentelemetry.io/auto/sdk v1.2.1 // indirect",
+      "go.opentelemetry.io/otel v1.45.0",
+      "go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.45.0 // indirect",
+      "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.45.0",
+      "go.opentelemetry.io/otel/metric v1.45.0 // indirect",
+      "go.opentelemetry.io/otel/sdk v1.45.0",
+      "go.opentelemetry.io/otel/trace v1.45.0 // indirect",
+      "go.opentelemetry.io/proto/otlp v1.11.0 // indirect",
+      "go.uber.org/multierr v1.10.0 // indirect",
+      "go.uber.org/zap v1.28.0",
+      "go.yaml.in/yaml/v2 v2.4.2 // indirect",
+      "golang.org/x/crypto v0.55.0 // indirect",
+      "golang.org/x/net v0.58.0 // indirect",
+      "golang.org/x/sys v0.47.0 // indirect",
+      "golang.org/x/text v0.41.0 // indirect",
+      "google.golang.org/genproto/googleapis/api v0.0.0-20260803160001-6ac0973c030d // indirect",
+      "google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect",
+      "google.golang.org/grpc v1.83.2 // indirect",
+      "google.golang.org/protobuf v1.36.11 // indirect",
+      "gopkg.in/yaml.v3 v3.0.1"
+    ]
+  },
+  "ops": {
+    "config_files": 5,
+    "k8s_manifests": 5
+  }
+}
