@@ -27,7 +27,7 @@ This applies:
 - a deploy ref for `ghcr.io/dakasa-yggdrasil/integration-efi`
 
 > Pin an immutable published tag (`sha-<short>` from the `release` workflow, or
-> `v2.4.1`) — the running binary advertises adapter version `2.4.1`. See
+> `v2.5.0`) — the running binary advertises adapter version `2.5.0`. See
 > [CONFIGURATION.md → Version truth](CONFIGURATION.md#version-truth).
 
 ## 2. Configure the instance

@@ -37,7 +37,7 @@ for the engine.
 |---|---|
 | Provider / type | `efi` / `efi` (single-provider family) |
 | Domain | `payments` |
-| Adapter version (wire-advertised) | **`2.4.1`** (`providers/efi/adapter/spec.go`) |
+| Adapter version (wire-advertised) | **`2.5.0`** (`providers/efi/adapter/spec.go`) |
 | Transport | `http_json` (default) · `amqp` (opt-in) |
 | RPC endpoints | `/rpc/describe`, `/rpc/execute` |
 | Discovery | `push` (no cursor) — resources are not discoverable |
@@ -45,7 +45,7 @@ for the engine.
 | SDK | `yggdrasil-sdk-go v0.9.1` |
 | Image | `ghcr.io/dakasa-yggdrasil/integration-efi` |
 
-> **Version note.** The wire-advertised version is **`2.4.1`** (the
+> **Version note.** The wire-advertised version is **`2.5.0`** (the
 > `AdapterVersion` constant in `providers/efi/adapter/spec.go`, returned by
 > `describe`). The registered manifest is aligned to the same version. See
 > [CONFIGURATION.md](docs/CONFIGURATION.md#version-truth).
@@ -73,7 +73,7 @@ adapter's webhook listener, which emits them back into the control plane as a
 ```mermaid
 flowchart TD
   fam["family: efi<br/>(payments, Apache-2.0)"]
-  typ["integration_type: efi<br/>adapter v2.4.1 · http_json"]
+  typ["integration_type: efi<br/>adapter v2.5.0 · http_json"]
   inst["instance: efi-prod<br/>base_url, sandbox, mtls_enabled, webhook_port"]
   prov["provider: efi<br/>EFI / BCB PIX API"]
   fam --> typ --> inst --> prov
@@ -236,7 +236,7 @@ documented in [DEVELOPMENT.md](docs/DEVELOPMENT.md).
 |---|---|
 | Go | 1.25 |
 | `yggdrasil-sdk-go` | v0.9.1 |
-| Adapter (this binary) | 2.4.1 |
+| Adapter (this binary) | 2.5.0 |
 | Transport | `http_json` (default), `amqp` |
 
 ## License

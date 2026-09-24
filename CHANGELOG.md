@@ -5,6 +5,37 @@ All notable changes to integration-efi will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-09-24
+
+### Added
+
+- `automatic_webhook` resource for the Pix Automatico webhook registrations,
+  keyed by `kind` (`rec` for `/v2/webhookrec`, `cobr` for `/v2/webhookcobr`),
+  never by a Pix key.
+  - `ensure_automatic_webhook` reads the registration, issues one PUT only
+    when it is absent or different, and fails unless the readback equals
+    `webhook_url` exactly. It never retries.
+  - `observe_automatic_webhooks` reports `registered`, `webhook_url` and
+    `created_at`; with `expected_webhook_url` it fails on any difference or
+    absence, so a workflow can use it as a readback gate.
+  - Both refuse `skip_mtls_validation` and `chave` before any provider call,
+    never send `x-skip-mtls-checking`, and never call `/v2/webhook/{chave}`.
+    `webhook_url` must be https with no query, fragment, userinfo, escaped
+    path, trailing slash or `rec`, `cobr` or `pix` last segment, because
+    EFI appends `/rec` and `/cobr` on delivery.
+  - There is no destroy for this resource.
+- `efi.automatic_webhook.ensured` mutation event after every successful
+  `ensure_automatic_webhook`. The resource is served by the legacy Execute
+  switch (the SDK Reconciler always installs a destroy), so the event is
+  emitted explicitly with the reconcilers' emitter, best-effort with a WARN on
+  failure. A Core principal must grant this event type before Core accepts it.
+- `efi_request_*` metrics label the two endpoints `automatic_webhook`.
+
+### Included
+
+- Everything in 2.4.1, which was released from a branch that main did not
+  contain until this release.
+
 ## [2.4.1] — 2026-09-05
 
 ### Fixed

@@ -26,7 +26,9 @@ const (
 	// due_charge, webhook_subscription) and §6.5 mutation events emit
 	// live for ensure_/destroy_ on those resource types when
 	// YGGDRASIL_CORE_URL is wired in cluster.
-	AdapterVersion = "2.4.1"
+	// v2.5.0: adds the automatic_webhook resource (Pix Automatico
+	// /v2/webhookrec and /v2/webhookcobr) with ensure_ and observe_ only.
+	AdapterVersion = "2.5.0"
 
 	// QueueDescribe / QueueExecute are the AMQP queue names used when
 	// transport=amqp. http_json mode uses the Endpoints instead.

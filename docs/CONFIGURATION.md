@@ -157,7 +157,7 @@ Service — that ingress is routed separately behind the external webhook receiv
 ## Version truth
 
 The wire-advertised adapter version is the `AdapterVersion` constant in
-`providers/efi/adapter/spec.go` — currently **`2.4.1`**. The `describe` handshake
+`providers/efi/adapter/spec.go` — currently **`2.5.0`**. The `describe` handshake
 returns it, and yggdrasil-core compares it against any `expected_version` the
 caller passes.
 
@@ -165,10 +165,10 @@ Current release metadata:
 
 | Source | Version |
 |---|---|
-| `providers/efi/adapter/spec.go` (`AdapterVersion`) | **`2.4.1`** |
-| `manifest/integration_type.json` (`adapter.version`) | `2.4.1` |
-| `CHANGELOG.md` (top entry) | `2.4.1` |
+| `providers/efi/adapter/spec.go` (`AdapterVersion`) | **`2.5.0`** |
+| `manifest/integration_type.json` (`adapter.version`) | `2.5.0` |
+| `CHANGELOG.md` (top entry) | `2.5.0` |
 
 When pinning a deployment, prefer an immutable image tag published by the
-`release` workflow (`sha-<short>`, or `v2.4.1` on the release tag).
+`release` workflow (`sha-<short>`, or `v2.5.0` on the release tag).
 </content>
