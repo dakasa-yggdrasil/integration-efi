@@ -28,7 +28,9 @@ const (
 	// YGGDRASIL_CORE_URL is wired in cluster.
 	// v2.5.0: adds the automatic_webhook resource (Pix Automatico
 	// /v2/webhookrec and /v2/webhookcobr) with ensure_ and observe_ only.
-	AdapterVersion = "2.5.0"
+	// v2.5.1: drops the dead publish_message workflow-run dispatch and
+	// the inbound webhook listener that only fed it.
+	AdapterVersion = "2.5.1"
 
 	// QueueDescribe / QueueExecute are the AMQP queue names used when
 	// transport=amqp. http_json mode uses the Endpoints instead.
