@@ -41,7 +41,7 @@ for the engine.
 | Transport | `http_json` (default) · `amqp` (opt-in) |
 | RPC endpoints | `/rpc/describe`, `/rpc/execute` |
 | Discovery | `push` (no cursor) — resources are not discoverable |
-| Capabilities | **12** — 11 user-dispatched + 1 webhook reactor |
+| Capabilities | **14**: 13 user-dispatched + 1 webhook reactor |
 | SDK | `yggdrasil-sdk-go v0.9.1` |
 | Image | `ghcr.io/dakasa-yggdrasil/integration-efi` |
 
@@ -81,11 +81,12 @@ flowchart TD
   typ --- rt1["charge<br/>ensure · ensure_due · observe · destroy"]
   typ --- rt2["pix_transaction<br/>refund · payout · chargeback · webhook_received"]
   typ --- rt3["webhook_subscription<br/>ensure · observe · destroy · verify_signature"]
+  typ --- rt4["automatic_webhook<br/>ensure · observe (no destroy)"]
 ```
 
 ## Capabilities
 
-12 capabilities across 3 resource types. **Idempotent** marks whether repeat
+14 capabilities across 4 resource types. **Idempotent** marks whether repeat
 calls reconcile to the same state. Full input/output schema in
 [CAPABILITIES.md](docs/CAPABILITIES.md).
 
@@ -103,6 +104,8 @@ calls reconcile to the same state. Full input/output schema in
 | `destroy_webhook_subscription` | webhook_subscription | capability | yes | `DELETE /v2/webhook/{chave}` |
 | `verify_webhook_signature` | webhook_subscription | capability | yes | (pure x509 parse, no HTTP call) |
 | `efi_webhook_received` | webhook_subscription | **reactor** | yes | (webhook-fired, not user-dispatched) |
+| `ensure_automatic_webhook` | automatic_webhook | capability | yes | `GET` then `PUT /v2/webhookrec` or `/v2/webhookcobr`, then readback `GET` |
+| `observe_automatic_webhooks` | automatic_webhook | capability | yes | `GET /v2/webhookrec` · `GET /v2/webhookcobr` |
 
 ¹ `create_payout` is classified `IntermediateIrreversible` (money movement) — see
 [CAPABILITIES.md](docs/CAPABILITIES.md#create_payout).

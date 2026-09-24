@@ -46,7 +46,8 @@ HTTP-client-level (`providers/efi/efiapi/metrics.go`).
 | `efi_mtls_handshake_failures_total` | counter | — | Outbound mTLS handshake failures. |
 
 `op` label values (`classifyPath`): `oauth`, `cob`, `create_due_charge`,
-`get_statement`, `refund_charge`, `create_payout`, `webhook`, `other`.
+`get_statement`, `refund_charge`, `create_payout`, `webhook`,
+`automatic_webhook` (`/v2/webhookrec` and `/v2/webhookcobr`), `other`.
 `status_class` ∈ `2xx` / `4xx` / `5xx` / `transport`.
 
 Each outbound EFI call also opens **one OpenTelemetry span** (`efi.<op>`) when

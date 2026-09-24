@@ -52,12 +52,13 @@ family/
 manifest/
   integration_type.json         # type `efi`: adapter, schemas, resource types, discovery
   integration_instance.example.json
-  capabilities/*.yaml           # 12 capability manifests (input/output schema)
+  capabilities/*.yaml           # 14 capability manifests (input/output schema)
 providers/efi/
   adapter/
     spec.go                     # Describe() contract + AdapterVersion + operation constants + legacy aliases
     adapter.go                  # Execute() switch + register chain
     reconcile.go                # 3 Reconcilers (charge, due_charge, webhook_subscription) — SDK dispatch bridge
+    automatic_webhook_events.go # explicit efi.automatic_webhook.ensured emission (no Reconciler, no destroy)
     webhook_server.go           # inbound /efi/webhook/pix listener (mTLS)
     mtls.go                     # LoadTLSConfig from P12 (file or base64)
     metrics.go                  # efi_adapter_up, efi_webhook_received_total
@@ -114,8 +115,12 @@ flowchart TD
    §6.5 mutation-event auto-emission for the three resource types (`charge`,
    `due_charge`, `webhook_subscription`).
 2. Operations with no registered Reconciler (`refund_charge`, `create_payout`,
-   `handle_chargeback`, `verify_webhook_signature`, `efi_webhook_received`) fall
-   back to the legacy `adapter.Execute` switch.
+   `handle_chargeback`, `verify_webhook_signature`, `efi_webhook_received`,
+   `ensure_automatic_webhook`, `observe_automatic_webhooks`) fall back to the
+   legacy `adapter.Execute` switch. The `automatic_webhook` resource stays off
+   the SDK table on purpose: `RegisterReconciler` always installs a `destroy_`
+   operation and this resource has none, so `ensure_automatic_webhook` emits
+   its §6.5 event explicitly with the same emitter `WireReconcilers` builds.
 
 `WireReconcilers(a, instanceID)` is called in `main.go` **before** `Register`,
 so the SDK auto-installs its dispatch handler; the custom `ExecuteHandler` then
