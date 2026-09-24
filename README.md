@@ -8,7 +8,7 @@
 [![Go 1.25](https://img.shields.io/badge/Go-1.25-00ADD8.svg)](./go.mod)
 [![Image: ghcr.io](https://img.shields.io/badge/image-ghcr.io%2Fdakasa--yggdrasil%2Fintegration--efi-555.svg)](https://github.com/dakasa-yggdrasil/integration-efi/pkgs/container/integration-efi)
 
-Charges · payouts · refunds · webhook subscriptions · inbound Pix callbacks ·
+Charges · payouts · refunds · webhook subscriptions ·
 [Usage](docs/USAGE.md) · [Configuration](docs/CONFIGURATION.md) · [Capabilities](docs/CAPABILITIES.md) · [Operations](docs/OPERATIONS.md) · [Development](docs/DEVELOPMENT.md)
 
 </div>
@@ -21,9 +21,10 @@ Charges · payouts · refunds · webhook subscriptions · inbound Pix callbacks 
 EFI (formerly Gerencianet) Pix payments provider. It speaks the Banco Central
 PIX API (`/v2/cob`, `/v2/cobv`, `/v2/pix`, `/v2/webhook`) plus EFI's `/v3/gn`
 overlay, authenticating with OAuth client-credentials over **mTLS**. You drive
-it declaratively from Yggdrasil workflows — create charges, send payouts, refund
-transactions, manage webhook subscriptions — and it turns inbound EFI Pix
-callbacks into events on the bus via a webhook reactor.
+it declaratively from Yggdrasil workflows: create charges, send payouts, refund
+transactions and manage webhook subscriptions. It does not receive EFI Pix
+callbacks. EFI delivers those to the service behind the registered
+`webhook_url`.
 
 It is part of **Yggdrasil — the self-hosted control plane for declarative
 workflows + integrations over your whole stack.** Think *Backstage, but more
@@ -37,7 +38,7 @@ for the engine.
 |---|---|
 | Provider / type | `efi` / `efi` (single-provider family) |
 | Domain | `payments` |
-| Adapter version (wire-advertised) | **`2.5.0`** (`providers/efi/adapter/spec.go`) |
+| Adapter version (wire-advertised) | **`2.5.1`** (`providers/efi/adapter/spec.go`) |
 | Transport | `http_json` (default) · `amqp` (opt-in) |
 | RPC endpoints | `/rpc/describe`, `/rpc/execute` |
 | Discovery | `push` (no cursor) — resources are not discoverable |
@@ -45,7 +46,7 @@ for the engine.
 | SDK | `yggdrasil-sdk-go v0.9.1` |
 | Image | `ghcr.io/dakasa-yggdrasil/integration-efi` |
 
-> **Version note.** The wire-advertised version is **`2.5.0`** (the
+> **Version note.** The wire-advertised version is **`2.5.1`** (the
 > `AdapterVersion` constant in `providers/efi/adapter/spec.go`, returned by
 > `describe`). The registered manifest is aligned to the same version. See
 > [CONFIGURATION.md](docs/CONFIGURATION.md#version-truth).
@@ -59,22 +60,21 @@ flowchart LR
   end
   core -- "http_json /rpc/execute<br/>(or AMQP)" --> efi["integration-efi<br/>(this adapter)"]
   efi -- "OAuth + mTLS<br/>/v2/cob · /v2/cobv · /v2/pix · /v2/webhook · /v3/gn" --> bcb["EFI / Banco Central<br/>PIX API"]
-  bcb -- "POST /efi/webhook/pix<br/>(mTLS callback)" --> efi
-  efi -- "publish_message workflow run<br/>/api/v1/workflow-runs" --> core
+  bcb -- "POST webhook_url + /pix<br/>(mTLS callback)" --> rx["service behind<br/>webhook_url"]
 ```
 
 `yggdrasil-core` dispatches capability calls to this adapter over HTTP-JSON (or
-AMQP). The adapter talks to EFI/BCB over mTLS. Inbound Pix callbacks land on the
-adapter's webhook listener, which emits them back into the control plane as a
-`publish_message` workflow run.
+AMQP). The adapter talks to EFI/BCB over mTLS. Pix callbacks go to the service
+behind the `webhook_url` registered with `ensure_webhook_subscription`; the
+adapter has no inbound listener.
 
 ## The family → type → instance → provider model
 
 ```mermaid
 flowchart TD
   fam["family: efi<br/>(payments, Apache-2.0)"]
-  typ["integration_type: efi<br/>adapter v2.5.0 · http_json"]
-  inst["instance: efi-prod<br/>base_url, sandbox, mtls_enabled, webhook_port"]
+  typ["integration_type: efi<br/>adapter v2.5.1 · http_json"]
+  inst["instance: efi-prod<br/>base_url, sandbox, mtls_enabled"]
   prov["provider: efi<br/>EFI / BCB PIX API"]
   fam --> typ --> inst --> prov
 
@@ -103,7 +103,7 @@ calls reconcile to the same state. Full input/output schema in
 | `observe_webhook_subscriptions` | webhook_subscription | capability | yes | `GET /v2/webhook/{chave}` · `GET /v2/webhook` |
 | `destroy_webhook_subscription` | webhook_subscription | capability | yes | `DELETE /v2/webhook/{chave}` |
 | `verify_webhook_signature` | webhook_subscription | capability | yes | (pure x509 parse, no HTTP call) |
-| `efi_webhook_received` | webhook_subscription | **reactor** | yes | (webhook-fired, not user-dispatched) |
+| `efi_webhook_received` | webhook_subscription | **reactor** | yes | (no event sink; kept for contract compatibility) |
 | `ensure_automatic_webhook` | automatic_webhook | capability | yes | `GET` then `PUT /v2/webhookrec` or `/v2/webhookcobr`, then readback `GET` |
 | `observe_automatic_webhooks` | automatic_webhook | capability | yes | `GET /v2/webhookrec` · `GET /v2/webhookcobr` |
 
@@ -131,8 +131,7 @@ task logs    # follow logs
 task down    # tear down
 ```
 
-Health on `:8080`, RPC on `:8081`, webhook listener on `:9079`. See
-[DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Health on `:8080`, RPC on `:8081`. See [DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Configuration
 
@@ -151,7 +150,7 @@ runtime knobs come from env vars. Full reference in
 | `base_url` | string | `https://pix.api.efipay.com.br` |
 | `sandbox` | boolean | `false` |
 | `mtls_enabled` | boolean | `true` |
-| `webhook_port` | integer | `9079` |
+| `webhook_port` | integer | `9079` (deprecated, ignored since 2.5.1) |
 
 ## Usage
 
@@ -183,39 +182,33 @@ run) is in [USAGE.md](docs/USAGE.md).
 
 ## Webhooks & reactors
 
-EFI delivers Pix callbacks to the adapter's mTLS webhook listener
-(`POST /efi/webhook/pix`, port `9079`). The `efi_webhook_received` reactor
-normalizes the first `pix[]` entry and emits it into the control plane.
+The adapter registers EFI webhooks but does not receive them. EFI delivers Pix
+callbacks to the registered `webhook_url` plus `/pix`, served by another
+service.
 
 ```mermaid
 sequenceDiagram
+  participant WF as Yggdrasil workflow
+  participant AD as integration-efi
   participant EFI as EFI / BCB
-  participant WH as Webhook server<br/>(:9079, mTLS)
-  participant RX as efi_webhook_received<br/>(reactor)
-  participant CORE as yggdrasil-core<br/>/api/v1/workflow-runs
-  participant RMQ as integration-rabbitmq-runtime
+  participant RX as Service behind webhook_url
 
-  EFI->>WH: POST /efi/webhook/pix (Pix payload)
-  WH->>RX: EfiWebhookReceived(payload)
-  alt pix[] non-empty
-    RX->>CORE: POST publish_message workflow run
-    CORE->>RMQ: publish to identities.efi.pix-receive.q
-    RX-->>WH: { emitted: true, e2eId }
-    WH-->>EFI: 202 Accepted
-  else empty pix[] (probe / empty batch)
-    RX-->>WH: { emitted: false }
-    WH-->>EFI: 204 No Content
-  end
+  WF->>AD: ensure_webhook_subscription(chave, webhook_url)
+  AD->>EFI: PUT /v2/webhook/{chave}
+  EFI->>RX: POST webhook_url + /pix (Pix callbacks, mTLS)
 ```
 
-Details and the staging validation runbook are in
-[OPERATIONS.md](docs/OPERATIONS.md#webhooks).
+Up to 2.5.0 the adapter also ran a listener on port `9079` that fed a
+`publish_message` workflow run. That workflow was never registered and the port
+was never routed, so 2.5.1 removed both. The `efi_webhook_received` reactor
+stays in the contract without an event sink: through Execute it fails on a
+non-empty `pix[]`. Details in [OPERATIONS.md](docs/OPERATIONS.md#webhooks).
 
 ## Operations
 
 - **Health** — `GET /healthz` (liveness, always 200), `GET /readyz` (200),
   `GET /metrics` (Prometheus) on port `8080`.
-- **Metrics** — `efi_adapter_up`, `efi_webhook_received_total`,
+- **Metrics**: `efi_adapter_up`,
   `efi_request_duration_seconds`, `efi_request_errors_total`,
   `efi_oauth_token_refreshes_total`, `efi_mtls_handshake_failures_total`.
 - **Runbook** — [docs/RUNBOOK_STAGING_VALIDATION.md](docs/RUNBOOK_STAGING_VALIDATION.md).
@@ -239,7 +232,7 @@ documented in [DEVELOPMENT.md](docs/DEVELOPMENT.md).
 |---|---|
 | Go | 1.25 |
 | `yggdrasil-sdk-go` | v0.9.1 |
-| Adapter (this binary) | 2.5.0 |
+| Adapter (this binary) | 2.5.1 |
 | Transport | `http_json` (default), `amqp` |
 
 ## License

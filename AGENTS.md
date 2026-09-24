@@ -5,14 +5,14 @@
 `integration-efi` is a standalone Yggdrasil **integration adapter** for
 the EFI (formerly Gerencianet) **Brazilian Pix** payments provider. It
 exposes an honest adapter contract through `describe` and executes
-capabilities (charges, payouts, refunds, webhook subscriptions, inbound
-Pix callbacks) through `execute`, talking to the Banco Central PIX API
+capabilities (charges, payouts, refunds, webhook subscriptions) through
+`execute`, talking to the Banco Central PIX API
 over OAuth client-credentials + **mTLS**.
 
 - `integration_type` / provider: `efi` (single-provider, type ==
   provider). Manifest `namespace`: `global`. Domain: `payments`.
 - **The authoritative contract is `Describe()` in
-  `providers/efi/adapter/spec.go`** — AdapterVersion (`2.5.0`),
+  `providers/efi/adapter/spec.go`**: AdapterVersion (`2.5.1`),
   capabilities, schemas, resource types, and transport all live there
   and are asserted by `spec_test.go` + the `pkg/contractcheck` lint.
   Trust `spec.go` over any prose. See `CLAUDE.md` for the full repo map.
@@ -40,15 +40,15 @@ over OAuth client-credentials + **mTLS**.
   endpoints `/rpc/describe` + `/rpc/execute` on `ADAPTER_PORT` 8081) or
   `amqp`/`rabbitmq` (queues on `BROKER_URL`).
 - Health server on `HEALTHCHECK_PORT` (8080): `/healthz` `/readyz`
-  `/metrics`. Inbound EFI webhook listener on `EFI_WEBHOOK_PORT` (9079),
-  mTLS when a cert is loaded.
+  `/metrics`. No inbound EFI webhook listener: EFI delivers Pix
+  callbacks to the service behind the registered `webhook_url`.
 - mTLS loads from EFI-prefixed env (`EFI_MTLS_ENABLED`,
   `EFI_CERTIFICATE` / `EFI_CERTIFICATE_BASE64`) via `LoadTLSConfig` in
   `providers/efi/adapter/mtls.go`.
 - Graceful shutdown on `SIGINT`/`SIGTERM`.
 
 > `manifest/integration_type.json` is the registered manifest and is aligned
-> with `spec.go` at 2.5.0.
+> with `spec.go` at 2.5.1.
 
 ## Commands
 

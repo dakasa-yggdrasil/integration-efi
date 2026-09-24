@@ -4,8 +4,9 @@ A standalone Yggdrasil **integration adapter** for the EFI (formerly
 Gerencianet) **Brazilian Pix** payments provider. It speaks the Banco
 Central PIX API (`/v2/cob`, `/v2/cobv`, `/v2/pix`, `/v2/webhook`) plus
 EFI's `/v3/gn` overlay, authenticating with OAuth client-credentials
-over **mTLS**, and turns inbound EFI Pix webhook callbacks into events
-on the bus via a reactor.
+over **mTLS**. It registers EFI webhooks but does not receive the
+callbacks; EFI delivers them to the service behind the registered
+`webhook_url`.
 
 - Repo: `github.com/dakasa-yggdrasil/integration-efi` (Apache 2.0).
 - `integration_type` / provider: **`efi`** (single-provider family, so
@@ -34,10 +35,9 @@ providers/efi/
     mtls.go                        # LoadTLSConfig(cfg) — EFI-prefixed mTLS via SDK mtls pkg
     metrics.go                     # Prometheus collectors (AdapterUp, etc.)
     reconcile.go                   # WireReconcilers — SDK reconcile.Dispatch table (§6.5 emission)
-    webhook_server.go              # inbound EFI Pix webhook listener (mTLS)
     legacy_aliases_test.go         # v1.x → v2.0.0 operation-name alias coverage
     capabilities/                  # one file+test per capability (ensure_charge, refund_charge, ...)
-    reactor/efi_webhook_received.go # inbound-callback reactor + EmitFunc
+    reactor/efi_webhook_received.go # callback reactor + EmitFunc (no event sink since 2.5.1)
     testdata/                      # test.p12 / test.der mTLS fixtures
   config/config.go                 # EFI_* env knobs → typed Config
   efiapi/client.go                 # EfiClient: OAuth client-credentials + mTLS transport to EFI
@@ -74,18 +74,19 @@ Selected at runtime by `YGGDRASIL_TRANSPORT` (see `Describe()` in
   `yggdrasil.adapter.efi.execute`.
 
 A separate health server runs on `HEALTHCHECK_PORT` (default `8080`,
-`/healthz` `/readyz` `/metrics`), and the inbound EFI webhook listener
-on `EFI_WEBHOOK_PORT` (default `9079`, mTLS when a cert is loaded).
+`/healthz` `/readyz` `/metrics`). There is no inbound webhook listener:
+EFI delivers Pix callbacks to the service behind the registered
+`webhook_url`.
 
 ## AdapterVersion
 
-**`2.5.0`** — the single source of truth is
+**`2.5.1`**: the single source of truth is
 `adapter.AdapterVersion` in `providers/efi/adapter/spec.go`. It is
 wire-advertised in `Describe()` and version-checked in the describe
 handshake (`providers/efi/message/describe.go`).
 
 > `manifest/integration_type.json` (the *registered* manifest, not an
-> example) is synced to `spec.go` at `spec.adapter.version` = **`2.5.0`**.
+> example) is synced to `spec.go` at `spec.adapter.version` = **`2.5.1`**.
 > No describe-dump tool exists in this repo, so when `AdapterVersion`
 > bumps, hand-edit that field in the same change and re-run the
 > contractcheck/spec tests (`go test ./...`).
@@ -100,9 +101,9 @@ EFI requires bidirectional mTLS for Pix calls. The cert is loaded from
 - `EFI_CERTIFICATE` (path to P12) **or** `EFI_CERTIFICATE_BASE64`
   (base64 P12 bytes) — path wins when both set.
 
-The resulting `*tls.Config` feeds both the outbound `EfiClient`
-transport (`providers/efi/efiapi/client.go`) and the inbound webhook
-server. The SDK also ships `mtls.LoadFromEnv("EFI")` with the same
+The resulting `*tls.Config` feeds the outbound `EfiClient` transport
+(`providers/efi/efiapi/client.go`); `main.go` also loads it once at boot
+so an unusable cert fails fast. The SDK also ships `mtls.LoadFromEnv("EFI")` with the same
 prefix convention; this repo uses its own `LoadTLSConfig` wrapper
 (driven by the typed `config.Config`) rather than calling `LoadFromEnv`
 directly.
@@ -157,9 +158,10 @@ Reconcilers are installed by `ad.WireReconcilers(a, instanceID)` in
 - **Fail fast over silent degradation.** No swallowing transport errors.
 - **Business authority stays in `yggdrasil-core`.** This worker owns
   EFI integration runtime behavior only. It does NOT publish to AMQP
-  itself — webhook events are emitted via a `publish_message` workflow
-  run routed through `integration-rabbitmq-runtime` (see
-  `newProductionEmitFunc` in `main.go`).
+  itself and runs no inbound webhook listener. The only events it emits
+  are §6.5 mutation events through the SDK emitter
+  (`YGGDRASIL_CORE_URL` + `YGGDRASIL_RUN_TOKEN`). `efi_webhook_received`
+  has no event sink and fails on a non-empty `pix` array.
 
 ## Validation
 

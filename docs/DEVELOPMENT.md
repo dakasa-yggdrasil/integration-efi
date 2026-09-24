@@ -36,7 +36,7 @@ task down       # stop + remove
 
 Compose merges `docker-compose.yml` (base service) with
 `docker-compose.standalone.yml` (adds RabbitMQ + port mappings). Ports exposed:
-`8080` (health/metrics), `8081` (RPC), `9079` (webhook).
+`8080` (health/metrics), `8081` (RPC). There is no webhook port.
 
 For mock instances without a real cert, set `EFI_MTLS_ENABLED=false` in `.env`.
 
@@ -44,7 +44,7 @@ For mock instances without a real cert, set `EFI_MTLS_ENABLED=false` in `.env`.
 
 ```
 cmd/adapter/                  # entrypoint
-  main.go                       # SDK adapter wiring, transport select, webhook + health servers, OTel, emit func
+  main.go                       # SDK adapter wiring, transport select, health server, boot mTLS check, OTel
   health.go                     # /healthz, /readyz, /metrics server (port 8080)
 family/
   manifest.json                 # family `efi` (payments, Apache-2.0)
@@ -59,11 +59,10 @@ providers/efi/
     adapter.go                  # Execute() switch + register chain
     reconcile.go                # 3 Reconcilers (charge, due_charge, webhook_subscription) — SDK dispatch bridge
     automatic_webhook_events.go # explicit efi.automatic_webhook.ensured emission (no Reconciler, no destroy)
-    webhook_server.go           # inbound /efi/webhook/pix listener (mTLS)
     mtls.go                     # LoadTLSConfig from P12 (file or base64)
-    metrics.go                  # efi_adapter_up, efi_webhook_received_total
+    metrics.go                  # efi_adapter_up
     reactor/
-      efi_webhook_received.go   # webhook reactor — normalize + emit envelope
+      efi_webhook_received.go   # reactor: normalize envelope (no event sink since 2.5.1)
     capabilities/*.go           # one handler per capability
   config/config.go              # env loader → Config
   efiapi/
@@ -77,7 +76,7 @@ pkg/contractcheck/              # PUBLIC describe-contract lint (importable by o
 deploy/service.yaml             # K8s Service (named ports health/8080, rpc/8081)
 yggdrasil-quickstart.yaml       # install bundle (family + type + instance + deploy ref)
 docker-compose*.yml, Dockerfile, Taskfile.yml
-integration_tests/              # efi_sandbox_test.go, webhook_dedup_test.go
+integration_tests/              # efi_sandbox_test.go
 docs/                           # this suite
 ```
 

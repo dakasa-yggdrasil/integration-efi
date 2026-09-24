@@ -1,9 +1,8 @@
 # Operations — integration-efi
 
-Health endpoints, Prometheus metrics, the webhook flow, and common failures —
+Health endpoints, Prometheus metrics, webhook ownership, and common failures,
 all grepped from the adapter source (`cmd/adapter/health.go`,
-`providers/efi/adapter/metrics.go`, `providers/efi/efiapi/metrics.go`,
-`providers/efi/adapter/webhook_server.go`).
+`providers/efi/adapter/metrics.go`, `providers/efi/efiapi/metrics.go`).
 
 ← Back to the [README](../README.md) · part of
 [Yggdrasil](https://github.com/dakasa-yggdrasil/yggdrasil-core).
@@ -39,7 +38,6 @@ HTTP-client-level (`providers/efi/efiapi/metrics.go`).
 | Metric | Type | Labels | Meaning |
 |---|---|---|---|
 | `efi_adapter_up` | gauge | — | `1` when the adapter is healthy (set at boot). |
-| `efi_webhook_received_total` | counter | `status`, `pix_status` | Inbound webhook events. `status` ∈ `received` / `noop` / `emit_failed`. |
 | `efi_request_duration_seconds` | histogram | `op`, `status_class` | Duration of outbound EFI API calls. |
 | `efi_request_errors_total` | counter | `op`, `status` | Non-2xx EFI responses. |
 | `efi_oauth_token_refreshes_total` | counter | `result` | OAuth token refreshes (`success` / `decode_fail` / `empty_token`). |
@@ -64,69 +62,42 @@ rate(efi_request_errors_total[5m])
 
 # p99 latency for immediate charges
 histogram_quantile(0.99, rate(efi_request_duration_seconds_bucket{op="cob"}[5m]))
-
-# Webhook deliveries by outcome
-sum by (status) (rate(efi_webhook_received_total[5m]))
 ```
+
+`efi_webhook_received_total` was removed in 2.5.1 with the webhook listener.
+Drop any dashboard panel or alert that still reads it.
 
 ---
 
 ## Webhooks
 
-EFI delivers Pix callbacks to the adapter's **inbound webhook listener** on
-`webhook_port` (default **`9079`**), separate from the RPC and health ports.
-
-### Routes (`providers/efi/adapter/webhook_server.go`)
-
-| Route | Method | Response |
-|---|---|---|
-| `/efi/webhook/pix` | GET | `200` — URL-validation probe (`EFI Pix Webhook is operational`). |
-| `/efi/webhook/pix` | POST | `202` first delivery · `204` empty `pix[]` · `500` on emit failure · `400` bad JSON. |
-
-**mTLS is required** when an mTLS cert is loaded: the listener sets
-`ClientAuth = RequireAndVerifyClientCert`, so EFI must present a client cert.
-Pass `nil` TLS config (mock mode, `mtls_enabled=false`) to run HTTP-only.
-
-### Flow
+The adapter runs **no inbound webhook listener**. It manages EFI webhook
+registrations (`ensure_webhook_subscription`, `observe_webhook_subscriptions`,
+`destroy_webhook_subscription`); EFI then delivers Pix callbacks to the
+registered `webhook_url` plus `/pix`, which another service serves. For DaKasa
+production see [USAGE.md](USAGE.md#6-receiving-inbound-pix-callbacks).
 
 ```mermaid
-sequenceDiagram
-  participant EFI as EFI / BCB
-  participant WH as Webhook server<br/>(:9079, mTLS)
-  participant RX as efi_webhook_received<br/>(reactor)
-  participant CORE as yggdrasil-core<br/>/api/v1/workflow-runs
-  participant RMQ as integration-rabbitmq-runtime
-  participant Q as identities.efi.pix-receive.q
-
-  EFI->>WH: POST /efi/webhook/pix (Pix payload, client cert)
-  WH->>WH: parse body, read pix[0].status (metric label)
-  WH->>RX: EfiWebhookReceived(payload)
-  alt pix[] non-empty
-    RX->>CORE: POST publish_message workflow run (Bearer token)
-    CORE->>RMQ: route capability=publish_message
-    RMQ->>Q: publish envelope {event: efi.pix.received, ...}
-    RX-->>WH: { emitted: true, e2eId }
-    WH-->>EFI: 202 Accepted  (metric: received)
-  else empty pix[] (probe / empty batch)
-    RX-->>WH: { emitted: false }
-    WH-->>EFI: 204 No Content  (metric: noop)
-  end
-  Note over WH,EFI: emit error → 500 (metric: emit_failed)
+flowchart LR
+  wf["Yggdrasil workflow"] -- "ensure_webhook_subscription" --> efi["integration-efi"]
+  efi -- "PUT /v2/webhook/{chave}" --> bcb["EFI / BCB"]
+  bcb -- "POST webhook_url + /pix (mTLS)" --> rx["service behind webhook_url"]
 ```
 
-The adapter does **not** dedup. Duplicate deliveries are tolerated downstream by
-a `webhook_event_efi.e2e_id UNIQUE` constraint in the identities consumer.
+### What 2.5.1 removed
 
-> The webhook port `9079` is intentionally **not** in the Kubernetes Service —
-> that ingress is routed separately behind the external webhook receiver / mTLS
-> terminator (see the comment block in `deploy/service.yaml`).
+Up to 2.5.0 the adapter listened on `EFI_WEBHOOK_PORT` (`9079`,
+`POST /efi/webhook/pix`) and handed each callback to the `efi_webhook_received`
+reactor, which posted a `global/publish-message` workflow run to
+`${YGGDRASIL_CORE_BASE_URL}/api/v1/workflow-runs` with
+`YGGDRASIL_WORKFLOW_RUN_TOKEN`. That workflow and its `global/rabbitmq-runtime`
+instance were never registered, and no Service or ingress routed the port, so
+the path delivered nothing. The listener, the dispatch, both env vars,
+`EFI_WEBHOOK_PORT` and `efi_webhook_received_total` are gone.
 
-### Emission requires core wiring
-
-The reactor POSTs to `${YGGDRASIL_CORE_BASE_URL}/api/v1/workflow-runs` with a
-`Bearer ${YGGDRASIL_WORKFLOW_RUN_TOKEN}`. If `YGGDRASIL_CORE_BASE_URL` is unset,
-the reactor logs a WARN and **skips** emission (dev mode) — the webhook still
-returns success, but nothing reaches the bus.
+`efi_webhook_received` stays in the contract with no event sink. Through
+Execute, a non-empty `pix` array fails with `ErrNoReactorSink`; an empty one
+returns `{ emitted: false }`.
 
 ---
 
@@ -139,9 +110,7 @@ returns success, but nothing reaches the bus.
 | `efi_mtls_handshake_failures_total` climbing | Expired/wrong client cert | Rotate the P12; restart the pod. |
 | `efi_request_errors_total{status="429"}` | EFI rate limit | Back off; transient (`IsTransient()` retries 429/503/504). |
 | `connection refused` describing via Service DNS | Service missing rpc port `8081` | Apply `deploy/service.yaml` (the 2.3.1 fix). |
-| Webhook returns `502/connection refused` | Listener not reachable on `9079` | Check the external webhook ingress + mTLS terminator routing. |
-| `efi_webhook_received_total{status="emit_failed"}` | Reactor emit to core failing | Check `YGGDRASIL_CORE_BASE_URL` + `YGGDRASIL_WORKFLOW_RUN_TOKEN`; check core `/api/v1/workflow-runs`. |
-| Webhook returns `204` for every call | Empty `pix[]` (probe or empty batch) | Expected — only non-empty `pix[]` emits. |
+| `efi_webhook_received` fails with `no event sink is wired` | The reactor has had no sink since 2.5.1 | Expected. Pix callbacks belong to the service behind `webhook_url`, not this adapter. |
 
 ### Transient vs terminal (outbound)
 
@@ -154,18 +123,17 @@ responsibility.
 
 ## Staging validation runbook
 
-Before a production cutover, run the staged validation procedure (100 charges +
-100 webhook callbacks + duplicate-delivery dedup check) in:
+Before a production cutover, run the staged validation procedure (100 charges;
+the webhook callback tests retired with the listener in 2.5.1) in:
 
 → **[RUNBOOK_STAGING_VALIDATION.md](RUNBOOK_STAGING_VALIDATION.md)**
 
-The acceptance gate: all three tests pass and zero alerts fire in a 30-minute
+The acceptance gate: the charge test passes and zero alerts fire in a 30-minute
 observation window.
 
 ## Graceful shutdown
 
 On `SIGINT`/`SIGTERM` the adapter (`cmd/adapter/main.go`) cancels the run
-context, stops the webhook server (5s deadline) and the health server (10s
-deadline), and drains the SDK adapter. mTLS, OTel, and the RPC listener all shut
-down cleanly.
+context, stops the health server (10s deadline), and drains the SDK adapter.
+mTLS, OTel, and the RPC listener all shut down cleanly.
 </content>
