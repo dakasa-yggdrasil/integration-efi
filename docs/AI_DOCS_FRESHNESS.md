@@ -7,7 +7,7 @@ The docs-freshness CI reads it: a PR that bumps it is trusted and the AI is skip
 Before a PR: update stale docs, set verified_at_commit to your branch tip.
 On arrival: if this is behind the code you touch, reconcile the docs FIRST.
 
-verified_at_commit: 5d9f5251a2d7f2e38654ad60b48240bf33fb4ce9
+verified_at_commit: 534ae7b7e946e9810720386fa3319e7396e4403b
 verified_at: 2026-09-24
 by: Claude
-note: Reconciled the Pix Automatico automatic_webhook capabilities, the 2.5.0 release and the merged 2.4.1 line.
+note: Reconciled the removal of the dead workflow-run dispatch and the 9079 webhook listener on top of 2.5.0, released as 2.5.1.
