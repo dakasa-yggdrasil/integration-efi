@@ -1,6 +1,6 @@
 # Capabilities — integration-efi
 
-12 capabilities — **11 user-dispatched** (`category: capability`) + **1 reactor**
+14 capabilities: **13 user-dispatched** (`category: capability`) + **1 reactor**
 (`efi_webhook_received`, `category: reactor`, webhook-fired). Each section below
 is derived from `manifest/capabilities/*.yaml` and the route/idempotency
 metadata in `providers/efi/adapter/spec.go`.
@@ -238,6 +238,68 @@ The emitted envelope (`providers/efi/adapter/reactor/efi_webhook_received.go`):
 ```
 
 See [OPERATIONS.md → Webhooks](OPERATIONS.md#webhooks) for the full flow.
+
+---
+
+## Resource type: `automatic_webhook`
+
+Canonical prefix `thirdparty.efi.automatic_webhook` · identity
+`automatic_webhook.{kind}` · not discoverable. Added in 2.5.0.
+
+EFI keeps one Pix Automatico webhook registration per API application for each
+of two endpoints. Neither is keyed by a Pix key, so the identity is the `kind`:
+
+| `kind` | EFI endpoint | Notifications | EFI delivers to | `resource_id` |
+|---|---|---|---|---|
+| `rec` | `/v2/webhookrec` | recurrence lifecycle | `<webhook_url>/rec` | `webhookrec` |
+| `cobr` | `/v2/webhookcobr` | recurring charges | `<webhook_url>/cobr` | `webhookcobr` |
+
+Both capabilities refuse `skip_mtls_validation` and `chave` before any
+provider call, never send `x-skip-mtls-checking`, and never call
+`/v2/webhook/{chave}` (that is `ensure_webhook_subscription`). The receiver must
+authenticate EFI with mTLS. There is **no destroy** for this resource: removing
+a registration is not something this adapter offers.
+
+The resource is served by the legacy `adapter.Execute` switch, not by an SDK
+Reconciler, because `reconcile.RegisterReconciler` always installs a
+`destroy_` operation. `ensure_automatic_webhook` therefore emits its §6.5 event
+explicitly (`providers/efi/adapter/automatic_webhook_events.go`).
+
+### `ensure_automatic_webhook`
+
+`GET` the endpoint, then one `PUT {"webhookUrl": ...}` only when nothing is
+registered or a different URL is, then `GET` again. Fails unless the readback
+equals `webhook_url` exactly (plain string equality, no normalization). Never
+retries the PUT. A matching registration
+is adopted with no mutation (`changed: false`).
+
+| Input | Type | Required | Notes |
+|---|---|:--:|---|
+| `kind` | string | yes | `rec` or `cobr`. |
+| `webhook_url` | string | yes | Receiver **base** URL: `https://`, a host, no query, fragment, userinfo, escaped path or trailing slash, and the last segment cannot be `rec`, `cobr` or `pix` because EFI appends the delivery suffix. A query is refused because EFI's skip-mTLS mode authenticates with an HMAC in the query. |
+
+**Output:** `ensured`, `changed`, `kind`, `endpoint`, `resource_id`,
+`registered`, `webhook_url` (readback, query values redacted), `created_at`
+(EFI `criacao`, when returned).
+
+**Event:** `efi.automatic_webhook.ensured` with `resource_id` `webhookrec` or
+`webhookcobr` and the request's instance name. Emission is best-effort like the
+SDK's: a refused event is logged as a WARN and does not fail the call, because
+the readback already proved the provider state. Core accepts the event only
+from a principal granted `efi.automatic_webhook.ensured`.
+
+### `observe_automatic_webhooks`
+
+One `GET` of the endpoint. **Read-only.** A 404, or a response without
+`webhookUrl`, is reported as `registered: false`, not as an error.
+
+| Input | Type | Required | Notes |
+|---|---|:--:|---|
+| `kind` | string | yes | `rec` or `cobr`. |
+| `expected_webhook_url` | string | no | Turns the read into an exact readback gate: the call fails unless the registration exists and equals this URL. Same URL rules as `webhook_url`. |
+
+**Output:** `kind`, `endpoint`, `resource_id`, `registered`, `webhook_url`,
+`created_at`, and `matches_expected: true` when a gate was given and passed.
 
 ---
 

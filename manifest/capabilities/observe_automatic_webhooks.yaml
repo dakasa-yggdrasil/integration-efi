@@ -1,0 +1,29 @@
+name: observe_automatic_webhooks
+description: Observe the Pix Automatico webhook of one kind (rec reads GET /v2/webhookrec, cobr reads GET /v2/webhookcobr). An absent registration is registered=false. With expected_webhook_url the read becomes an exact readback gate that fails on any difference or absence. Query values in the returned URL are redacted. Read-only.
+category: capability
+resource_types: [automatic_webhook]
+idempotent: true
+input_schema:
+  required: [kind]
+  properties:
+    kind:
+      type: string
+      enum: [rec, cobr]
+    expected_webhook_url:
+      type: string
+      format: uri
+      description: Optional. When set, the call fails unless the provider returns exactly this URL.
+  not:
+    description: skip_mtls_validation and chave are refused before any provider call.
+    anyOf:
+      - required: [skip_mtls_validation]
+      - required: [chave]
+output_schema:
+  properties:
+    kind: {type: string}
+    endpoint: {type: string}
+    resource_id: {type: string}
+    registered: {type: boolean}
+    webhook_url: {type: string}
+    created_at: {type: string}
+    matches_expected: {type: boolean, description: Present and true only when expected_webhook_url was given and matched.}

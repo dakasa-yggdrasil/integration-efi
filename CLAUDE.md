@@ -54,7 +54,7 @@ vendor/                            # vendored deps (go.mod uses vendoring)
 ## Stack
 
 - Go 1.25, vendored deps.
-- `github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.8.3` — the adapter
+- `github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.9.1` — the adapter
   uses the SDK `adapter`, `rpc`, `mtls`, and `sdk/reconcile` packages.
   This is NOT a from-scratch RPC layer; describe/execute go through the
   SDK adapter (`adapter.New(...)` in `cmd/adapter/main.go`).
@@ -79,13 +79,13 @@ on `EFI_WEBHOOK_PORT` (default `9079`, mTLS when a cert is loaded).
 
 ## AdapterVersion
 
-**`2.4.0`** — the single source of truth is
+**`2.5.0`** — the single source of truth is
 `adapter.AdapterVersion` in `providers/efi/adapter/spec.go`. It is
 wire-advertised in `Describe()` and version-checked in the describe
 handshake (`providers/efi/message/describe.go`).
 
 > `manifest/integration_type.json` (the *registered* manifest, not an
-> example) is synced to `spec.go` at `spec.adapter.version` = **`2.4.0`**.
+> example) is synced to `spec.go` at `spec.adapter.version` = **`2.5.0`**.
 > No describe-dump tool exists in this repo, so when `AdapterVersion`
 > bumps, hand-edit that field in the same change and re-run the
 > contractcheck/spec tests (`go test ./...`).
@@ -120,6 +120,11 @@ in `spec.go` for the authoritative descriptions and the
 - **webhook_subscription**: `ensure_webhook_subscription`,
   `observe_webhook_subscriptions`, `destroy_webhook_subscription`,
   `verify_webhook_signature`, `efi_webhook_received` (reactor).
+- **automatic_webhook** (2.5.0): `ensure_automatic_webhook`,
+  `observe_automatic_webhooks`. Pix Automatico `/v2/webhookrec` and
+  `/v2/webhookcobr`, keyed by `kind`, no destroy, no skip-mTLS. Served by
+  the legacy Execute switch, which emits `efi.automatic_webhook.ensured`
+  explicitly because the SDK Reconciler always adds a destroy.
 
 Two SDK-only reconcile ops (`observe_due_charges`,
 `destroy_due_charge`) exist ONLY in the `sdk/reconcile` dispatch table

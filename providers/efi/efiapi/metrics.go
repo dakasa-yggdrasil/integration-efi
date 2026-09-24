@@ -51,6 +51,8 @@ func classifyPath(path string) string {
 		return "create_payout"
 	case strings.HasPrefix(path, "/v2/webhook/") || strings.HasPrefix(path, "/v3/gn/webhook/"):
 		return "webhook"
+	case path == "/v2/webhookrec" || path == "/v2/webhookcobr":
+		return "automatic_webhook"
 	default:
 		return "other"
 	}

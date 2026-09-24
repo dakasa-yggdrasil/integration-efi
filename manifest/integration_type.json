@@ -10,7 +10,7 @@
     },
     "adapter": {
       "transport": "http_json",
-      "version": "2.4.0",
+      "version": "2.5.0",
       "endpoints": {
         "describe": "/rpc/describe",
         "execute": "/rpc/execute"
@@ -101,6 +101,16 @@
         ],
         "canonical_prefix": "thirdparty.efi.webhook_subscription",
         "identity_template": "webhook_subscription.{id}"
+      },
+      {
+        "name": "automatic_webhook",
+        "discoverable": false,
+        "default_actions": [
+          "ensure_automatic_webhook",
+          "observe_automatic_webhooks"
+        ],
+        "canonical_prefix": "thirdparty.efi.automatic_webhook",
+        "identity_template": "automatic_webhook.{kind}"
       }
     ],
     "discovery": {
@@ -125,7 +135,9 @@
         "destroy_webhook_subscription",
         "verify_webhook_signature",
         "handle_chargeback",
-        "efi_webhook_received"
+        "efi_webhook_received",
+        "ensure_automatic_webhook",
+        "observe_automatic_webhooks"
       ]
     }
   }

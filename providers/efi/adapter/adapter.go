@@ -165,6 +165,23 @@ func Execute(req contract.AdapterExecuteIntegrationRequest) (contract.AdapterExe
 		for k, v := range got {
 			output[k] = v
 		}
+	case OperationEnsureAutomaticWebhook:
+		got, err := capabilities.EnsureAutomaticWebhook(ctx, client, req.Input)
+		if err != nil {
+			return contract.AdapterExecuteIntegrationResponse{}, err
+		}
+		currentAutomaticWebhookEvents().emitEnsured(ctx, req, got)
+		for k, v := range got {
+			output[k] = v
+		}
+	case OperationObserveAutomaticWebhooks:
+		got, err := capabilities.ObserveAutomaticWebhooks(ctx, client, req.Input)
+		if err != nil {
+			return contract.AdapterExecuteIntegrationResponse{}, err
+		}
+		for k, v := range got {
+			output[k] = v
+		}
 	case OperationOnSurfaceQuery:
 		// Read-only surface aggregator: routes by query_name to a
 		// projection over the existing observe_* handlers. Never mutates;
