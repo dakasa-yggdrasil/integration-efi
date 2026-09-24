@@ -145,7 +145,10 @@ Run the lint via the unit suite: `go test ./...` (the contractcheck test lives i
 - `http` / `http_json` → `a.ListenHTTP(":" + ADAPTER_PORT)` (default `8081`),
   endpoints `/rpc/describe`, `/rpc/execute`.
 - `amqp` / `rabbitmq` → `a.ListenAMQP(BROKER_URL)`; **fatal if `BROKER_URL`
-  empty**. Queues `yggdrasil.adapter.efi.describe` / `.execute`.
+  empty**. Queues `yggdrasil.adapter.efi.describe` / `.execute` must already
+  exist as durable quorum queues; SDK v0.9.1 checks existence passively and
+  never creates fixed topology. Passive AMQP does not compare queue attributes,
+  so rollout must verify quorum/durability through RabbitMQ management.
 
 The `describe` response reflects the selected transport (HTTP endpoints vs AMQP
 queues).

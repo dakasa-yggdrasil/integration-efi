@@ -157,21 +157,18 @@ Service — that ingress is routed separately behind the external webhook receiv
 ## Version truth
 
 The wire-advertised adapter version is the `AdapterVersion` constant in
-`providers/efi/adapter/spec.go` — currently **`2.4.0`**. The `describe` handshake
+`providers/efi/adapter/spec.go` — currently **`2.4.1`**. The `describe` handshake
 returns it, and yggdrasil-core compares it against any `expected_version` the
 caller passes.
 
-Known stale catalog metadata (the binary is the source of truth):
+Current release metadata:
 
-| Source | Says | Reality |
-|---|---|---|
-| `providers/efi/adapter/spec.go` (`AdapterVersion`) | **`2.4.0`** | ✅ authoritative |
-| `manifest/integration_type.json` (`adapter.version`) | `2.2.0` | stale |
-| `yggdrasil-quickstart.yaml` (`image_tag`) | `v1.0.0` | stale |
-| `CHANGELOG.md` (top entry) | `2.3.1` | trails the constant |
-| git tags | `v1.0.0`, `v2.0.0` | trail the constant |
+| Source | Version |
+|---|---|
+| `providers/efi/adapter/spec.go` (`AdapterVersion`) | **`2.4.1`** |
+| `manifest/integration_type.json` (`adapter.version`) | `2.4.1` |
+| `CHANGELOG.md` (top entry) | `2.4.1` |
 
 When pinning a deployment, prefer an immutable image tag published by the
-`release` workflow (`sha-<short>`, or `vX.Y.Z` on a tag push) over the stale
-`image_tag` in the quickstart bundle.
+`release` workflow (`sha-<short>`, or `v2.4.1` on the release tag).
 </content>

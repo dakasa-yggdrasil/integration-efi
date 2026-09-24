@@ -26,9 +26,8 @@ This applies:
 - `manifest/integration_instance.example.json` → example instance `efi-prod`
 - a deploy ref for `ghcr.io/dakasa-yggdrasil/integration-efi`
 
-> The quickstart's `image_tag` is stale (`v1.0.0`). Pin a real published tag
-> (`sha-<short>` from the `release` workflow, or a `vX.Y.Z` tag) instead — the
-> running binary advertises adapter version `2.4.0`. See
+> Pin an immutable published tag (`sha-<short>` from the `release` workflow, or
+> `v2.4.1`) — the running binary advertises adapter version `2.4.1`. See
 > [CONFIGURATION.md → Version truth](CONFIGURATION.md#version-truth).
 
 ## 2. Configure the instance

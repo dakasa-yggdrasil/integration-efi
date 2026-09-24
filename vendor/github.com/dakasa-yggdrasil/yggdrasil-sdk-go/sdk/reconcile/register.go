@@ -459,9 +459,11 @@ func inferResourceID(observed any, body []byte, resource string) string {
 		return ""
 	}
 	// 1. Canonical "id" / "ID" / "Id" (the conventional shape).
+	//    Coerce numeric IDs (e.g. GitHub returns `id: <int>`) into a
+	//    string — yggdrasil-core stores resource_id as text.
 	for _, k := range []string{"id", "ID", "Id"} {
 		if v, ok := probe[k]; ok {
-			if s, ok := v.(string); ok && s != "" {
+			if s := coerceToNonEmptyString(v); s != "" {
 				return s
 			}
 		}
@@ -472,7 +474,7 @@ func inferResourceID(observed any, body []byte, resource string) string {
 	//    absent from response shapes that mirror provider semantics).
 	if resource != "" {
 		if v, ok := probe[resource+"_id"]; ok {
-			if s, ok := v.(string); ok && s != "" {
+			if s := coerceToNonEmptyString(v); s != "" {
 				return s
 			}
 		}
@@ -485,13 +487,62 @@ func inferResourceID(observed any, body []byte, resource string) string {
 			return owner + "/" + repo
 		}
 	}
-	// 4. v0.8.2: named-after-resource (`repository="owner/repo"` shape).
+	// 4. v0.8.4: GitHub-shaped `full_name` (the upstream `owner/repo`
+	//    composite). Useful when the response embeds an owner object
+	//    (`owner: {login: ...}`) rather than the flat composite the
+	//    rung-3 path expects.
+	if v, ok := probe["full_name"]; ok {
+		if s := coerceToNonEmptyString(v); s != "" {
+			return s
+		}
+	}
+	// 5. v0.8.2: named-after-resource (`repository="owner/repo"` shape).
 	if resource != "" {
 		if v, ok := probe[resource]; ok {
-			if s, ok := v.(string); ok && s != "" {
+			if s := coerceToNonEmptyString(v); s != "" {
 				return s
 			}
 		}
+	}
+	return ""
+}
+
+// coerceToNonEmptyString tolerates the four shapes adapter responses
+// in tree are observed to use for ID fields: string, json.Number,
+// float64 (default `encoding/json` for numbers), and int64 (rare,
+// happens when a custom unmarshaler decodes into a typed struct).
+// Returns "" for nil, false-y values, and unsupported types — the
+// caller falls through to the next precedence rung.
+func coerceToNonEmptyString(v any) string {
+	switch x := v.(type) {
+	case string:
+		return x
+	case json.Number:
+		return x.String()
+	case float64:
+		// json.Unmarshal into map[string]any decodes numbers as
+		// float64. GitHub repo IDs fit in float64 without loss
+		// (well under 2^53). Format as an integer when the value is
+		// integral (resource_ids are by convention integer-shaped
+		// when numeric); %g would otherwise produce scientific
+		// notation for large IDs ("1.234e+09").
+		if x == 0 {
+			return ""
+		}
+		if x == float64(int64(x)) {
+			return fmt.Sprintf("%d", int64(x))
+		}
+		return fmt.Sprintf("%g", x)
+	case int:
+		if x == 0 {
+			return ""
+		}
+		return fmt.Sprintf("%d", x)
+	case int64:
+		if x == 0 {
+			return ""
+		}
+		return fmt.Sprintf("%d", x)
 	}
 	return ""
 }
