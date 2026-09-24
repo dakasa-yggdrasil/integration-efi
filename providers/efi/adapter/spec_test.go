@@ -77,7 +77,7 @@ func TestSpec_UIMetadata_Section15(t *testing.T) {
 }
 
 // TestManifestCapabilityYAMLsParse asserts the manifest/capabilities/
-// directory holds exactly 11 YAMLs (one per supported operation) and
+// directory holds exactly 14 YAMLs (one per published operation) and
 // that each parses + has a `name` key. This is the cheapest possible
 // smoke against the YAML wire shape.
 func TestManifestCapabilityYAMLsParse(t *testing.T) {
@@ -86,8 +86,8 @@ func TestManifestCapabilityYAMLsParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read %s: %v", dir, err)
 	}
-	if len(entries) != 12 {
-		t.Fatalf("expected 12 capability YAMLs, got %d", len(entries))
+	if len(entries) != 14 {
+		t.Fatalf("expected 14 capability YAMLs, got %d", len(entries))
 	}
 	for _, e := range entries {
 		raw, err := os.ReadFile(filepath.Join(dir, e.Name()))

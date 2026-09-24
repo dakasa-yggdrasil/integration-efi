@@ -359,6 +359,10 @@ func stringValue(m reconcilePayload, key string) string {
 // surface does not apply.
 func WireReconcilers(a *adapter.Adapter, instanceID string) {
 	emitter := newEmitterFromEnv()
+	// ensure_automatic_webhook is served by the legacy Execute switch (the
+	// resource has no destroy, and RegisterReconciler always installs one),
+	// so it receives the same emitter here and emits explicitly.
+	configureAutomaticWebhookEvents(emitter, instanceID)
 	commonOpts := []reconcile.Option{
 		reconcile.WithProvider(Provider),
 		reconcile.WithEmitter(emitter),

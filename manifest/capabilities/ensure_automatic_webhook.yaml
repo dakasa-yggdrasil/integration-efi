@@ -1,0 +1,31 @@
+name: ensure_automatic_webhook
+description: Ensure the Pix Automatico webhook of one kind points at webhook_url. kind=rec uses PUT/GET /v2/webhookrec and EFI delivers to <webhook_url>/rec; kind=cobr uses PUT/GET /v2/webhookcobr and EFI delivers to <webhook_url>/cobr. Reads first, issues one PUT only when the registration is absent or different, then reads back and fails unless the provider returns exactly webhook_url. Never retries, never sends x-skip-mtls-checking, never touches /v2/webhook/{chave}. There is no destroy for this resource. Emits efi.automatic_webhook.ensured.
+category: capability
+resource_types: [automatic_webhook]
+idempotent: true
+input_schema:
+  required: [kind, webhook_url]
+  properties:
+    kind:
+      type: string
+      enum: [rec, cobr]
+      description: rec registers /v2/webhookrec (recurrences); cobr registers /v2/webhookcobr (recurring charges).
+    webhook_url:
+      type: string
+      format: uri
+      description: HTTPS receiver base URL. No query, fragment, userinfo, escaped path or trailing slash, and the last path segment cannot be rec, cobr or pix because EFI appends the delivery suffix.
+  not:
+    description: skip_mtls_validation and chave are refused before any provider call.
+    anyOf:
+      - required: [skip_mtls_validation]
+      - required: [chave]
+output_schema:
+  properties:
+    ensured: {type: boolean}
+    changed: {type: boolean, description: true when a PUT was issued, false when the matching registration was adopted.}
+    kind: {type: string}
+    endpoint: {type: string}
+    resource_id: {type: string, description: webhookrec or webhookcobr.}
+    registered: {type: boolean}
+    webhook_url: {type: string, description: Readback value. Query values are redacted.}
+    created_at: {type: string}

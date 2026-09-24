@@ -52,6 +52,16 @@ const (
 	OperationVerifyWebhookSignature      = "verify_webhook_signature"
 	OperationEfiWebhookReceived          = "efi_webhook_received"
 
+	// OperationEnsureAutomaticWebhook and OperationObserveAutomaticWebhooks
+	// manage the Pix Automatico webhook registrations (/v2/webhookrec and
+	// /v2/webhookcobr). They are keyed by kind, never by a Pix key, never
+	// send x-skip-mtls-checking and have no destroy counterpart. They run
+	// through the legacy Execute switch because the SDK Reconciler always
+	// registers a destroy operation; ensure_automatic_webhook emits its
+	// mutation event explicitly (automatic_webhook_events.go).
+	OperationEnsureAutomaticWebhook   = "ensure_automatic_webhook"
+	OperationObserveAutomaticWebhooks = "observe_automatic_webhooks"
+
 	// OperationOnSurfaceQuery is the read-only aggregator invoked by core's
 	// /api/v1/integrations/{instance_id}/surface-query proxy on behalf of the
 	// EFI/Pix finance-ops operator surface. The surface passes
@@ -63,6 +73,10 @@ const (
 	// existing observe_* handlers; it mutates nothing and moves no money.
 	OperationOnSurfaceQuery = "on_surface_query"
 )
+
+// ResourceAutomaticWebhook is the resource type of the Pix Automatico
+// webhook registrations. Its §6.5 event type is efi.automatic_webhook.ensured.
+const ResourceAutomaticWebhook = "automatic_webhook"
 
 // SDK-only dispatch operations. The Reconciler[D,O] registration in
 // reconcile.go installs these names in the SDK dispatch table so the
@@ -99,6 +113,8 @@ var SupportedExecuteOperations = []string{
 	OperationVerifyWebhookSignature,
 	OperationEfiWebhookReceived,
 	OperationOnSurfaceQuery,
+	OperationEnsureAutomaticWebhook,
+	OperationObserveAutomaticWebhooks,
 }
 
 // SDKOnlyOperations names the operations registered ONLY in the SDK
@@ -298,6 +314,16 @@ func Describe() contract.AdapterDescribeResponse {
 					OperationEfiWebhookReceived,
 				},
 			},
+			{
+				Name:             ResourceAutomaticWebhook,
+				CanonicalPrefix:  "thirdparty.efi.automatic_webhook",
+				IdentityTemplate: "automatic_webhook.{kind}",
+				Discoverable:     false,
+				DefaultActions: []string{
+					OperationEnsureAutomaticWebhook,
+					OperationObserveAutomaticWebhooks,
+				},
+			},
 		},
 		ActionCatalog: []contract.IntegrationActionDefinition{
 			{
@@ -391,6 +417,20 @@ func Describe() contract.AdapterDescribeResponse {
 				Idempotent:    true,
 				Category:      "reactor",
 			},
+			{
+				Name:          OperationEnsureAutomaticWebhook,
+				Description:   "Ensure the Pix Automatico webhook of one kind points at webhook_url. kind=rec uses /v2/webhookrec (EFI delivers to <webhook_url>/rec); kind=cobr uses /v2/webhookcobr (EFI delivers to <webhook_url>/cobr). GET first, one PUT only when absent or different, then GET readback that must equal webhook_url exactly. No Pix key, no x-skip-mtls-checking, no retry, no destroy. webhook_url must be https without query, fragment, userinfo, trailing slash or a rec/cobr/pix last segment.",
+				ResourceTypes: []string{ResourceAutomaticWebhook},
+				Idempotent:    true,
+				Category:      "capability",
+			},
+			{
+				Name:          OperationObserveAutomaticWebhooks,
+				Description:   "Observe the Pix Automatico webhook of one kind (rec: GET /v2/webhookrec, cobr: GET /v2/webhookcobr). Returns {kind, endpoint, resource_id, registered, webhook_url, created_at}; absent is registered=false. Optional expected_webhook_url turns the read into an exact readback gate that fails on any difference or absence. URL query values are redacted from output. Read-only.",
+				ResourceTypes: []string{ResourceAutomaticWebhook},
+				Idempotent:    true,
+				Category:      "capability",
+			},
 		},
 		Discovery: contract.IntegrationDiscoverySpec{
 			Mode:   "push",
@@ -414,6 +454,8 @@ func Describe() contract.AdapterDescribeResponse {
 				OperationVerifyWebhookSignature,
 				OperationEfiWebhookReceived,
 				OperationOnSurfaceQuery,
+				OperationEnsureAutomaticWebhook,
+				OperationObserveAutomaticWebhooks,
 			},
 		},
 		Extensions: contract.IntegrationExtensionsSpec{
