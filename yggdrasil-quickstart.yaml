@@ -14,19 +14,18 @@ metadata:
 spec:
   display_name: EFI / Pix
   description: |
-    efi provider — Brazilian Pix charges (immediate cob + due-date cobv),
-    refunds and payouts, and Pix webhook subscriptions with inbound
-    callback handling. EFI requires bidirectional mTLS (P12 client
-    certificate) for all Pix API calls; the adapter listens for inbound
-    EFI webhook callbacks on a dedicated TLS port.
+    efi provider: Brazilian Pix charges (immediate cob + due-date cobv),
+    refunds and payouts, and Pix webhook subscriptions. EFI requires
+    bidirectional mTLS (P12 client certificate) for all Pix API calls.
+    The adapter does not receive Pix callbacks; EFI delivers them to the
+    service behind the registered webhook_url.
   providers:
     - id: efi
       display_name: EFI Pix runtime adapter
       description: |
         HTTP client for the EFI Pix API (BCB PIX v2/v3). mTLS is loaded
         from a base64-encoded P12 certificate per the EFI_* env
-        convention; the inbound webhook listener verifies the peer x509
-        cert on the handshake. Idempotent ensure_/observe_/destroy_ ops
+        convention. Idempotent ensure_/observe_/destroy_ ops
         keep reconcile loops from oscillating.
       requires:
         - kind: integration_family
@@ -92,8 +91,8 @@ spec:
         - id: mtls_enabled
           label: Enable mTLS
           description: |
-            Bidirectional mTLS for outbound + inbound. Disable only for
-            mock/test instances.
+            mTLS for outbound EFI calls. Disable only for mock/test
+            instances.
           type: boolean
           default: true
       steps:
