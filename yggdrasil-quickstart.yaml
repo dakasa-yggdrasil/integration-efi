@@ -134,10 +134,9 @@ spec:
         - id: apply-adapter-deployment
           description: |
             Deploy the EFI adapter. It consumes the efi describe/execute
-            queues over AMQP and runs the inbound Pix webhook listener on
-            EFI_WEBHOOK_PORT (9079). mTLS is loaded from
-            EFI_CERTIFICATE_BASE64 per the SDK mtls.LoadFromEnv("EFI")
-            convention.
+            queues over AMQP and runs no inbound webhook listener. mTLS is
+            loaded from EFI_CERTIFICATE_BASE64 per the SDK
+            mtls.LoadFromEnv("EFI") convention.
           uses:
             kind: integration
             family: kubernetes
@@ -163,9 +162,6 @@ spec:
                     containers:
                       - name: adapter
                         image: "{{ inputs.image }}"
-                        ports:
-                          - name: webhook
-                            containerPort: 9079
                         env:
                           - name: YGGDRASIL_TRANSPORT
                             value: amqp
@@ -193,8 +189,6 @@ spec:
                             value: "{{ inputs.base_url }}"
                           - name: EFI_MTLS_ENABLED
                             value: "{{ inputs.mtls_enabled }}"
-                          - name: EFI_WEBHOOK_PORT
-                            value: "9079"
         - id: register-instance
           description: |
             Register the integration_instance pointing at the efi type.
@@ -219,7 +213,6 @@ spec:
                   base_url: "{{ inputs.base_url }}"
                   sandbox: "{{ inputs.sandbox }}"
                   mtls_enabled: "{{ inputs.mtls_enabled }}"
-                  webhook_port: 9079
       post_install_hints:
         - "Create a Pix charge: kind=integration, family=efi, operation=ensure_charge (POST /v2/cob)."
         - "Read a charge: family=efi, operation=observe_charges with txid=<txid> or {inicio, fim} for a statement window."

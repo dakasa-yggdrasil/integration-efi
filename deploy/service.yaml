@@ -24,11 +24,9 @@
 # queue. But HTTP-JSON is the default transport for this adapter,
 # and forward-drift auto-sync uses the HTTP describe endpoint regardless.
 #
-# Webhook port 9079 (EFI Pix callbacks) is deliberately NOT included
-# in this Service — that ingress path lives behind the external
-# webhook receiver / mTLS terminator and is routed separately. See
-# providers/efi/adapter/webhook_server.go for the mTLS-required
-# listener.
+# There is no webhook port. The 9079 listener was removed in 2.5.1:
+# EFI Pix callbacks go to the service behind the webhook_url registered
+# through ensure_webhook_subscription, never to this adapter.
 
 apiVersion: v1
 kind: Service

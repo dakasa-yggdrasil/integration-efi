@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
@@ -12,12 +13,18 @@ import (
 	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/efiapi"
 )
 
-// DefaultReactorEmit is the EmitFunc installed by main.go after the
-// production emit function (Yggdrasil-orchestrator round-trip) has
-// been constructed. Replay-via-Execute uses this. Initialized to a
-// no-op so tests / unit invocations of Execute do not panic.
+// ErrNoReactorSink is returned when efi_webhook_received runs through
+// Execute with a non-empty pix array. The adapter wires no event sink
+// for the reactor: the publish_message workflow-run dispatch that
+// main.go used to install was removed in 2.5.1 because its target
+// workflow was never registered.
+var ErrNoReactorSink = errors.New("no event sink is wired for efi_webhook_received; EFI Pix callbacks are handled by the service behind the registered webhook_url")
+
+// DefaultReactorEmit is the EmitFunc efi_webhook_received uses when it
+// runs through Execute. It fails with ErrNoReactorSink instead of
+// reporting an event that nothing published. Tests may replace it.
 var DefaultReactorEmit reactor.EmitFunc = func(_ context.Context, _, _ string, _ map[string]any) error {
-	return nil
+	return ErrNoReactorSink
 }
 
 // LegacyDeprecationLogger is the function called the first time a v1.x
@@ -155,9 +162,8 @@ func Execute(req contract.AdapterExecuteIntegrationRequest) (contract.AdapterExe
 			output[k] = v
 		}
 	case OperationEfiWebhookReceived:
-		// In normal flow this is fired by the WebhookServer directly.
-		// Replay from a workflow uses DefaultReactorEmit (installed
-		// by main.go after the production emit is built).
+		// Kept for contract compatibility. No listener feeds it and
+		// DefaultReactorEmit has no sink (see ErrNoReactorSink).
 		got, err := reactor.EfiWebhookReceived(ctx, DefaultReactorEmit, req.Input)
 		if err != nil {
 			return contract.AdapterExecuteIntegrationResponse{}, err

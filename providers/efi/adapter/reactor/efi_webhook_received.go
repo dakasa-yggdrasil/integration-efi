@@ -1,7 +1,6 @@
 // Package reactor implements the inbound webhook-fired capabilities.
-// These are NOT user-dispatched through Execute (they would be no-ops
-// without the actual webhook delivery) — they're invoked directly by
-// the WebhookServer in providers/efi/adapter/webhook_server.go.
+// The adapter runs no inbound listener, so the only caller left is
+// Execute, which passes adapter.DefaultReactorEmit as the emitter.
 package reactor
 
 import (
@@ -10,15 +9,14 @@ import (
 	"time"
 )
 
-// EmitFunc is the dependency-injected emitter. In production this
-// posts a `publish_message` workflow run against yggdrasil-core
-// (which routes to integration-rabbitmq-runtime). In tests it
+// EmitFunc is the dependency-injected emitter. The adapter wires no
+// production sink (adapter.DefaultReactorEmit fails). In tests it
 // captures the call args.
 type EmitFunc func(ctx context.Context, exchange, routingKey string, payload map[string]any) error
 
-// EfiWebhookReceived consumes the JSON body EFI POSTed to our
-// /efi/webhook/pix endpoint, extracts the first pix entry, and emits
-// a normalized event envelope to the identities consumer queue.
+// EfiWebhookReceived consumes an EFI Pix callback body, extracts the
+// first pix entry, and emits a normalized event envelope addressed to
+// the identities consumer queue.
 //
 // Returns `{ emitted: true, e2eId }` on success; `{ emitted: false }`
 // on empty pix arrays (URL-validation probe, occasional empty batches).
