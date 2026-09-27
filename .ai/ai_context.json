@@ -1,28 +1,28 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-09-27T01:52:07-03:00",
+  "generated_at": "2026-09-27T07:12:24-03:00",
   "primary_language": "go",
   "languages": {
-    ".go": 59,
+    ".go": 60,
     ".json": 6,
     ".yaml": 17,
     ".yml": 7
   },
   "provenance": {
-    "commit": "466cd4a77b70e4651766139222c9af1601aa8af5",
+    "commit": "4a9b59e2466468a4f99b31839c2e8bfcbd6c1a03",
     "dirty": true,
     "files": [
       {
         "path": "AGENTS.md",
-        "sha256": "8b5b468d14414a235aaad696eef4782199b181add2c7ff7fe6aa7dbf4f620caa"
+        "sha256": "adadbca7234d4dc041f4579e478e36b2f8a53559144439f034da096c6bc57222"
       },
       {
         "path": "CLAUDE.md",
-        "sha256": "d700c94892ec8627666885cd1c5d7b63715d6090a2a1adebeb527ccd9c8288df"
+        "sha256": "72a3b167981e8f5f9dfcb44218d857daca4c1554a28c2eea3c4ee8dbe0f97712"
       },
       {
         "path": "README.md",
-        "sha256": "6aeeac8b01fe8daf8aac20314d770fcd94741a97e1b15c596de27138ce50193f"
+        "sha256": "3288419c542d05623eb5bbadc513b58666766b3a44edebb42e3ab3d83dfe4b35"
       },
       {
         "path": "Taskfile.yml",
@@ -57,7 +57,12 @@
     {
       "path": "providers/efi/adapter",
       "files": 14,
-      "kb": 133
+      "kb": 134
+    },
+    {
+      "path": "providers/efi/message",
+      "files": 5,
+      "kb": 17
     },
     {
       "path": ".",
@@ -73,11 +78,6 @@
       "path": "providers/efi/efiapi",
       "files": 4,
       "kb": 17
-    },
-    {
-      "path": "providers/efi/message",
-      "files": 4,
-      "kb": 13
     },
     {
       "path": "surface-ui",
