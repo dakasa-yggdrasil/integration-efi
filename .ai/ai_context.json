@@ -1,28 +1,28 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-09-24T19:10:48-03:00",
+  "generated_at": "2026-09-27T01:52:07-03:00",
   "primary_language": "go",
   "languages": {
-    ".go": 57,
+    ".go": 59,
     ".json": 6,
-    ".yaml": 16,
+    ".yaml": 17,
     ".yml": 7
   },
   "provenance": {
-    "commit": "534ae7b7e946e9810720386fa3319e7396e4403b",
-    "dirty": false,
+    "commit": "466cd4a77b70e4651766139222c9af1601aa8af5",
+    "dirty": true,
     "files": [
       {
         "path": "AGENTS.md",
-        "sha256": "0ba5794aefa640a2253ff1e3f38a16d0395fab5df3917426c775a77346a2718a"
+        "sha256": "8b5b468d14414a235aaad696eef4782199b181add2c7ff7fe6aa7dbf4f620caa"
       },
       {
         "path": "CLAUDE.md",
-        "sha256": "b1702e4e44614d56bcdccfa113ca549510527ee758cc30f2fff8d7540f4539d6"
+        "sha256": "d700c94892ec8627666885cd1c5d7b63715d6090a2a1adebeb527ccd9c8288df"
       },
       {
         "path": "README.md",
-        "sha256": "67764c7f87216e269a6da88a34925c5e21bbbb12cebd4227a5f9860036b990e3"
+        "sha256": "6aeeac8b01fe8daf8aac20314d770fcd94741a97e1b15c596de27138ce50193f"
       },
       {
         "path": "Taskfile.yml",
@@ -46,18 +46,18 @@
   "top_dirs": [
     {
       "path": "providers/efi/adapter/capabilities",
-      "files": 25,
-      "kb": 89
+      "files": 27,
+      "kb": 119
     },
     {
       "path": "manifest/capabilities",
-      "files": 14,
-      "kb": 12
+      "files": 15,
+      "kb": 14
     },
     {
       "path": "providers/efi/adapter",
       "files": 14,
-      "kb": 131
+      "kb": 133
     },
     {
       "path": ".",
@@ -72,7 +72,7 @@
     {
       "path": "providers/efi/efiapi",
       "files": 4,
-      "kb": 16
+      "kb": 17
     },
     {
       "path": "providers/efi/message",
@@ -108,11 +108,15 @@
   "top_files_by_size": [
     {
       "path": "providers/efi/adapter/spec.go",
-      "kb": 24
+      "kb": 26
     },
     {
       "path": "providers/efi/adapter/surface_query_test.go",
       "kb": 20
+    },
+    {
+      "path": "providers/efi/adapter/capabilities/observe_automatic_webhook_readiness.go",
+      "kb": 18
     },
     {
       "path": "providers/efi/adapter/reconcile_test.go",
@@ -135,6 +139,10 @@
       "kb": 13
     },
     {
+      "path": "providers/efi/adapter/capabilities/observe_automatic_webhook_readiness_test.go",
+      "kb": 11
+    },
+    {
       "path": "providers/efi/adapter/capabilities/observe_webhook_subscriptions_test.go",
       "kb": 10
     },
@@ -145,14 +153,6 @@
     {
       "path": "providers/efi/adapter/automatic_webhook_test.go",
       "kb": 9
-    },
-    {
-      "path": "providers/efi/efiapi/client.go",
-      "kb": 8
-    },
-    {
-      "path": "yggdrasil-quickstart.yaml",
-      "kb": 8
     }
   ],
   "contracts": {
