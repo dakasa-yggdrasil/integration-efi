@@ -5,6 +5,15 @@ All notable changes to integration-efi will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.3] - 2026-09-27
+
+### Fixed
+
+- Preserve the caller's capability input when the SDK reconcile bridge adds its
+  private integration context. Legacy fallback operations such as
+  `observe_automatic_webhook_readiness` now receive only their declared input
+  instead of bridge-only `instance_id` and `_integration` fields.
+
 ## [2.5.2] - 2026-09-27
 
 ### Added

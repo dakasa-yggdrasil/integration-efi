@@ -168,7 +168,7 @@ removed in 2.5.1, and EFI Pix callbacks go to the service behind the registered
 ## Version truth
 
 The wire-advertised adapter version is the `AdapterVersion` constant in
-`providers/efi/adapter/spec.go`, currently **`2.5.2`**. The `describe` handshake
+`providers/efi/adapter/spec.go`, currently **`2.5.3`**. The `describe` handshake
 returns it, and yggdrasil-core compares it against any `expected_version` the
 caller passes.
 
@@ -176,10 +176,10 @@ Current release metadata:
 
 | Source | Version |
 |---|---|
-| `providers/efi/adapter/spec.go` (`AdapterVersion`) | **`2.5.2`** |
-| `manifest/integration_type.json` (`adapter.version`) | `2.5.2` |
-| `CHANGELOG.md` (top entry) | `2.5.2` |
+| `providers/efi/adapter/spec.go` (`AdapterVersion`) | **`2.5.3`** |
+| `manifest/integration_type.json` (`adapter.version`) | `2.5.3` |
+| `CHANGELOG.md` (top entry) | `2.5.3` |
 
 When pinning a deployment, prefer an immutable image tag published by the
-`release` workflow (`sha-<short>`, or `v2.5.2` on the release tag).
+`release` workflow (`sha-<short>`, or `v2.5.3` on the release tag).
 </content>

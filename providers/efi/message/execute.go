@@ -97,29 +97,34 @@ func ExecuteHandler(logger *zap.Logger, a *sdkadapter.Adapter) Handler {
 // reconciler bridge can rebuild the per-request Execute envelope
 // (auth + credentials + instance spec) for the legacy switch path.
 func buildSDKDelivery(d rpc.Delivery, req model.AdapterExecuteIntegrationRequest) (rpc.Delivery, error) {
-	input := req.Input
-	if input == nil {
-		input = map[string]any{}
+	// The SDK bridge needs two private fields that are not capability inputs.
+	// Copy the caller map before adding them: unsupported reconcile operations
+	// fall back to adapter.Execute(req), whose strict input contracts must see
+	// the original request unchanged.
+	input := make(map[string]any, len(req.Input)+2)
+	for key, value := range req.Input {
+		if key == "instance_id" || key == "_integration" {
+			continue
+		}
+		input[key] = value
 	}
 	instanceID := strings.TrimSpace(req.Integration.Instance.Name)
 	if instanceID != "" {
-		if _, present := input["instance_id"]; !present {
-			input["instance_id"] = instanceID
-		}
+		input["instance_id"] = instanceID
 	}
 	// Forward the full Integration shape so defaultDispatch in
 	// providers/efi/adapter/reconcile.go can rebuild the per-request
 	// Execute envelope (credentials + instance config) used by the
 	// legacy switch.
-	if _, present := input["_integration"]; !present {
-		b, err := json.Marshal(req.Integration)
-		if err == nil {
-			var as map[string]any
-			if jerr := json.Unmarshal(b, &as); jerr == nil {
-				input["_integration"] = as
-			}
-		}
+	b, err := json.Marshal(req.Integration)
+	if err != nil {
+		return rpc.Delivery{}, fmt.Errorf("encode integration context: %w", err)
 	}
+	var as map[string]any
+	if err := json.Unmarshal(b, &as); err != nil {
+		return rpc.Delivery{}, fmt.Errorf("decode integration context: %w", err)
+	}
+	input["_integration"] = as
 	idempotency, _ := req.Metadata["idempotency"].(string)
 	sdkBody, err := json.Marshal(map[string]any{
 		"operation":   req.Operation,
