@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-09-27T08:18:14-03:00",
+  "generated_at": "2026-09-27T09:10:25-03:00",
   "primary_language": "go",
   "languages": {
     ".go": 60,
@@ -9,20 +9,20 @@
     ".yml": 7
   },
   "provenance": {
-    "commit": "b7de5329343c0083fa85397bc79c613bc793261b",
+    "commit": "58db9473e3a15c508edd5733d3623577966c9967",
     "dirty": true,
     "files": [
       {
         "path": "AGENTS.md",
-        "sha256": "d076dd240dc04842ba899450122cd6c9ad318901c387cbf9d3a55d31afaa71c2"
+        "sha256": "56e4c6345bb458045734295d9e5fe62c0d2249529120649b5de0df2ca923f0dd"
       },
       {
         "path": "CLAUDE.md",
-        "sha256": "76eb42a700e04478a2bf67bd546b4bb3f57f45aeb34a4f67c4559cb2cc725117"
+        "sha256": "34bd2d6ca44faaf3385f53ffea228501bd370c9241f2a1d46d84ed97fc0c02aa"
       },
       {
         "path": "README.md",
-        "sha256": "9ed16de8b511669f12aae7f2bd0c82f3fa6ed26becfeb270670a7be0ce9437e5"
+        "sha256": "ac3c51ac36b98d4d1780e38f9507430e32ec2ccf5af86c3083995798e60017f1"
       },
       {
         "path": "Taskfile.yml",
@@ -47,7 +47,7 @@
     {
       "path": "providers/efi/adapter/capabilities",
       "files": 27,
-      "kb": 125
+      "kb": 123
     },
     {
       "path": "manifest/capabilities",
@@ -108,7 +108,7 @@
   "top_files_by_size": [
     {
       "path": "providers/efi/adapter/spec.go",
-      "kb": 26
+      "kb": 27
     },
     {
       "path": "providers/efi/adapter/surface_query_test.go",
@@ -116,7 +116,7 @@
     },
     {
       "path": "providers/efi/adapter/capabilities/observe_automatic_webhook_readiness.go",
-      "kb": 20
+      "kb": 17
     },
     {
       "path": "providers/efi/adapter/reconcile_test.go",
@@ -124,7 +124,7 @@
     },
     {
       "path": "providers/efi/adapter/capabilities/observe_automatic_webhook_readiness_test.go",
-      "kb": 15
+      "kb": 16
     },
     {
       "path": "providers/efi/adapter/capabilities/automatic_webhook_test.go",

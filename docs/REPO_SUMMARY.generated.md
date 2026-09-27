@@ -1,6 +1,6 @@
 # Repo Summary (generated)
 
-_Generated from HEAD at: 2026-09-27T08:18:14-03:00_
+_Generated from HEAD at: 2026-09-27T09:10:25-03:00_
 
 ## Languages
 
@@ -21,9 +21,9 @@ _Generated from HEAD at: 2026-09-27T08:18:14-03:00_
 
 ## Top Directories by File Count
 
-- providers/efi/adapter/capabilities: 27 files (125.7 KB)
-- manifest/capabilities: 15 files (14.4 KB)
-- providers/efi/adapter: 14 files (134.3 KB)
+- providers/efi/adapter/capabilities: 27 files (123.5 KB)
+- manifest/capabilities: 15 files (14.6 KB)
+- providers/efi/adapter: 14 files (134.6 KB)
 - providers/efi/message: 5 files (17.8 KB)
 - .: 4 files (10.6 KB)
 - .github/workflows: 4 files (12.8 KB)
@@ -36,11 +36,11 @@ _Generated from HEAD at: 2026-09-27T08:18:14-03:00_
 
 ## Heaviest Files
 
-- providers/efi/adapter/spec.go: 26.7 KB
+- providers/efi/adapter/spec.go: 27.1 KB
 - providers/efi/adapter/surface_query_test.go: 20.8 KB
-- providers/efi/adapter/capabilities/observe_automatic_webhook_readiness.go: 20.1 KB
+- providers/efi/adapter/capabilities/observe_automatic_webhook_readiness.go: 17.6 KB
 - providers/efi/adapter/reconcile_test.go: 17.0 KB
-- providers/efi/adapter/capabilities/observe_automatic_webhook_readiness_test.go: 15.8 KB
+- providers/efi/adapter/capabilities/observe_automatic_webhook_readiness_test.go: 16.1 KB
 - providers/efi/adapter/capabilities/automatic_webhook_test.go: 15.5 KB
 - providers/efi/adapter/reconcile.go: 15.2 KB
 - providers/efi/adapter/surface_query.go: 14.6 KB
