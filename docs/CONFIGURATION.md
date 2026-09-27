@@ -64,7 +64,7 @@ explicit; all other fields have defaults.
 | `sandbox` | boolean | `false` | Whether this instance points at EFI homologation (`pix-h`). |
 | `mtls_enabled` | boolean | `true` | Enforce mTLS for outbound EFI calls. Disable only for mock/test instances. |
 | `webhook_port` | integer | `9079` | Deprecated and ignored since 2.5.1: the adapter runs no inbound webhook listener. Kept in the schema so existing instance configs stay valid. |
-| `webhook_receiver_url` | string | _(empty)_ | Fixed HTTPS registration-probe base used by `observe_automatic_webhook_readiness`. Capability input cannot override it. The base POST must be a no-op probe, because EFI performs the same probe during registration. |
+| `webhook_receiver_url` | string | _(empty)_ | Fixed HTTPS receiver inspected by `observe_automatic_webhook_readiness`. Capability input cannot override it. The preflight compares DNS and proves clientless mTLS refusal; only EFI's registration PUT can prove the provider-authenticated callback. |
 
 Example instance `config` block:
 
@@ -91,7 +91,7 @@ Read at process boot by `config.Load()` (`providers/efi/config/config.go`) and
 | `EFI_API_CLIENT_KEY_ID` | _(empty)_ | `ClientKeyID` | OAuth Basic-auth username. |
 | `EFI_API_CLIENT_SECRET` | _(empty)_ | `ClientSecret` | **Secret.** OAuth Basic-auth password. |
 | `EFI_CERTIFICATE` | _(empty)_ | `CertificatePath` | Path to a mounted P12 file (e.g. `/etc/efi/cert.p12`). Takes precedence over base64. |
-| `EFI_WEBHOOK_RECEIVER_URL` | _(empty)_ | `WebhookReceiverURL` | Env fallback for the fixed registration-probe base. The integration instance config takes precedence per request. |
+| `EFI_WEBHOOK_RECEIVER_URL` | _(empty)_ | `WebhookReceiverURL` | Env fallback for the fixed receiver URL inspected by the readiness preflight. The integration instance config takes precedence per request. |
 | `EFI_CERTIFICATE_BASE64` | _(empty)_ | `CertificateBase64` | **Secret.** Base64 P12 bytes — used when no `EFI_CERTIFICATE` path is set. |
 | `EFI_BASE_URL` | `https://pix.api.efipay.com.br` | `BaseURL` | EFI Pix API base URL. |
 | `EFI_MTLS_ENABLED` | `true` | `MTLSEnabled` | `true/1/yes` enable, `false/0/no` disable. |
@@ -168,7 +168,7 @@ removed in 2.5.1, and EFI Pix callbacks go to the service behind the registered
 ## Version truth
 
 The wire-advertised adapter version is the `AdapterVersion` constant in
-`providers/efi/adapter/spec.go`, currently **`2.5.4`**. The `describe` handshake
+`providers/efi/adapter/spec.go`, currently **`2.5.5`**. The `describe` handshake
 returns it, and yggdrasil-core compares it against any `expected_version` the
 caller passes.
 
@@ -176,10 +176,10 @@ Current release metadata:
 
 | Source | Version |
 |---|---|
-| `providers/efi/adapter/spec.go` (`AdapterVersion`) | **`2.5.4`** |
-| `manifest/integration_type.json` (`adapter.version`) | `2.5.4` |
-| `CHANGELOG.md` (top entry) | `2.5.4` |
+| `providers/efi/adapter/spec.go` (`AdapterVersion`) | **`2.5.5`** |
+| `manifest/integration_type.json` (`adapter.version`) | `2.5.5` |
+| `CHANGELOG.md` (top entry) | `2.5.5` |
 
 When pinning a deployment, prefer an immutable image tag published by the
-`release` workflow (`sha-<short>`, or `v2.5.4` on the release tag).
+`release` workflow (`sha-<short>`, or `v2.5.5` on the release tag).
 </content>

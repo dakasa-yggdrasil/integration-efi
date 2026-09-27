@@ -37,7 +37,9 @@ const (
 	// its private per-request integration context.
 	// v2.5.4: completes the clientless readiness probe with an HTTP request
 	// so TLS 1.3 certificate-required alerts are observed after handshake.
-	AdapterVersion = "2.5.4"
+	// v2.5.5: stops presenting the outbound API P12 to the callback receiver;
+	// only EFI can prove its callback identity while processing registration.
+	AdapterVersion = "2.5.5"
 
 	// QueueDescribe / QueueExecute are the AMQP queue names used when
 	// transport=amqp. http_json mode uses the Endpoints instead.
@@ -299,12 +301,12 @@ func Describe() contract.AdapterDescribeResponse {
 				},
 				"webhook_receiver_url": {
 					Type:        "string",
-					Description: "Fixed HTTPS registration-probe base URL used by observe_automatic_webhook_readiness. Capability input can never override this destination.",
+					Description: "Fixed HTTPS receiver URL inspected by observe_automatic_webhook_readiness. Capability input can never override this destination.",
 					Label:       "Webhook receiver URL",
 					LabelLocale: map[string]string{"pt-BR": "URL do receptor de webhook", "en-US": "Webhook receiver URL"},
 					DescriptionLocale: map[string]string{
-						"pt-BR": "URL HTTPS fixa do probe de registro mTLS. Deve responder 200 ao POST autenticado sem processar uma notificacao.",
-						"en-US": "Fixed HTTPS mTLS registration-probe URL. It must answer authenticated POST with 200 without processing a notification.",
+						"pt-BR": "URL HTTPS fixa do receptor. O preflight compara o DNS e comprova a recusa sem certificado; a identidade da Efí só é observada quando ela processa o PUT de registro.",
+						"en-US": "Fixed HTTPS receiver URL. The preflight compares DNS and proves clientless refusal; EFI's identity is observed only when it processes the registration PUT.",
 					},
 					Group:       "Webhook",
 					GroupLocale: map[string]string{"pt-BR": "Webhook", "en-US": "Webhook"},
@@ -461,7 +463,7 @@ func Describe() contract.AdapterDescribeResponse {
 			},
 			{
 				Name:          OperationObserveAutomaticWebhookReadiness,
-				Description:   "Read-only preflight for the configured automatic-webhook receiver. Proves EFI OAuth over mTLS without returning credentials or token; resolves its public host and an operator-observed load-balancer DNS name to identical address sets; proves an empty clientless HTTP request is refused by a required-client-certificate TLS alert plus an empty P12-authenticated HTTP 200 on every resolved address; then asks Core to authorize efi.automatic_webhook.ensured and requires the reviewed principal, exact grant, count and canonical grant-set hash. Never returns bearer material or a credential digest.",
+				Description:   "Read-only preflight for the configured automatic-webhook receiver. Proves EFI OAuth over mTLS without returning credentials or token; resolves its public host and an operator-observed load-balancer DNS name to identical address sets; proves an empty clientless HTTP request is refused by a required-client-certificate TLS alert on every resolved address; then asks Core to authorize efi.automatic_webhook.ensured and requires the reviewed principal, exact grant, count and canonical grant-set hash. Reports provider_authenticated_probe as not_observed because only EFI can present its callback identity while processing the registration PUT. Never returns bearer material or a credential digest.",
 				ResourceTypes: []string{ResourceAutomaticWebhook},
 				Idempotent:    true,
 				Category:      "capability",

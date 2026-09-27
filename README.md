@@ -38,7 +38,7 @@ for the engine.
 |---|---|
 | Provider / type | `efi` / `efi` (single-provider family) |
 | Domain | `payments` |
-| Adapter version (wire-advertised) | **`2.5.4`** (`providers/efi/adapter/spec.go`) |
+| Adapter version (wire-advertised) | **`2.5.5`** (`providers/efi/adapter/spec.go`) |
 | Transport | `http_json` (default) · `amqp` (opt-in) |
 | RPC endpoints | `/rpc/describe`, `/rpc/execute` |
 | Discovery | `push` (no cursor) — resources are not discoverable |
@@ -46,7 +46,7 @@ for the engine.
 | SDK | `yggdrasil-sdk-go v0.9.1` |
 | Image | `ghcr.io/dakasa-yggdrasil/integration-efi` |
 
-> **Version note.** The wire-advertised version is **`2.5.4`** (the
+> **Version note.** The wire-advertised version is **`2.5.5`** (the
 > `AdapterVersion` constant in `providers/efi/adapter/spec.go`, returned by
 > `describe`). The registered manifest is aligned to the same version. See
 > [CONFIGURATION.md](docs/CONFIGURATION.md#version-truth).
@@ -73,7 +73,7 @@ adapter has no inbound listener.
 ```mermaid
 flowchart TD
   fam["family: efi<br/>(payments, Apache-2.0)"]
-  typ["integration_type: efi<br/>adapter v2.5.4 · http_json"]
+  typ["integration_type: efi<br/>adapter v2.5.5 · http_json"]
   inst["instance: efi-prod<br/>base_url, sandbox, mtls_enabled"]
   prov["provider: efi<br/>EFI / BCB PIX API"]
   fam --> typ --> inst --> prov
@@ -106,6 +106,7 @@ calls reconcile to the same state. Full input/output schema in
 | `efi_webhook_received` | webhook_subscription | **reactor** | yes | (no event sink; kept for contract compatibility) |
 | `ensure_automatic_webhook` | automatic_webhook | capability | yes | `GET` then `PUT /v2/webhookrec` or `/v2/webhookcobr`, then readback `GET` |
 | `observe_automatic_webhooks` | automatic_webhook | capability | yes | `GET /v2/webhookrec` · `GET /v2/webhookcobr` |
+| `observe_automatic_webhook_readiness` | automatic_webhook | capability | yes | DNS + clientless mTLS refusal + Core authorization; no EFI resource request |
 
 ¹ `create_payout` is classified `IntermediateIrreversible` (money movement) — see
 [CAPABILITIES.md](docs/CAPABILITIES.md#create_payout).
@@ -233,7 +234,7 @@ documented in [DEVELOPMENT.md](docs/DEVELOPMENT.md).
 |---|---|
 | Go | 1.25 |
 | `yggdrasil-sdk-go` | v0.9.1 |
-| Adapter (this binary) | 2.5.4 |
+| Adapter (this binary) | 2.5.5 |
 | Transport | `http_json` (default), `amqp` |
 
 ## License

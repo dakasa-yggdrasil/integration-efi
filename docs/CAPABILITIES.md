@@ -311,14 +311,20 @@ only input is `expected_dns_name`, read from the orchestrator load-balancer
 Service. The adapter requires the receiver and expected name to resolve to the
 same nonempty public address set, connects to every resolved address, proves a
 clientless empty `POST` requested a certificate and was refused by a TLS alert
-on each, then sends the same request with the configured client certificate and
-requires HTTP 200. The HTTP exchange is necessary because TLS 1.3 can deliver
-the certificate-required alert only after the client-side handshake returns.
-It uses the already-loaded EFI P12 and never accepts a receiver URL from the call.
-Before these reads, normal adapter construction completes EFI's OAuth
-client-credentials exchange over mTLS. The output records only
-`oauth_authenticated: true`; it never returns the access token, client id or
-client secret and makes no EFI resource request.
+on each. The HTTP exchange is necessary because TLS 1.3 can deliver the
+certificate-required alert only after the client-side handshake returns. The
+preflight never sends the adapter's API P12 to the receiver and never accepts a
+receiver URL from the call. Before these reads, normal adapter construction
+completes EFI's OAuth client-credentials exchange over mTLS. The output records
+only `oauth_authenticated: true`; it never returns the access token, client id
+or client secret and makes no EFI resource request.
+
+The outbound API P12 cannot prove the certificate identity EFI presents when
+calling the receiver. Therefore `provider_authenticated_probe.status` is
+`not_observed`, with an explicit reason that this proof occurs only when EFI
+processes the webhook registration PUT. `ready: true` means the read-only
+pre-registration checks passed; it does not claim that an EFI-authenticated
+callback was accepted.
 
 The final read calls Core's non-persisting event authorization endpoint with
 the adapter's existing event bearer for
@@ -332,10 +338,11 @@ change therefore requires a matching adapter and operator-workflow update.
 
 `technical_identity_evidence.evidence_sha256` seals the instance, EFI API base
 and client-certificate fingerprint. `webhook_evidence.evidence_sha256` seals
-the DNS, mTLS, server-certificate and event-grant observations. Those are
-technical evidence only: `commercial_eligibility.status` and
-`account_identity.status` remain `not_observed`. OAuth or a valid certificate
-does not prove commercial eligibility or an authoritative EFI account reference.
+the DNS, clientless mTLS refusal, pending provider-authenticated probe status and
+event-grant observations. Those are technical evidence only:
+`commercial_eligibility.status` and `account_identity.status` remain
+`not_observed`. OAuth or a valid certificate does not prove commercial
+eligibility or an authoritative EFI account reference.
 
 ---
 

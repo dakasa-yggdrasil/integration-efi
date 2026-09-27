@@ -1,5 +1,5 @@
 name: observe_automatic_webhook_readiness
-description: Read-only proof for a configured Pix Automatico receiver. Normal adapter construction first proves EFI OAuth client-credentials authentication over mTLS without returning credentials or the access token. The caller supplies only an expected load-balancer DNS name. The adapter resolves that name and the configured receiver host, requires identical public address sets, proves an empty clientless HTTP request is refused by a required-client-certificate TLS alert and an empty P12-authenticated HTTP request returns 200 on every resolved address, then asks Core to authorize efi.automatic_webhook.ensured with this adapter's event bearer. Readiness requires the reviewed integration-efi grant inventory exactly (13 grants and its fixed canonical SHA-256), without returning bearer material. Commercial eligibility and authoritative account identity stay explicitly not_observed.
+description: Read-only proof for a configured Pix Automatico receiver. Normal adapter construction first proves EFI OAuth client-credentials authentication over mTLS without returning credentials or the access token. The caller supplies only an expected load-balancer DNS name. The adapter resolves that name and the configured receiver host, requires identical public address sets, proves an empty clientless HTTP request is refused by a required-client-certificate TLS alert on every resolved address, then asks Core to authorize efi.automatic_webhook.ensured with this adapter's event bearer. Readiness requires the reviewed integration-efi grant inventory exactly (13 grants and its fixed canonical SHA-256), without returning bearer material. provider_authenticated_probe remains explicitly not_observed because only EFI can present its callback identity while processing the registration PUT. Commercial eligibility and authoritative account identity also stay not_observed.
 category: capability
 resource_types: [automatic_webhook]
 idempotent: true
@@ -24,8 +24,13 @@ output_schema:
     address_probes: {type: array, items: {type: object}}
     clientless_certificate_requested: {type: boolean}
     clientless_refused: {type: boolean}
-    authenticated_status: {type: integer}
-    peer_certificate_sha256s: {type: array, items: {type: string}}
+    provider_authenticated_probe:
+      type: object
+      additionalProperties: false
+      required: [status, reason]
+      properties:
+        status: {type: string, enum: [not_observed]}
+        reason: {type: string}
     technical_identity_evidence: {type: object}
     webhook_evidence: {type: object}
     commercial_eligibility: {type: object}
