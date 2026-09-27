@@ -33,7 +33,9 @@ const (
 	// v2.5.2: adds a read-only automatic-webhook readiness observation:
 	// public DNS-to-load-balancer equality, clientless mTLS refusal,
 	// authenticated no-op registration probe and Core grant readback.
-	AdapterVersion = "2.5.2"
+	// v2.5.3: preserves legacy fallback inputs when the SDK bridge adds
+	// its private per-request integration context.
+	AdapterVersion = "2.5.3"
 
 	// QueueDescribe / QueueExecute are the AMQP queue names used when
 	// transport=amqp. http_json mode uses the Endpoints instead.
