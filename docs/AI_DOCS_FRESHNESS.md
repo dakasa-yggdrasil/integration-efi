@@ -7,8 +7,8 @@ The docs-freshness CI reads it: a PR that bumps it is trusted and the AI is skip
 Before a PR: update stale docs, set verified_at_commit to your branch tip.
 On arrival: if this is behind the code you touch, reconcile the docs FIRST.
 
-verified_at_commit: 3ae85fdb07dbcbcb8200b7c3d9207586ed57602c
-verified_diff_sha256: cae4c1ee9e6514c004ff34cbd7cf59472d35fe3736631badfc85348a01b865d9
+verified_at_commit: b7de5329343c0083fa85397bc79c613bc793261b
+verified_diff_sha256: 4504a98572ae6430516e055acd0dfde006851b82caab82a3392e68a5ddf4977d
 reconciler_schema: 1
 verified_at: 2026-09-27
 by: Codex
