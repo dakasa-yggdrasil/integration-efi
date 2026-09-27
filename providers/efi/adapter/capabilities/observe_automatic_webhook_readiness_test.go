@@ -2,7 +2,9 @@ package capabilities
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -14,20 +16,19 @@ import (
 	"testing"
 )
 
-func TestObserveAutomaticWebhookReadinessChainsDNSMTLSAndEffectiveGrant(t *testing.T) {
+func TestObserveAutomaticWebhookReadinessChainsDNSClientlessMTLSAndEffectiveGrant(t *testing.T) {
 	var calls []string
 	deps := automaticWebhookReadinessDeps{
 		resolveAddresses: func(_ context.Context, host string) ([]string, error) {
 			calls = append(calls, "dns:"+host)
 			return []string{"203.0.113.10", "203.0.113.11"}, nil
 		},
-		clientlessProbe: func(_ context.Context, receiverURL, address string, _ *tls.Config) error {
+		clientlessProbe: func(_ context.Context, receiverURL, address string, _ *tls.Config) (string, error) {
 			calls = append(calls, "clientless:"+receiverURL+":"+address)
-			return nil
-		},
-		authenticatedPost: func(_ context.Context, receiverURL, address string, _ *tls.Config) (int, string, error) {
-			calls = append(calls, "authenticated:"+receiverURL+":"+address)
-			return 200, strings.Repeat("a", 64), nil
+			if strings.HasPrefix(address, "203.0.113.10") {
+				return strings.Repeat("a", sha256.Size*2), nil
+			}
+			return strings.Repeat("b", sha256.Size*2), nil
 		},
 		authorizeEvent: func(_ context.Context, coreURL, token, instance string) (automaticWebhookAuthorization, error) {
 			calls = append(calls, fmt.Sprintf("authorization:%s:%s:%s", coreURL, token, instance))
@@ -50,11 +51,39 @@ func TestObserveAutomaticWebhookReadinessChainsDNSMTLSAndEffectiveGrant(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if output["ready"] != true || output["dns_matches_expected"] != true || output["all_addresses_proven"] != true || output["address_probe_count"] != 2 || output["clientless_refused"] != true || output["authenticated_status"] != 200 {
+	if output["ready"] != true || output["dns_matches_expected"] != true || output["all_addresses_proven"] != true || output["address_probe_count"] != 2 || output["clientless_refused"] != true {
 		t.Fatalf("output=%v", output)
 	}
-	if len(output["address_probes"].([]map[string]any)) != 2 || len(output["peer_certificate_sha256s"].([]string)) != 1 {
+	addressProbes := output["address_probes"].([]map[string]any)
+	if len(addressProbes) != 2 {
 		t.Fatalf("address coverage=%v", output)
+	}
+	for index, addressProbe := range addressProbes {
+		if addressProbe["authenticated_status"] != 0 {
+			t.Fatalf("address probe did not retain the fail-closed legacy status: %v", addressProbe)
+		}
+		wantFingerprint := strings.Repeat(string(rune('a'+index)), sha256.Size*2)
+		if addressProbe["peer_certificate_sha256"] != wantFingerprint {
+			t.Fatalf("address probe receiver certificate fingerprint=%v want=%v", addressProbe, wantFingerprint)
+		}
+	}
+	providerProbe := output["provider_authenticated_probe"].(map[string]any)
+	if providerProbe["status"] != "not_observed" || providerProbe["reason"] != "provider-authenticated callback acceptance is proven only when EFI processes the webhook registration PUT" {
+		t.Fatalf("provider probe=%v", providerProbe)
+	}
+	if output["authenticated_status"] != 0 {
+		t.Fatalf("output did not retain the fail-closed legacy status: %v", output)
+	}
+	wantFingerprints := []string{strings.Repeat("a", sha256.Size*2), strings.Repeat("b", sha256.Size*2)}
+	if !reflect.DeepEqual(output["peer_certificate_sha256s"], wantFingerprints) {
+		t.Fatalf("receiver certificate fingerprints=%v want=%v", output["peer_certificate_sha256s"], wantFingerprints)
+	}
+	webhookEvidence := output["webhook_evidence"].(map[string]any)
+	if !reflect.DeepEqual(webhookEvidence["provider_authenticated_probe"], providerProbe) {
+		t.Fatalf("sealed webhook evidence omitted the pending provider probe: %v", webhookEvidence)
+	}
+	if !reflect.DeepEqual(webhookEvidence["peer_certificate_sha256s"], wantFingerprints) {
+		t.Fatalf("sealed webhook evidence omitted receiver certificate fingerprints: %v", webhookEvidence)
 	}
 	authorization := output["event_authorization"].(map[string]any)
 	if authorization["principal_id"] != "integration-efi" || authorization["grant_count"] != 13 || authorization["event_type"] != automaticWebhookEnsuredEvent {
@@ -69,15 +98,13 @@ func TestObserveAutomaticWebhookReadinessChainsDNSMTLSAndEffectiveGrant(t *testi
 	if output["commercial_eligibility"].(map[string]any)["status"] != "not_observed" || output["account_identity"].(map[string]any)["status"] != "not_observed" {
 		t.Fatalf("technical proof was promoted to commercial/account evidence: %v", output)
 	}
-	if len(output["technical_identity_evidence"].(map[string]any)["evidence_sha256"].(string)) != 64 || len(output["webhook_evidence"].(map[string]any)["evidence_sha256"].(string)) != 64 {
+	if len(output["technical_identity_evidence"].(map[string]any)["evidence_sha256"].(string)) != 64 || len(webhookEvidence["evidence_sha256"].(string)) != 64 {
 		t.Fatalf("evidence seals are absent: %v", output)
 	}
 	wantCalls := []string{
 		"dns:webhook-pix.dakasa.me", "dns:nlb.example.net",
 		"clientless:https://webhook-pix.dakasa.me/payment/webhook/efi:203.0.113.10:443",
-		"authenticated:https://webhook-pix.dakasa.me/payment/webhook/efi:203.0.113.10:443",
 		"clientless:https://webhook-pix.dakasa.me/payment/webhook/efi:203.0.113.11:443",
-		"authenticated:https://webhook-pix.dakasa.me/payment/webhook/efi:203.0.113.11:443",
 		"authorization:http://yggdrasil.dakasa.svc.cluster.local:9080:super-secret-bearer:efi-dakasa-production",
 	}
 	if !reflect.DeepEqual(calls, wantCalls) {
@@ -101,8 +128,21 @@ func TestRequireClientlessTLSRefusalReadsRequiredCertificateAlert(t *testing.T) 
 			defer server.Close()
 
 			base := server.Client().Transport.(*http.Transport).TLSClientConfig.Clone()
-			if err := requireClientlessTLSRefusal(context.Background(), server.URL, server.Listener.Addr().String(), base); err != nil {
+			var verifyConnectionCalled atomic.Bool
+			base.VerifyConnection = func(tls.ConnectionState) error {
+				verifyConnectionCalled.Store(true)
+				return nil
+			}
+			fingerprint, err := requireClientlessTLSRefusal(context.Background(), server.URL, server.Listener.Addr().String(), base)
+			if err != nil {
 				t.Fatalf("required client certificate was not proven: %v", err)
+			}
+			if !verifyConnectionCalled.Load() {
+				t.Fatal("existing VerifyConnection callback was not preserved")
+			}
+			serverFingerprint := sha256.Sum256(server.Certificate().Raw)
+			if fingerprint != hex.EncodeToString(serverFingerprint[:]) {
+				t.Fatalf("receiver certificate fingerprint=%q want=%q", fingerprint, hex.EncodeToString(serverFingerprint[:]))
 			}
 			if handlerCalled.Load() {
 				t.Fatal("clientless request reached the HTTP handler")
@@ -128,7 +168,7 @@ func TestRequireClientlessTLSRefusalRejectsOptionalCertificateRequest(t *testing
 			defer server.Close()
 
 			base := server.Client().Transport.(*http.Transport).TLSClientConfig.Clone()
-			err := requireClientlessTLSRefusal(context.Background(), server.URL, server.Listener.Addr().String(), base)
+			_, err := requireClientlessTLSRefusal(context.Background(), server.URL, server.Listener.Addr().String(), base)
 			if err == nil || !handlerCalled.Load() {
 				t.Fatalf("optional client certificate was accepted as refusal: err=%v handlerCalled=%v", err, handlerCalled.Load())
 			}
@@ -179,7 +219,7 @@ func TestRequireClientlessTLSRefusalRejectsCanceledRequest(t *testing.T) {
 		cancel()
 	}()
 	base := server.Client().Transport.(*http.Transport).TLSClientConfig.Clone()
-	if err := requireClientlessTLSRefusal(ctx, server.URL, server.Listener.Addr().String(), base); err == nil {
+	if _, err := requireClientlessTLSRefusal(ctx, server.URL, server.Listener.Addr().String(), base); err == nil {
 		t.Fatal("canceled request was accepted as client-certificate refusal")
 	}
 }
@@ -211,9 +251,8 @@ func TestObserveAutomaticWebhookReadinessRejectsUnexpectedGrantSet(t *testing.T)
 			resolveAddresses: func(context.Context, string) ([]string, error) {
 				return []string{"203.0.113.10"}, nil
 			},
-			clientlessProbe: func(context.Context, string, string, *tls.Config) error { return nil },
-			authenticatedPost: func(context.Context, string, string, *tls.Config) (int, string, error) {
-				return http.StatusOK, strings.Repeat("a", 64), nil
+			clientlessProbe: func(context.Context, string, string, *tls.Config) (string, error) {
+				return strings.Repeat("a", sha256.Size*2), nil
 			},
 			authorizeEvent: func(context.Context, string, string, string) (automaticWebhookAuthorization, error) {
 				return authorization, nil
@@ -238,14 +277,11 @@ func TestObserveAutomaticWebhookReadinessFailsWhenAnyResolvedAddressIsUnproven(t
 		resolveAddresses: func(context.Context, string) ([]string, error) {
 			return []string{"203.0.113.10", "203.0.113.11"}, nil
 		},
-		clientlessProbe: func(_ context.Context, _, address string, _ *tls.Config) error {
+		clientlessProbe: func(_ context.Context, _, address string, _ *tls.Config) (string, error) {
 			if strings.HasPrefix(address, "203.0.113.11") {
-				return errors.New("second address accepted clientless TLS")
+				return "", errors.New("second address accepted clientless TLS")
 			}
-			return nil
-		},
-		authenticatedPost: func(context.Context, string, string, *tls.Config) (int, string, error) {
-			return http.StatusOK, strings.Repeat("a", 64), nil
+			return strings.Repeat("a", sha256.Size*2), nil
 		},
 		authorizeEvent: func(context.Context, string, string, string) (automaticWebhookAuthorization, error) {
 			authorizationCalled = true
@@ -264,18 +300,20 @@ func TestObserveAutomaticWebhookReadinessFailsWhenAnyResolvedAddressIsUnproven(t
 	}
 }
 
-func TestObserveAutomaticWebhookReadinessFailsClosedBeforeAuthenticatedProbe(t *testing.T) {
+func TestObserveAutomaticWebhookReadinessFailsClosedBeforeCoreAuthorization(t *testing.T) {
 	for _, test := range []struct {
-		name       string
-		receiver   []string
-		expected   []string
-		clientless error
+		name        string
+		receiver    []string
+		expected    []string
+		fingerprint string
+		clientless  error
 	}{
 		{name: "dns mismatch", receiver: []string{"203.0.113.10"}, expected: []string{"203.0.113.11"}},
 		{name: "clientless accepted", receiver: []string{"203.0.113.10"}, expected: []string{"203.0.113.10"}, clientless: errors.New("not refused")},
+		{name: "invalid receiver certificate fingerprint", receiver: []string{"203.0.113.10"}, expected: []string{"203.0.113.10"}, fingerprint: "not-a-sha256"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			postCalled := false
+			authorizationCalled := false
 			lookup := 0
 			deps := automaticWebhookReadinessDeps{
 				resolveAddresses: func(context.Context, string) ([]string, error) {
@@ -285,12 +323,15 @@ func TestObserveAutomaticWebhookReadinessFailsClosedBeforeAuthenticatedProbe(t *
 					}
 					return test.expected, nil
 				},
-				clientlessProbe: func(context.Context, string, string, *tls.Config) error { return test.clientless },
-				authenticatedPost: func(context.Context, string, string, *tls.Config) (int, string, error) {
-					postCalled = true
-					return 200, strings.Repeat("a", 64), nil
+				clientlessProbe: func(context.Context, string, string, *tls.Config) (string, error) {
+					fingerprint := test.fingerprint
+					if fingerprint == "" {
+						fingerprint = strings.Repeat("a", sha256.Size*2)
+					}
+					return fingerprint, test.clientless
 				},
 				authorizeEvent: func(context.Context, string, string, string) (automaticWebhookAuthorization, error) {
+					authorizationCalled = true
 					return automaticWebhookAuthorization{}, errors.New("must not run")
 				},
 			}
@@ -301,8 +342,8 @@ func TestObserveAutomaticWebhookReadinessFailsClosedBeforeAuthenticatedProbe(t *
 				OAuthAuthenticated: true,
 				InstanceID:         "efi-dakasa-production",
 			}, map[string]any{"expected_dns_name": "nlb.example.net"}, deps)
-			if err == nil || postCalled {
-				t.Fatalf("err=%v postCalled=%v", err, postCalled)
+			if err == nil || authorizationCalled {
+				t.Fatalf("err=%v authorizationCalled=%v", err, authorizationCalled)
 			}
 		})
 	}

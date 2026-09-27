@@ -27,7 +27,7 @@ This applies:
 - a deploy ref for `ghcr.io/dakasa-yggdrasil/integration-efi`
 
 > Pin an immutable published tag (`sha-<short>` from the `release` workflow, or
-> `v2.5.4`). The running binary advertises adapter version `2.5.4`. See
+> `v2.5.5`). The running binary advertises adapter version `2.5.5`. See
 > [CONFIGURATION.md → Version truth](CONFIGURATION.md#version-truth).
 
 ## 2. Configure the instance
@@ -152,7 +152,7 @@ curl -sS -X POST \
 | List/inspect webhooks | `observe_webhook_subscriptions` | `{chave}` or `{inicio, fim[, page, page_size, cursor]}` |
 | Register a Pix Automatico webhook | `ensure_automatic_webhook` | `kind` (`rec` or `cobr`), `webhook_url` (base URL, without `/rec` or `/cobr`) |
 | Inspect or gate a Pix Automatico webhook | `observe_automatic_webhooks` | `kind`, optional `expected_webhook_url` |
-| Prove automatic-webhook DNS, mTLS and event grant | `observe_automatic_webhook_readiness` | `expected_dns_name`; receiver URL and credentials come only from trusted instance/runtime config |
+| Prove automatic-webhook DNS, clientless mTLS refusal and event grant | `observe_automatic_webhook_readiness` | `expected_dns_name`; receiver URL and credentials come only from trusted instance/runtime config; provider-authenticated callback stays `not_observed` until EFI processes the registration PUT |
 
 Full input/output schemas: [CAPABILITIES.md](CAPABILITIES.md).
 
