@@ -38,15 +38,15 @@ for the engine.
 |---|---|
 | Provider / type | `efi` / `efi` (single-provider family) |
 | Domain | `payments` |
-| Adapter version (wire-advertised) | **`2.5.1`** (`providers/efi/adapter/spec.go`) |
+| Adapter version (wire-advertised) | **`2.5.2`** (`providers/efi/adapter/spec.go`) |
 | Transport | `http_json` (default) · `amqp` (opt-in) |
 | RPC endpoints | `/rpc/describe`, `/rpc/execute` |
 | Discovery | `push` (no cursor) — resources are not discoverable |
-| Capabilities | **14**: 13 user-dispatched + 1 webhook reactor |
+| Capabilities | **15**: 14 user-dispatched + 1 webhook reactor |
 | SDK | `yggdrasil-sdk-go v0.9.1` |
 | Image | `ghcr.io/dakasa-yggdrasil/integration-efi` |
 
-> **Version note.** The wire-advertised version is **`2.5.1`** (the
+> **Version note.** The wire-advertised version is **`2.5.2`** (the
 > `AdapterVersion` constant in `providers/efi/adapter/spec.go`, returned by
 > `describe`). The registered manifest is aligned to the same version. See
 > [CONFIGURATION.md](docs/CONFIGURATION.md#version-truth).
@@ -73,7 +73,7 @@ adapter has no inbound listener.
 ```mermaid
 flowchart TD
   fam["family: efi<br/>(payments, Apache-2.0)"]
-  typ["integration_type: efi<br/>adapter v2.5.1 · http_json"]
+  typ["integration_type: efi<br/>adapter v2.5.2 · http_json"]
   inst["instance: efi-prod<br/>base_url, sandbox, mtls_enabled"]
   prov["provider: efi<br/>EFI / BCB PIX API"]
   fam --> typ --> inst --> prov
@@ -81,12 +81,12 @@ flowchart TD
   typ --- rt1["charge<br/>ensure · ensure_due · observe · destroy"]
   typ --- rt2["pix_transaction<br/>refund · payout · chargeback · webhook_received"]
   typ --- rt3["webhook_subscription<br/>ensure · observe · destroy · verify_signature"]
-  typ --- rt4["automatic_webhook<br/>ensure · observe (no destroy)"]
+  typ --- rt4["automatic_webhook<br/>ensure · observe · readiness (no destroy)"]
 ```
 
 ## Capabilities
 
-14 capabilities across 4 resource types. **Idempotent** marks whether repeat
+15 capabilities across 4 resource types. **Idempotent** marks whether repeat
 calls reconcile to the same state. Full input/output schema in
 [CAPABILITIES.md](docs/CAPABILITIES.md).
 
@@ -151,6 +151,7 @@ runtime knobs come from env vars. Full reference in
 | `sandbox` | boolean | `false` |
 | `mtls_enabled` | boolean | `true` |
 | `webhook_port` | integer | `9079` (deprecated, ignored since 2.5.1) |
+| `webhook_receiver_url` | string | empty; required by `observe_automatic_webhook_readiness` |
 
 ## Usage
 
@@ -232,7 +233,7 @@ documented in [DEVELOPMENT.md](docs/DEVELOPMENT.md).
 |---|---|
 | Go | 1.25 |
 | `yggdrasil-sdk-go` | v0.9.1 |
-| Adapter (this binary) | 2.5.1 |
+| Adapter (this binary) | 2.5.2 |
 | Transport | `http_json` (default), `amqp` |
 
 ## License

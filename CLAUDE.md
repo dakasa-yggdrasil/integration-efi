@@ -80,13 +80,13 @@ EFI delivers Pix callbacks to the service behind the registered
 
 ## AdapterVersion
 
-**`2.5.1`**: the single source of truth is
+**`2.5.2`**: the single source of truth is
 `adapter.AdapterVersion` in `providers/efi/adapter/spec.go`. It is
 wire-advertised in `Describe()` and version-checked in the describe
 handshake (`providers/efi/message/describe.go`).
 
 > `manifest/integration_type.json` (the *registered* manifest, not an
-> example) is synced to `spec.go` at `spec.adapter.version` = **`2.5.1`**.
+> example) is synced to `spec.go` at `spec.adapter.version` = **`2.5.2`**.
 > No describe-dump tool exists in this repo, so when `AdapterVersion`
 > bumps, hand-edit that field in the same change and re-run the
 > contractcheck/spec tests (`go test ./...`).

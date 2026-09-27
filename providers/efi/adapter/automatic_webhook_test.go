@@ -200,7 +200,7 @@ func TestExecute_AutomaticWebhookFailuresAndReadsEmitNothing(t *testing.T) {
 	}
 }
 
-func TestDescribe_AutomaticWebhookHasEnsureAndObserveOnly(t *testing.T) {
+func TestDescribe_AutomaticWebhookHasEnsureAndReadOnlyObservationsWithoutDestroy(t *testing.T) {
 	desc := Describe()
 	var found bool
 	for _, rt := range desc.ResourceTypes {
@@ -208,7 +208,7 @@ func TestDescribe_AutomaticWebhookHasEnsureAndObserveOnly(t *testing.T) {
 			continue
 		}
 		found = true
-		want := []string{OperationEnsureAutomaticWebhook, OperationObserveAutomaticWebhooks}
+		want := []string{OperationEnsureAutomaticWebhook, OperationObserveAutomaticWebhooks, OperationObserveAutomaticWebhookReadiness}
 		if fmt.Sprint(rt.DefaultActions) != fmt.Sprint(want) {
 			t.Fatalf("automatic_webhook default actions = %v, want %v", rt.DefaultActions, want)
 		}
@@ -226,7 +226,7 @@ func TestDescribe_AutomaticWebhookHasEnsureAndObserveOnly(t *testing.T) {
 	if SupportsExecuteCapability("destroy_automatic_webhook") {
 		t.Fatal("destroy_automatic_webhook is dispatchable")
 	}
-	for _, op := range []string{OperationEnsureAutomaticWebhook, OperationObserveAutomaticWebhooks} {
+	for _, op := range []string{OperationEnsureAutomaticWebhook, OperationObserveAutomaticWebhooks, OperationObserveAutomaticWebhookReadiness} {
 		if !SupportsExecuteCapability(op) {
 			t.Fatalf("%s is not dispatchable", op)
 		}
@@ -249,7 +249,7 @@ func TestWireReconcilers_LeavesAutomaticWebhooksToTheLegacySwitch(t *testing.T) 
 	if got := currentAutomaticWebhookEvents(); got.instanceID != "efi-unit" || got.emitter == nil {
 		t.Fatalf("WireReconcilers did not configure the automatic webhook events: %+v", got)
 	}
-	for _, op := range []string{OperationEnsureAutomaticWebhook, OperationObserveAutomaticWebhooks, "destroy_automatic_webhook"} {
+	for _, op := range []string{OperationEnsureAutomaticWebhook, OperationObserveAutomaticWebhooks, OperationObserveAutomaticWebhookReadiness, "destroy_automatic_webhook"} {
 		body, _ := json.Marshal(map[string]any{"operation": op, "input": map[string]any{"kind": "rec"}})
 		_, _, err := reconcile.Dispatch(context.Background(), a, rpc.Delivery{Body: body})
 		if err == nil || !strings.Contains(err.Error(), "reconcile: unsupported operation") {

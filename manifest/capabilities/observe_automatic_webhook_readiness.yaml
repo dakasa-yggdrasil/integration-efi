@@ -1,0 +1,33 @@
+name: observe_automatic_webhook_readiness
+description: Read-only proof for a configured Pix Automatico receiver. Normal adapter construction first proves EFI OAuth client-credentials authentication over mTLS without returning credentials or the access token. The caller supplies only an expected load-balancer DNS name. The adapter resolves that name and the configured receiver host, requires identical public address sets, proves clientless refusal and an empty P12-authenticated HTTP 200 on every resolved address, then asks Core to authorize efi.automatic_webhook.ensured with this adapter's event bearer. Readiness requires the reviewed integration-efi grant inventory exactly (13 grants and its fixed canonical SHA-256), without returning bearer material. Commercial eligibility and authoritative account identity stay explicitly not_observed.
+category: capability
+resource_types: [automatic_webhook]
+idempotent: true
+input_schema:
+  additionalProperties: false
+  required: [expected_dns_name]
+  properties:
+    expected_dns_name:
+      type: string
+      description: Load-balancer DNS name read from the orchestrator Service status. It is resolved only for comparison and is never sent the EFI client certificate.
+output_schema:
+  properties:
+    ready: {type: boolean}
+    receiver_url: {type: string}
+    receiver_host: {type: string}
+    expected_dns_name: {type: string}
+    receiver_addresses: {type: array, items: {type: string}}
+    expected_addresses: {type: array, items: {type: string}}
+    dns_matches_expected: {type: boolean}
+    all_addresses_proven: {type: boolean}
+    address_probe_count: {type: integer}
+    address_probes: {type: array, items: {type: object}}
+    clientless_certificate_requested: {type: boolean}
+    clientless_refused: {type: boolean}
+    authenticated_status: {type: integer}
+    peer_certificate_sha256s: {type: array, items: {type: string}}
+    technical_identity_evidence: {type: object}
+    webhook_evidence: {type: object}
+    commercial_eligibility: {type: object}
+    account_identity: {type: object}
+    event_authorization: {type: object}

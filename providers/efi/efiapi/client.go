@@ -51,6 +51,9 @@ func NewEfiClient(cfg config.Config, tlsConfig *tls.Config) (*EfiClient, error) 
 	httpClient := &http.Client{
 		Transport: transport,
 		Timeout:   30 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
 
 	body := strings.NewReader(`{"grant_type": "client_credentials"}`)

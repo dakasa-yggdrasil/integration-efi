@@ -30,7 +30,10 @@ const (
 	// /v2/webhookrec and /v2/webhookcobr) with ensure_ and observe_ only.
 	// v2.5.1: drops the dead publish_message workflow-run dispatch and
 	// the inbound webhook listener that only fed it.
-	AdapterVersion = "2.5.1"
+	// v2.5.2: adds a read-only automatic-webhook readiness observation:
+	// public DNS-to-load-balancer equality, clientless mTLS refusal,
+	// authenticated no-op registration probe and Core grant readback.
+	AdapterVersion = "2.5.2"
 
 	// QueueDescribe / QueueExecute are the AMQP queue names used when
 	// transport=amqp. http_json mode uses the Endpoints instead.
@@ -63,8 +66,9 @@ const (
 	// through the legacy Execute switch because the SDK Reconciler always
 	// registers a destroy operation; ensure_automatic_webhook emits its
 	// mutation event explicitly (automatic_webhook_events.go).
-	OperationEnsureAutomaticWebhook   = "ensure_automatic_webhook"
-	OperationObserveAutomaticWebhooks = "observe_automatic_webhooks"
+	OperationEnsureAutomaticWebhook           = "ensure_automatic_webhook"
+	OperationObserveAutomaticWebhooks         = "observe_automatic_webhooks"
+	OperationObserveAutomaticWebhookReadiness = "observe_automatic_webhook_readiness"
 
 	// OperationOnSurfaceQuery is the read-only aggregator invoked by core's
 	// /api/v1/integrations/{instance_id}/surface-query proxy on behalf of the
@@ -119,6 +123,7 @@ var SupportedExecuteOperations = []string{
 	OperationOnSurfaceQuery,
 	OperationEnsureAutomaticWebhook,
 	OperationObserveAutomaticWebhooks,
+	OperationObserveAutomaticWebhookReadiness,
 }
 
 // SDKOnlyOperations names the operations registered ONLY in the SDK
@@ -288,6 +293,20 @@ func Describe() contract.AdapterDescribeResponse {
 					GroupLocale: map[string]string{"pt-BR": "Webhook", "en-US": "Webhook"},
 					Order:       4,
 				},
+				"webhook_receiver_url": {
+					Type:        "string",
+					Description: "Fixed HTTPS registration-probe base URL used by observe_automatic_webhook_readiness. Capability input can never override this destination.",
+					Label:       "Webhook receiver URL",
+					LabelLocale: map[string]string{"pt-BR": "URL do receptor de webhook", "en-US": "Webhook receiver URL"},
+					DescriptionLocale: map[string]string{
+						"pt-BR": "URL HTTPS fixa do probe de registro mTLS. Deve responder 200 ao POST autenticado sem processar uma notificacao.",
+						"en-US": "Fixed HTTPS mTLS registration-probe URL. It must answer authenticated POST with 200 without processing a notification.",
+					},
+					Group:       "Webhook",
+					GroupLocale: map[string]string{"pt-BR": "Webhook", "en-US": "Webhook"},
+					Order:       5,
+					Format:      "uri",
+				},
 			},
 		},
 		ResourceTypes: []contract.IntegrationResourceType{
@@ -326,6 +345,7 @@ func Describe() contract.AdapterDescribeResponse {
 				DefaultActions: []string{
 					OperationEnsureAutomaticWebhook,
 					OperationObserveAutomaticWebhooks,
+					OperationObserveAutomaticWebhookReadiness,
 				},
 			},
 		},
@@ -435,6 +455,13 @@ func Describe() contract.AdapterDescribeResponse {
 				Idempotent:    true,
 				Category:      "capability",
 			},
+			{
+				Name:          OperationObserveAutomaticWebhookReadiness,
+				Description:   "Read-only preflight for the configured automatic-webhook receiver. Proves EFI OAuth over mTLS without returning credentials or token; resolves its public host and an operator-observed load-balancer DNS name to identical address sets; proves clientless refusal plus an empty P12-authenticated HTTP 200 on every resolved address; then asks Core to authorize efi.automatic_webhook.ensured and requires the reviewed principal, exact grant, count and canonical grant-set hash. Never returns bearer material or a credential digest.",
+				ResourceTypes: []string{ResourceAutomaticWebhook},
+				Idempotent:    true,
+				Category:      "capability",
+			},
 		},
 		Discovery: contract.IntegrationDiscoverySpec{
 			Mode:   "push",
@@ -460,6 +487,7 @@ func Describe() contract.AdapterDescribeResponse {
 				OperationOnSurfaceQuery,
 				OperationEnsureAutomaticWebhook,
 				OperationObserveAutomaticWebhooks,
+				OperationObserveAutomaticWebhookReadiness,
 			},
 		},
 		Extensions: contract.IntegrationExtensionsSpec{

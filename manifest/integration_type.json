@@ -10,7 +10,7 @@
     },
     "adapter": {
       "transport": "http_json",
-      "version": "2.5.1",
+      "version": "2.5.2",
       "endpoints": {
         "describe": "/rpc/describe",
         "execute": "/rpc/execute"
@@ -62,6 +62,10 @@
         "webhook_port": {
           "type": "integer",
           "default": 9079
+        },
+        "webhook_receiver_url": {
+          "type": "string",
+          "format": "uri"
         }
       }
     },
@@ -107,7 +111,8 @@
         "discoverable": false,
         "default_actions": [
           "ensure_automatic_webhook",
-          "observe_automatic_webhooks"
+          "observe_automatic_webhooks",
+          "observe_automatic_webhook_readiness"
         ],
         "canonical_prefix": "thirdparty.efi.automatic_webhook",
         "identity_template": "automatic_webhook.{kind}"
@@ -137,7 +142,8 @@
         "handle_chargeback",
         "efi_webhook_received",
         "ensure_automatic_webhook",
-        "observe_automatic_webhooks"
+        "observe_automatic_webhooks",
+        "observe_automatic_webhook_readiness"
       ]
     }
   }

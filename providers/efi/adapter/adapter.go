@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/dakasa-yggdrasil/integration-efi/family/contract"
 	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/adapter/capabilities"
@@ -188,6 +189,22 @@ func Execute(req contract.AdapterExecuteIntegrationRequest) (contract.AdapterExe
 		for k, v := range got {
 			output[k] = v
 		}
+	case OperationObserveAutomaticWebhookReadiness:
+		got, err := capabilities.ObserveAutomaticWebhookReadiness(ctx, capabilities.AutomaticWebhookReadinessConfig{
+			ReceiverURL:        cfg.WebhookReceiverURL,
+			ProviderBaseURL:    cfg.BaseURL,
+			TLSConfig:          tlsConfig,
+			OAuthAuthenticated: true,
+			CoreURL:            os.Getenv("YGGDRASIL_CORE_URL"),
+			EventToken:         os.Getenv("YGGDRASIL_RUN_TOKEN"),
+			InstanceID:         req.Integration.Instance.Name,
+		}, req.Input)
+		if err != nil {
+			return contract.AdapterExecuteIntegrationResponse{}, err
+		}
+		for k, v := range got {
+			output[k] = v
+		}
 	case OperationOnSurfaceQuery:
 		// Read-only surface aggregator: routes by query_name to a
 		// projection over the existing observe_* handlers. Never mutates;
@@ -231,6 +248,9 @@ func configFromRequest(req contract.AdapterExecuteIntegrationRequest) config.Con
 	}
 	if v, _ := inst["base_url"].(string); v != "" {
 		cfg.BaseURL = v
+	}
+	if v, _ := inst["webhook_receiver_url"].(string); v != "" {
+		cfg.WebhookReceiverURL = v
 	}
 	if v, ok := inst["mtls_enabled"].(bool); ok {
 		cfg.MTLSEnabled = v

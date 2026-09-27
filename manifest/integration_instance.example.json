@@ -11,7 +11,8 @@
     "config": {
       "base_url":     "https://pix.api.efipay.com.br",
       "sandbox":      false,
-      "mtls_enabled": true
+      "mtls_enabled": true,
+      "webhook_receiver_url": "https://receiver.example/payment/webhook/efi"
     },
     "discovery": {"enabled": false}
   }

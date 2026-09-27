@@ -304,6 +304,37 @@ One `GET` of the endpoint. **Read-only.** A 404, or a response without
 **Output:** `kind`, `endpoint`, `resource_id`, `registered`, `webhook_url`,
 `created_at`, and `matches_expected: true` when a gate was given and passed.
 
+### `observe_automatic_webhook_readiness`
+
+Read-only preflight for the receiver configured in `webhook_receiver_url`. The
+only input is `expected_dns_name`, read from the orchestrator load-balancer
+Service. The adapter requires the receiver and expected name to resolve to the
+same nonempty public address set, connects to every resolved address, proves a
+clientless TLS handshake requested a certificate and was refused on each, then
+sends an empty authenticated `POST` to each address and requires HTTP 200. It
+uses the already-loaded EFI P12 and never accepts a receiver URL from the call.
+Before these reads, normal adapter construction completes EFI's OAuth
+client-credentials exchange over mTLS. The output records only
+`oauth_authenticated: true`; it never returns the access token, client id or
+client secret and makes no EFI resource request.
+
+The final read calls Core's non-persisting event authorization endpoint with
+the adapter's existing event bearer for
+`efi.automatic_webhook.ensured`. Output includes the matched principal and
+grant form, total grant count and a canonical SHA-256 of the effective grant
+set. Readiness requires the reviewed `integration-efi` inventory exactly: 13
+grants and SHA-256
+`01de7f37235b2b4d306f8092cb3f5655c0e1fa929265b5ea07c86e7a5c030a14`.
+It never includes the bearer or its configured digest. A reviewed inventory
+change therefore requires a matching adapter and operator-workflow update.
+
+`technical_identity_evidence.evidence_sha256` seals the instance, EFI API base
+and client-certificate fingerprint. `webhook_evidence.evidence_sha256` seals
+the DNS, mTLS, server-certificate and event-grant observations. Those are
+technical evidence only: `commercial_eligibility.status` and
+`account_identity.status` remain `not_observed`. OAuth or a valid certificate
+does not prove commercial eligibility or an authoritative EFI account reference.
+
 ---
 
 ## Idempotency summary
