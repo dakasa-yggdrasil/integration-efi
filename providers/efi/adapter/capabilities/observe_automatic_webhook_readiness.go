@@ -53,7 +53,7 @@ type automaticWebhookAuthorization struct {
 
 type automaticWebhookReadinessDeps struct {
 	resolveAddresses func(context.Context, string) ([]string, error)
-	clientlessProbe  func(context.Context, string, string, *tls.Config) error
+	clientlessProbe  func(context.Context, string, string, *tls.Config) (string, error)
 	authorizeEvent   func(context.Context, string, string, string) (automaticWebhookAuthorization, error)
 }
 
@@ -118,17 +118,34 @@ func observeAutomaticWebhookReadiness(ctx context.Context, cfg AutomaticWebhookR
 		return nil, fmt.Errorf("observe_automatic_webhook_readiness: receiver DNS does not match the expected load balancer")
 	}
 	addressProbes := make([]map[string]any, 0, len(receiverAddresses))
+	peerCertificateSet := make(map[string]struct{}, len(receiverAddresses))
 	for _, address := range receiverAddresses {
 		dialAddress := net.JoinHostPort(address, receiverPort)
-		if err := deps.clientlessProbe(ctx, receiverURL, dialAddress, cfg.TLSConfig); err != nil {
+		peerCertificateSHA256, err := deps.clientlessProbe(ctx, receiverURL, dialAddress, cfg.TLSConfig)
+		if err != nil {
 			return nil, fmt.Errorf("observe_automatic_webhook_readiness: clientless mTLS refusal was not proven for every receiver address")
 		}
+		peerCertificateSHA256 = strings.ToLower(peerCertificateSHA256)
+		if len(peerCertificateSHA256) != sha256.Size*2 {
+			return nil, fmt.Errorf("observe_automatic_webhook_readiness: clientless mTLS probe returned an invalid receiver certificate fingerprint")
+		}
+		if _, err := hex.DecodeString(peerCertificateSHA256); err != nil {
+			return nil, fmt.Errorf("observe_automatic_webhook_readiness: clientless mTLS probe returned an invalid receiver certificate fingerprint")
+		}
+		peerCertificateSet[peerCertificateSHA256] = struct{}{}
 		addressProbes = append(addressProbes, map[string]any{
 			"address":                          address,
 			"clientless_certificate_requested": true,
 			"clientless_refused":               true,
+			"authenticated_status":             0,
+			"peer_certificate_sha256":          peerCertificateSHA256,
 		})
 	}
+	peerCertificateSHA256s := make([]string, 0, len(peerCertificateSet))
+	for fingerprint := range peerCertificateSet {
+		peerCertificateSHA256s = append(peerCertificateSHA256s, fingerprint)
+	}
+	sort.Strings(peerCertificateSHA256s)
 	authorization, err := deps.authorizeEvent(ctx, cfg.CoreURL, cfg.EventToken, instanceID)
 	if err != nil {
 		return nil, fmt.Errorf("observe_automatic_webhook_readiness: Core event authorization proof failed")
@@ -168,6 +185,7 @@ func observeAutomaticWebhookReadiness(ctx context.Context, cfg AutomaticWebhookR
 		"all_addresses_proven":         true,
 		"address_probe_count":          len(addressProbes),
 		"address_probes":               addressProbes,
+		"peer_certificate_sha256s":     peerCertificateSHA256s,
 		"provider_authenticated_probe": providerAuthenticatedProbe,
 		"event_principal_id":           authorization.PrincipalID,
 		"event_grant_form":             authorization.GrantForm,
@@ -190,6 +208,8 @@ func observeAutomaticWebhookReadiness(ctx context.Context, cfg AutomaticWebhookR
 		"address_probes":                   addressProbes,
 		"clientless_certificate_requested": true,
 		"clientless_refused":               true,
+		"authenticated_status":             0,
+		"peer_certificate_sha256s":         peerCertificateSHA256s,
 		"provider_authenticated_probe":     providerAuthenticatedProbe,
 		"technical_identity_evidence":      technicalIdentity,
 		"webhook_evidence":                 webhookEvidence,
@@ -307,13 +327,13 @@ func equalStringSets(left, right []string) bool {
 	return true
 }
 
-func requireClientlessTLSRefusal(ctx context.Context, receiverURL, address string, base *tls.Config) error {
+func requireClientlessTLSRefusal(ctx context.Context, receiverURL, address string, base *tls.Config) (string, error) {
 	parsed, err := url.Parse(receiverURL)
 	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" {
-		return errors.New("invalid receiver URL")
+		return "", errors.New("invalid receiver URL")
 	}
 	if base == nil {
-		return errors.New("TLS config unavailable")
+		return "", errors.New("TLS config unavailable")
 	}
 	config := base.Clone()
 	config.ServerName = parsed.Hostname()
@@ -322,6 +342,21 @@ func requireClientlessTLSRefusal(ctx context.Context, receiverURL, address strin
 	config.NextProtos = []string{"http/1.1"}
 	requested := false
 	var requestedVersion uint16
+	var peerCertificateSHA256 string
+	originalVerifyConnection := config.VerifyConnection
+	config.VerifyConnection = func(state tls.ConnectionState) error {
+		if originalVerifyConnection != nil {
+			if err := originalVerifyConnection(state); err != nil {
+				return err
+			}
+		}
+		if len(state.PeerCertificates) == 0 {
+			return errors.New("receiver certificate unavailable")
+		}
+		digest := sha256.Sum256(state.PeerCertificates[0].Raw)
+		peerCertificateSHA256 = hex.EncodeToString(digest[:])
+		return nil
+	}
 	config.GetClientCertificate = func(info *tls.CertificateRequestInfo) (*tls.Certificate, error) {
 		requested = true
 		requestedVersion = info.Version
@@ -347,28 +382,31 @@ func requireClientlessTLSRefusal(ctx context.Context, receiverURL, address strin
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, receiverURL, http.NoBody)
 	if err != nil {
-		return err
+		return "", err
 	}
 	request.Header.Set("Content-Type", "application/json")
 	response, err := client.Do(request)
 	if response != nil {
 		response.Body.Close()
-		return errors.New("server accepted an HTTP request without a client certificate")
+		return "", errors.New("server accepted an HTTP request without a client certificate")
 	}
 	if err == nil || !requested {
-		return errors.New("server did not require a client certificate")
+		return "", errors.New("server did not require a client certificate")
 	}
 	if ctx.Err() != nil {
-		return errors.New("clientless HTTP probe context ended")
+		return "", errors.New("clientless HTTP probe context ended")
 	}
 	var netErr net.Error
 	if errors.As(err, &netErr) && netErr.Timeout() {
-		return errors.New("clientless HTTP probe timed out")
+		return "", errors.New("clientless HTTP probe timed out")
 	}
 	if !isRequiredClientCertificateRefusal(err, requestedVersion) {
-		return errors.New("server refusal was not a required-client-certificate TLS alert")
+		return "", errors.New("server refusal was not a required-client-certificate TLS alert")
 	}
-	return nil
+	if peerCertificateSHA256 == "" {
+		return "", errors.New("receiver certificate fingerprint unavailable")
+	}
+	return peerCertificateSHA256, nil
 }
 
 func isRequiredClientCertificateRefusal(err error, version uint16) bool {

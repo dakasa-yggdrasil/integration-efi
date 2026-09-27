@@ -326,6 +326,13 @@ processes the webhook registration PUT. `ready: true` means the read-only
 pre-registration checks passed; it does not claim that an EFI-authenticated
 callback was accepted.
 
+For patch-version compatibility, the response retains
+`authenticated_status`, but sets it to the fail-closed sentinel `0` because the
+preflight makes no authenticated callback request. Each address probe and the
+top-level `peer_certificate_sha256s` retain the SHA-256 fingerprint of the
+verified receiver **server** certificate observed during the clientless TLS
+exchange. Those fingerprints do not identify EFI's callback client.
+
 The final read calls Core's non-persisting event authorization endpoint with
 the adapter's existing event bearer for
 `efi.automatic_webhook.ensured`. Output includes the matched principal and
@@ -338,8 +345,9 @@ change therefore requires a matching adapter and operator-workflow update.
 
 `technical_identity_evidence.evidence_sha256` seals the instance, EFI API base
 and client-certificate fingerprint. `webhook_evidence.evidence_sha256` seals
-the DNS, clientless mTLS refusal, pending provider-authenticated probe status and
-event-grant observations. Those are technical evidence only:
+the DNS, clientless mTLS refusal, receiver server-certificate fingerprints,
+pending provider-authenticated probe status and event-grant observations. Those
+are technical evidence only:
 `commercial_eligibility.status` and `account_identity.status` remain
 `not_observed`. OAuth or a valid certificate does not prove commercial
 eligibility or an authoritative EFI account reference.

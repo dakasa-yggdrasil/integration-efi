@@ -24,6 +24,13 @@ output_schema:
     address_probes: {type: array, items: {type: object}}
     clientless_certificate_requested: {type: boolean}
     clientless_refused: {type: boolean}
+    authenticated_status:
+      type: integer
+      description: Deprecated compatibility field. Zero means no synthetic authenticated callback request was made; use provider_authenticated_probe for provider callback state.
+    peer_certificate_sha256s:
+      type: array
+      items: {type: string}
+      description: SHA-256 fingerprints of the verified receiver server certificates observed during the clientless TLS refusal probes. These are not EFI callback-client identities.
     provider_authenticated_probe:
       type: object
       additionalProperties: false

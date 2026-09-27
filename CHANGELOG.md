@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   clientless TLS 1.2/1.3 refusal and Core event-authorization checks, and now
   reports `provider_authenticated_probe.status: not_observed`. Provider callback
   acceptance is observed only when EFI processes the webhook registration PUT.
+- Preserve the patch-version response shape without misrepresenting callback
+  authentication: deprecated `authenticated_status` is the fail-closed sentinel
+  `0`, while `peer_certificate_sha256s` contains the verified receiver server
+  certificate fingerprints from the clientless TLS probes.
 
 ## [2.5.4] - 2026-09-27
 
