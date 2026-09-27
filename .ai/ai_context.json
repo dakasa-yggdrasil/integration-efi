@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-09-27T07:12:24-03:00",
+  "generated_at": "2026-09-27T08:18:14-03:00",
   "primary_language": "go",
   "languages": {
     ".go": 60,
@@ -9,20 +9,20 @@
     ".yml": 7
   },
   "provenance": {
-    "commit": "4a9b59e2466468a4f99b31839c2e8bfcbd6c1a03",
+    "commit": "b7de5329343c0083fa85397bc79c613bc793261b",
     "dirty": true,
     "files": [
       {
         "path": "AGENTS.md",
-        "sha256": "adadbca7234d4dc041f4579e478e36b2f8a53559144439f034da096c6bc57222"
+        "sha256": "d076dd240dc04842ba899450122cd6c9ad318901c387cbf9d3a55d31afaa71c2"
       },
       {
         "path": "CLAUDE.md",
-        "sha256": "72a3b167981e8f5f9dfcb44218d857daca4c1554a28c2eea3c4ee8dbe0f97712"
+        "sha256": "76eb42a700e04478a2bf67bd546b4bb3f57f45aeb34a4f67c4559cb2cc725117"
       },
       {
         "path": "README.md",
-        "sha256": "3288419c542d05623eb5bbadc513b58666766b3a44edebb42e3ab3d83dfe4b35"
+        "sha256": "9ed16de8b511669f12aae7f2bd0c82f3fa6ed26becfeb270670a7be0ce9437e5"
       },
       {
         "path": "Taskfile.yml",
@@ -47,7 +47,7 @@
     {
       "path": "providers/efi/adapter/capabilities",
       "files": 27,
-      "kb": 119
+      "kb": 125
     },
     {
       "path": "manifest/capabilities",
@@ -116,11 +116,15 @@
     },
     {
       "path": "providers/efi/adapter/capabilities/observe_automatic_webhook_readiness.go",
-      "kb": 18
+      "kb": 20
     },
     {
       "path": "providers/efi/adapter/reconcile_test.go",
       "kb": 16
+    },
+    {
+      "path": "providers/efi/adapter/capabilities/observe_automatic_webhook_readiness_test.go",
+      "kb": 15
     },
     {
       "path": "providers/efi/adapter/capabilities/automatic_webhook_test.go",
@@ -137,10 +141,6 @@
     {
       "path": "family/contract/types.go",
       "kb": 13
-    },
-    {
-      "path": "providers/efi/adapter/capabilities/observe_automatic_webhook_readiness_test.go",
-      "kb": 11
     },
     {
       "path": "providers/efi/adapter/capabilities/observe_webhook_subscriptions_test.go",

@@ -7,9 +7,9 @@ The docs-freshness CI reads it: a PR that bumps it is trusted and the AI is skip
 Before a PR: update stale docs, set verified_at_commit to your branch tip.
 On arrival: if this is behind the code you touch, reconcile the docs FIRST.
 
-verified_at_commit: 4a9b59e2466468a4f99b31839c2e8bfcbd6c1a03
-verified_diff_sha256: 507bf76e00706dd3c25881c44466824369255fb46ed3e814f069e41c166f735a
+verified_at_commit: b7de5329343c0083fa85397bc79c613bc793261b
+verified_diff_sha256: 4504a98572ae6430516e055acd0dfde006851b82caab82a3392e68a5ddf4977d
 reconciler_schema: 1
 verified_at: 2026-09-27
 by: Codex
-note: Reconciled integration-efi 2.5.3 and the SDK bridge input isolation fix. Generated context now covers the exact functional source commit; the automatic webhook readiness contract and commercial gate remain unchanged.
+note: Reconciled integration-efi 2.5.4 and the TLS 1.3 clientless refusal proof. Generated context covers the exact functional source commit; commercial and account gates remain unchanged.

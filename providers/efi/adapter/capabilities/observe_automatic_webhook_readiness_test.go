@@ -5,10 +5,12 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -19,8 +21,8 @@ func TestObserveAutomaticWebhookReadinessChainsDNSMTLSAndEffectiveGrant(t *testi
 			calls = append(calls, "dns:"+host)
 			return []string{"203.0.113.10", "203.0.113.11"}, nil
 		},
-		clientlessProbe: func(_ context.Context, address, serverName string, _ *tls.Config) error {
-			calls = append(calls, "clientless:"+address+":"+serverName)
+		clientlessProbe: func(_ context.Context, receiverURL, address string, _ *tls.Config) error {
+			calls = append(calls, "clientless:"+receiverURL+":"+address)
 			return nil
 		},
 		authenticatedPost: func(_ context.Context, receiverURL, address string, _ *tls.Config) (int, string, error) {
@@ -72,14 +74,113 @@ func TestObserveAutomaticWebhookReadinessChainsDNSMTLSAndEffectiveGrant(t *testi
 	}
 	wantCalls := []string{
 		"dns:webhook-pix.dakasa.me", "dns:nlb.example.net",
-		"clientless:203.0.113.10:443:webhook-pix.dakasa.me",
+		"clientless:https://webhook-pix.dakasa.me/payment/webhook/efi:203.0.113.10:443",
 		"authenticated:https://webhook-pix.dakasa.me/payment/webhook/efi:203.0.113.10:443",
-		"clientless:203.0.113.11:443:webhook-pix.dakasa.me",
+		"clientless:https://webhook-pix.dakasa.me/payment/webhook/efi:203.0.113.11:443",
 		"authenticated:https://webhook-pix.dakasa.me/payment/webhook/efi:203.0.113.11:443",
 		"authorization:http://yggdrasil.dakasa.svc.cluster.local:9080:super-secret-bearer:efi-dakasa-production",
 	}
 	if !reflect.DeepEqual(calls, wantCalls) {
 		t.Fatalf("calls=%v want=%v", calls, wantCalls)
+	}
+}
+
+func TestRequireClientlessTLSRefusalReadsRequiredCertificateAlert(t *testing.T) {
+	for _, version := range []uint16{tls.VersionTLS12, tls.VersionTLS13} {
+		t.Run(tls.VersionName(version), func(t *testing.T) {
+			var handlerCalled atomic.Bool
+			server := httptest.NewUnstartedServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+				handlerCalled.Store(true)
+			}))
+			server.TLS = &tls.Config{
+				MinVersion: version,
+				MaxVersion: version,
+				ClientAuth: tls.RequireAndVerifyClientCert,
+			}
+			server.StartTLS()
+			defer server.Close()
+
+			base := server.Client().Transport.(*http.Transport).TLSClientConfig.Clone()
+			if err := requireClientlessTLSRefusal(context.Background(), server.URL, server.Listener.Addr().String(), base); err != nil {
+				t.Fatalf("required client certificate was not proven: %v", err)
+			}
+			if handlerCalled.Load() {
+				t.Fatal("clientless request reached the HTTP handler")
+			}
+		})
+	}
+}
+
+func TestRequireClientlessTLSRefusalRejectsOptionalCertificateRequest(t *testing.T) {
+	for _, version := range []uint16{tls.VersionTLS12, tls.VersionTLS13} {
+		t.Run(tls.VersionName(version), func(t *testing.T) {
+			var handlerCalled atomic.Bool
+			server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				handlerCalled.Store(true)
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			server.TLS = &tls.Config{
+				MinVersion: version,
+				MaxVersion: version,
+				ClientAuth: tls.RequestClientCert,
+			}
+			server.StartTLS()
+			defer server.Close()
+
+			base := server.Client().Transport.(*http.Transport).TLSClientConfig.Clone()
+			err := requireClientlessTLSRefusal(context.Background(), server.URL, server.Listener.Addr().String(), base)
+			if err == nil || !handlerCalled.Load() {
+				t.Fatalf("optional client certificate was accepted as refusal: err=%v handlerCalled=%v", err, handlerCalled.Load())
+			}
+		})
+	}
+}
+
+func TestRequiredClientCertificateRefusalMatchesAlertToTLSVersion(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		version uint16
+		err     error
+		want    bool
+	}{
+		{name: "TLS 1.3 certificate required", version: tls.VersionTLS13, err: &net.OpError{Op: "remote error", Err: errors.New("tls: certificate required")}, want: true},
+		{name: "TLS 1.3 generic handshake failure", version: tls.VersionTLS13, err: &net.OpError{Op: "remote error", Err: errors.New("tls: handshake failure")}},
+		{name: "TLS 1.2 handshake failure", version: tls.VersionTLS12, err: &net.OpError{Op: "remote error", Err: errors.New("tls: handshake failure")}, want: true},
+		{name: "TLS 1.2 certificate required", version: tls.VersionTLS12, err: &net.OpError{Op: "remote error", Err: errors.New("tls: certificate required")}},
+		{name: "internal TLS error", version: tls.VersionTLS13, err: &net.OpError{Op: "remote error", Err: errors.New("tls: internal error")}},
+		{name: "connection reset", version: tls.VersionTLS13, err: errors.New("connection reset by peer")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := isRequiredClientCertificateRefusal(test.err, test.version); got != test.want {
+				t.Fatalf("isRequiredClientCertificateRefusal() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestRequireClientlessTLSRefusalRejectsCanceledRequest(t *testing.T) {
+	handlerStarted := make(chan struct{})
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
+		close(handlerStarted)
+		<-request.Context().Done()
+	}))
+	server.TLS = &tls.Config{
+		MinVersion: tls.VersionTLS13,
+		MaxVersion: tls.VersionTLS13,
+		ClientAuth: tls.RequestClientCert,
+	}
+	server.StartTLS()
+	defer server.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		<-handlerStarted
+		cancel()
+	}()
+	base := server.Client().Transport.(*http.Transport).TLSClientConfig.Clone()
+	if err := requireClientlessTLSRefusal(ctx, server.URL, server.Listener.Addr().String(), base); err == nil {
+		t.Fatal("canceled request was accepted as client-certificate refusal")
 	}
 }
 
@@ -137,7 +238,7 @@ func TestObserveAutomaticWebhookReadinessFailsWhenAnyResolvedAddressIsUnproven(t
 		resolveAddresses: func(context.Context, string) ([]string, error) {
 			return []string{"203.0.113.10", "203.0.113.11"}, nil
 		},
-		clientlessProbe: func(_ context.Context, address, _ string, _ *tls.Config) error {
+		clientlessProbe: func(_ context.Context, _, address string, _ *tls.Config) error {
 			if strings.HasPrefix(address, "203.0.113.11") {
 				return errors.New("second address accepted clientless TLS")
 			}

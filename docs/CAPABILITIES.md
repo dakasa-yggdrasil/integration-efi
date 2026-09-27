@@ -310,9 +310,11 @@ Read-only preflight for the receiver configured in `webhook_receiver_url`. The
 only input is `expected_dns_name`, read from the orchestrator load-balancer
 Service. The adapter requires the receiver and expected name to resolve to the
 same nonempty public address set, connects to every resolved address, proves a
-clientless TLS handshake requested a certificate and was refused on each, then
-sends an empty authenticated `POST` to each address and requires HTTP 200. It
-uses the already-loaded EFI P12 and never accepts a receiver URL from the call.
+clientless empty `POST` requested a certificate and was refused by a TLS alert
+on each, then sends the same request with the configured client certificate and
+requires HTTP 200. The HTTP exchange is necessary because TLS 1.3 can deliver
+the certificate-required alert only after the client-side handshake returns.
+It uses the already-loaded EFI P12 and never accepts a receiver URL from the call.
 Before these reads, normal adapter construction completes EFI's OAuth
 client-credentials exchange over mTLS. The output records only
 `oauth_authenticated: true`; it never returns the access token, client id or

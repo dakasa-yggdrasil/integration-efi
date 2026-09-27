@@ -123,7 +123,7 @@ func observeAutomaticWebhookReadiness(ctx context.Context, cfg AutomaticWebhookR
 	peerCertificateSet := make(map[string]struct{}, len(receiverAddresses))
 	for _, address := range receiverAddresses {
 		dialAddress := net.JoinHostPort(address, receiverPort)
-		if err := deps.clientlessProbe(ctx, dialAddress, receiverHost, cfg.TLSConfig); err != nil {
+		if err := deps.clientlessProbe(ctx, receiverURL, dialAddress, cfg.TLSConfig); err != nil {
 			return nil, fmt.Errorf("observe_automatic_webhook_readiness: clientless mTLS refusal was not proven for every receiver address")
 		}
 		status, peerCertificateSHA256, err := deps.authenticatedPost(ctx, receiverURL, dialAddress, cfg.TLSConfig)
@@ -323,28 +323,90 @@ func equalStringSets(left, right []string) bool {
 	return true
 }
 
-func requireClientlessTLSRefusal(ctx context.Context, address, serverName string, base *tls.Config) error {
+func requireClientlessTLSRefusal(ctx context.Context, receiverURL, address string, base *tls.Config) error {
+	parsed, err := url.Parse(receiverURL)
+	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" {
+		return errors.New("invalid receiver URL")
+	}
+	if base == nil {
+		return errors.New("TLS config unavailable")
+	}
 	config := base.Clone()
-	config.ServerName = serverName
+	config.ServerName = parsed.Hostname()
 	config.Certificates = nil
+	config.ClientSessionCache = nil
+	config.NextProtos = []string{"http/1.1"}
 	requested := false
-	config.GetClientCertificate = func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+	var requestedVersion uint16
+	config.GetClientCertificate = func(info *tls.CertificateRequestInfo) (*tls.Certificate, error) {
 		requested = true
+		requestedVersion = info.Version
 		return &tls.Certificate{}, nil
 	}
-	dialer := &tls.Dialer{NetDialer: &net.Dialer{Timeout: 5 * time.Second}, Config: config}
-	connection, err := dialer.DialContext(ctx, "tcp", address)
-	if connection != nil {
-		_ = connection.Close()
+	netDialer := &net.Dialer{Timeout: 5 * time.Second}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.DisableKeepAlives = true
+	transport.ForceAttemptHTTP2 = false
+	transport.Proxy = nil
+	transport.TLSClientConfig = config
+	transport.TLSHandshakeTimeout = 5 * time.Second
+	transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return netDialer.DialContext(ctx, network, address)
+	}
+	defer transport.CloseIdleConnections()
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   10 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, receiverURL, http.NoBody)
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/json")
+	response, err := client.Do(request)
+	if response != nil {
+		response.Body.Close()
+		return errors.New("server accepted an HTTP request without a client certificate")
 	}
 	if err == nil || !requested {
 		return errors.New("server did not require a client certificate")
 	}
+	if ctx.Err() != nil {
+		return errors.New("clientless HTTP probe context ended")
+	}
 	var netErr net.Error
 	if errors.As(err, &netErr) && netErr.Timeout() {
-		return errors.New("TLS handshake timed out")
+		return errors.New("clientless HTTP probe timed out")
+	}
+	if !isRequiredClientCertificateRefusal(err, requestedVersion) {
+		return errors.New("server refusal was not a required-client-certificate TLS alert")
 	}
 	return nil
+}
+
+func isRequiredClientCertificateRefusal(err error, version uint16) bool {
+	expectedAlert := ""
+	switch version {
+	case tls.VersionTLS12:
+		expectedAlert = "tls: handshake failure"
+	case tls.VersionTLS13:
+		expectedAlert = "tls: certificate required"
+	default:
+		return false
+	}
+	for current := err; current != nil; current = errors.Unwrap(current) {
+		operationError, ok := current.(*net.OpError)
+		if !ok || operationError.Op != "remote error" || operationError.Err == nil {
+			continue
+		}
+		if operationError.Err.Error() == expectedAlert {
+			return true
+		}
+	}
+	return false
 }
 
 func postAuthenticatedRegistrationProbe(ctx context.Context, receiverURL, address string, base *tls.Config) (int, string, error) {
@@ -357,6 +419,7 @@ func postAuthenticatedRegistrationProbe(ctx context.Context, receiverURL, addres
 	netDialer := &net.Dialer{Timeout: 5 * time.Second}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.DisableKeepAlives = true
+	transport.Proxy = nil
 	transport.TLSClientConfig = tlsConfig
 	transport.TLSHandshakeTimeout = 5 * time.Second
 	transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
