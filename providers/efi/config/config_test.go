@@ -24,6 +24,7 @@ func TestLoad_ReadsAllKnobs(t *testing.T) {
 	t.Setenv("EFI_API_CLIENT_SECRET", "csec-test")
 	t.Setenv("EFI_CERTIFICATE", "/etc/efi/cert.p12")
 	t.Setenv("EFI_BASE_URL", "https://pix-h.api.efipay.com.br")
+	t.Setenv("EFI_WEBHOOK_RECEIVER_URL", "https://receiver.example/webhook/efi")
 	t.Setenv("EFI_MTLS_ENABLED", "false")
 
 	cfg := Load()
@@ -38,6 +39,9 @@ func TestLoad_ReadsAllKnobs(t *testing.T) {
 	}
 	if cfg.BaseURL != "https://pix-h.api.efipay.com.br" {
 		t.Fatalf("BaseURL = %q", cfg.BaseURL)
+	}
+	if cfg.WebhookReceiverURL != "https://receiver.example/webhook/efi" {
+		t.Fatalf("WebhookReceiverURL = %q", cfg.WebhookReceiverURL)
 	}
 	if cfg.MTLSEnabled {
 		t.Fatalf("MTLSEnabled = true, want false")

@@ -12,12 +12,13 @@ import (
 // startup; mutated by configFromRequest() per-execute when an
 // instance manifest carries overrides.
 type Config struct {
-	ClientKeyID       string
-	ClientSecret      string
-	CertificatePath   string
-	CertificateBase64 string
-	BaseURL           string
-	MTLSEnabled       bool
+	ClientKeyID        string
+	ClientSecret       string
+	CertificatePath    string
+	CertificateBase64  string
+	BaseURL            string
+	WebhookReceiverURL string
+	MTLSEnabled        bool
 }
 
 // Load reads EFI_* env vars and returns the populated Config. Missing
@@ -25,12 +26,13 @@ type Config struct {
 // URL).
 func Load() Config {
 	return Config{
-		ClientKeyID:       getEnv("EFI_API_CLIENT_KEY_ID"),
-		ClientSecret:      getEnv("EFI_API_CLIENT_SECRET"),
-		CertificatePath:   getEnv("EFI_CERTIFICATE"),
-		CertificateBase64: getEnv("EFI_CERTIFICATE_BASE64"),
-		BaseURL:           getEnvDefault("EFI_BASE_URL", "https://pix.api.efipay.com.br"),
-		MTLSEnabled:       getEnvBool("EFI_MTLS_ENABLED", true),
+		ClientKeyID:        getEnv("EFI_API_CLIENT_KEY_ID"),
+		ClientSecret:       getEnv("EFI_API_CLIENT_SECRET"),
+		CertificatePath:    getEnv("EFI_CERTIFICATE"),
+		CertificateBase64:  getEnv("EFI_CERTIFICATE_BASE64"),
+		BaseURL:            getEnvDefault("EFI_BASE_URL", "https://pix.api.efipay.com.br"),
+		WebhookReceiverURL: getEnv("EFI_WEBHOOK_RECEIVER_URL"),
+		MTLSEnabled:        getEnvBool("EFI_MTLS_ENABLED", true),
 	}
 }
 

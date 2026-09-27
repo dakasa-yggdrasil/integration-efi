@@ -86,6 +86,26 @@ func TestNewEfiClient_OAuthFailure(t *testing.T) {
 	}
 }
 
+func TestNewEfiClient_OAuthRefusesRedirectWithoutForwardingCredentials(t *testing.T) {
+	targetCalled := false
+	target := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		targetCalled = true
+	}))
+	defer target.Close()
+	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Location", target.URL)
+		w.WriteHeader(http.StatusTemporaryRedirect)
+	}))
+	defer redirect.Close()
+
+	_, err := NewEfiClient(config.Config{
+		ClientKeyID: "client-id-must-not-escape", ClientSecret: "client-secret-must-not-escape", BaseURL: redirect.URL,
+	}, nil)
+	if err == nil || targetCalled || strings.Contains(err.Error(), "must-not-escape") {
+		t.Fatalf("err=%v targetCalled=%v", err, targetCalled)
+	}
+}
+
 func TestEfiAPIError_DoesNotExposeProviderBody(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/oauth/token" {

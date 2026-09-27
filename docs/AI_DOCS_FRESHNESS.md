@@ -7,7 +7,9 @@ The docs-freshness CI reads it: a PR that bumps it is trusted and the AI is skip
 Before a PR: update stale docs, set verified_at_commit to your branch tip.
 On arrival: if this is behind the code you touch, reconcile the docs FIRST.
 
-verified_at_commit: 534ae7b7e946e9810720386fa3319e7396e4403b
-verified_at: 2026-09-24
-by: Claude
-note: Reconciled the removal of the dead workflow-run dispatch and the 9079 webhook listener on top of 2.5.0, released as 2.5.1.
+verified_at_commit: 466cd4a77b70e4651766139222c9af1601aa8af5
+verified_diff_sha256: 7e93fe0ae677456b32e743b836bd0d6d531c1e51fcf9ca73f0d75ecf0c10c134
+reconciler_schema: 1
+verified_at: 2026-09-27
+by: Codex
+note: Reconciled integration-efi 2.5.2 and its read-only Pix Automatico receiver readiness proof. Generated context now covers the exact functional source commit. Commercial eligibility and account identity remain outside the technical proof.
