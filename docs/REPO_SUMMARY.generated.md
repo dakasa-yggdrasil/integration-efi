@@ -1,10 +1,10 @@
 # Repo Summary (generated)
 
-_Generated from HEAD at: 2026-09-27T01:52:07-03:00_
+_Generated from HEAD at: 2026-09-27T07:12:24-03:00_
 
 ## Languages
 
-- `.go`: 59 files
+- `.go`: 60 files
 - `.json`: 6 files
 - `.yaml`: 17 files
 - `.yml`: 7 files
@@ -23,11 +23,11 @@ _Generated from HEAD at: 2026-09-27T01:52:07-03:00_
 
 - providers/efi/adapter/capabilities: 27 files (119.7 KB)
 - manifest/capabilities: 15 files (14.4 KB)
-- providers/efi/adapter: 14 files (133.9 KB)
+- providers/efi/adapter: 14 files (134.0 KB)
+- providers/efi/message: 5 files (17.8 KB)
 - .: 4 files (10.6 KB)
 - .github/workflows: 4 files (12.8 KB)
 - providers/efi/efiapi: 4 files (17.8 KB)
-- providers/efi/message: 4 files (14.0 KB)
 - surface-ui: 3 files (2.0 KB)
 - cmd/adapter: 2 files (5.7 KB)
 - manifest: 2 files (4.5 KB)
@@ -36,7 +36,7 @@ _Generated from HEAD at: 2026-09-27T01:52:07-03:00_
 
 ## Heaviest Files
 
-- providers/efi/adapter/spec.go: 26.4 KB
+- providers/efi/adapter/spec.go: 26.5 KB
 - providers/efi/adapter/surface_query_test.go: 20.8 KB
 - providers/efi/adapter/capabilities/observe_automatic_webhook_readiness.go: 18.1 KB
 - providers/efi/adapter/reconcile_test.go: 17.0 KB
