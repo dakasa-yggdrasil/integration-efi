@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-09-27T09:10:25-03:00",
+  "generated_at": "2026-09-27T09:24:59-03:00",
   "primary_language": "go",
   "languages": {
     ".go": 60,
@@ -9,7 +9,7 @@
     ".yml": 7
   },
   "provenance": {
-    "commit": "58db9473e3a15c508edd5733d3623577966c9967",
+    "commit": "5d415321c5aa4ba6b2dd41451b952c5791f62075",
     "dirty": true,
     "files": [
       {
@@ -47,12 +47,12 @@
     {
       "path": "providers/efi/adapter/capabilities",
       "files": 27,
-      "kb": 123
+      "kb": 126
     },
     {
       "path": "manifest/capabilities",
       "files": 15,
-      "kb": 14
+      "kb": 15
     },
     {
       "path": "providers/efi/adapter",
@@ -116,14 +116,14 @@
     },
     {
       "path": "providers/efi/adapter/capabilities/observe_automatic_webhook_readiness.go",
+      "kb": 19
+    },
+    {
+      "path": "providers/efi/adapter/capabilities/observe_automatic_webhook_readiness_test.go",
       "kb": 17
     },
     {
       "path": "providers/efi/adapter/reconcile_test.go",
-      "kb": 16
-    },
-    {
-      "path": "providers/efi/adapter/capabilities/observe_automatic_webhook_readiness_test.go",
       "kb": 16
     },
     {
