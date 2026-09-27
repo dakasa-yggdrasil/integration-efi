@@ -35,7 +35,9 @@ const (
 	// authenticated no-op registration probe and Core grant readback.
 	// v2.5.3: preserves legacy fallback inputs when the SDK bridge adds
 	// its private per-request integration context.
-	AdapterVersion = "2.5.3"
+	// v2.5.4: completes the clientless readiness probe with an HTTP request
+	// so TLS 1.3 certificate-required alerts are observed after handshake.
+	AdapterVersion = "2.5.4"
 
 	// QueueDescribe / QueueExecute are the AMQP queue names used when
 	// transport=amqp. http_json mode uses the Endpoints instead.
@@ -459,7 +461,7 @@ func Describe() contract.AdapterDescribeResponse {
 			},
 			{
 				Name:          OperationObserveAutomaticWebhookReadiness,
-				Description:   "Read-only preflight for the configured automatic-webhook receiver. Proves EFI OAuth over mTLS without returning credentials or token; resolves its public host and an operator-observed load-balancer DNS name to identical address sets; proves clientless refusal plus an empty P12-authenticated HTTP 200 on every resolved address; then asks Core to authorize efi.automatic_webhook.ensured and requires the reviewed principal, exact grant, count and canonical grant-set hash. Never returns bearer material or a credential digest.",
+				Description:   "Read-only preflight for the configured automatic-webhook receiver. Proves EFI OAuth over mTLS without returning credentials or token; resolves its public host and an operator-observed load-balancer DNS name to identical address sets; proves an empty clientless HTTP request is refused by a required-client-certificate TLS alert plus an empty P12-authenticated HTTP 200 on every resolved address; then asks Core to authorize efi.automatic_webhook.ensured and requires the reviewed principal, exact grant, count and canonical grant-set hash. Never returns bearer material or a credential digest.",
 				ResourceTypes: []string{ResourceAutomaticWebhook},
 				Idempotent:    true,
 				Category:      "capability",

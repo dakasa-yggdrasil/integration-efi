@@ -5,6 +5,16 @@ All notable changes to integration-efi will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.4] - 2026-09-27
+
+### Fixed
+
+- Complete the clientless automatic-webhook readiness probe with an empty HTTP
+  request pinned to each resolved receiver address. This consumes the
+  certificate-required alert that TLS 1.3 can deliver only after its
+  client-side handshake returns, while any HTTP response still proves that the
+  receiver accepted a client without the required certificate.
+
 ## [2.5.3] - 2026-09-27
 
 ### Fixed
