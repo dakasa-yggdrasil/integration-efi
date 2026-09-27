@@ -238,7 +238,7 @@ func TestObserveAutomaticWebhookReadinessFailsWhenAnyResolvedAddressIsUnproven(t
 		resolveAddresses: func(context.Context, string) ([]string, error) {
 			return []string{"203.0.113.10", "203.0.113.11"}, nil
 		},
-		clientlessProbe: func(_ context.Context, address, _ string, _ *tls.Config) error {
+		clientlessProbe: func(_ context.Context, _, address string, _ *tls.Config) error {
 			if strings.HasPrefix(address, "203.0.113.11") {
 				return errors.New("second address accepted clientless TLS")
 			}
