@@ -17,7 +17,9 @@ import (
 
 // ExecuteHandler is the SDK handler that routes operations to the
 // adapter. Production wiring (v2.2.0+): inbound envelopes route through
-// reconcile.Dispatch FIRST — activating §6.5 mutation event
+// reconcile.Dispatch first, except read-only webhook observations whose raw
+// provider parameters must survive the generic items/cursor projection. The
+// SDK path activates §6.5 mutation event
 // auto-emission via the WireReconcilers-installed dispatch table.
 // Operations not registered with a Reconciler (refund_charge,
 // create_payout, handle_chargeback, verify_webhook_signature,
@@ -45,6 +47,21 @@ func ExecuteHandler(logger *zap.Logger, a *sdkadapter.Adapter) Handler {
 		var req model.AdapterExecuteIntegrationRequest
 		if err := json.Unmarshal(d.Body, &req); err != nil {
 			return failure("bad_request", err, logger)
+		}
+		// This observer's declared contract includes the provider's complete
+		// page parameters. The generic SDK Observe interface returns only
+		// items/cursor and would discard those parameters. Keep this read-only
+		// response intact; mutations still use the event-emitting reconciler.
+		if operation == adapter.OperationObserveWebhookSubscriptions {
+			response, err := adapter.Execute(req)
+			if err != nil {
+				return failure("execute_failed", err, logger)
+			}
+			response.Output = webhookObservationOutput(response.Output)
+			response.Operation = req.Operation
+			response.Capability = req.Capability
+			response.Metadata = map[string]any{"provider": adapter.Provider, "via": "observe"}
+			return success(response)
 		}
 
 		// Bridge: rebuild the SDK-shaped envelope so reconcile.Dispatch

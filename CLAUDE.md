@@ -57,7 +57,9 @@ vendor/                            # vendored deps (go.mod uses vendoring)
 - `github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.9.1` — the adapter
   uses the SDK `adapter`, `rpc`, `mtls`, and `sdk/reconcile` packages.
   This is NOT a from-scratch RPC layer; describe/execute go through the
-  SDK adapter (`adapter.New(...)` in `cmd/adapter/main.go`).
+  SDK adapter (`adapter.New(...)` in `cmd/adapter/main.go`). The custom execute
+  handler preserves raw read-only webhook observations before the generic SDK
+  items/cursor projection; other capabilities retain the hybrid dispatch path.
 - `go.uber.org/zap` (logging), `prometheus/client_golang` (metrics),
   OpenTelemetry OTLP gRPC tracing (no-op unless
   `OTEL_EXPORTER_OTLP_ENDPOINT` set).
@@ -80,13 +82,13 @@ EFI delivers Pix callbacks to the service behind the registered
 
 ## AdapterVersion
 
-**`2.5.5`**: the single source of truth is
+**`2.5.6`**: the single source of truth is
 `adapter.AdapterVersion` in `providers/efi/adapter/spec.go`. It is
 wire-advertised in `Describe()` and version-checked in the describe
 handshake (`providers/efi/message/describe.go`).
 
 > `manifest/integration_type.json` (the *registered* manifest, not an
-> example) is synced to `spec.go` at `spec.adapter.version` = **`2.5.5`**.
+> example) is synced to `spec.go` at `spec.adapter.version` = **`2.5.6`**.
 > No describe-dump tool exists in this repo, so when `AdapterVersion`
 > bumps, hand-edit that field in the same change and re-run the
 > contractcheck/spec tests (`go test ./...`).
@@ -135,10 +137,12 @@ Two SDK-only reconcile ops (`observe_due_charges`,
 
 ### Execute = hybrid bridge
 
-`providers/efi/message/execute.go` routes inbound envelopes through
-`reconcile.Dispatch` FIRST (activating §6.5 mutation-event emission for
-charge / due_charge / webhook_subscription), then falls back to the
-legacy `adapter.Execute` switch for action helpers and the reactor.
+`providers/efi/message/execute.go` preserves canonical read-only
+`observe_webhook_subscriptions` through `adapter.Execute`, retaining raw
+provider fields and compatible `items`/`cursor` aliases. Other inbound envelopes
+route through `reconcile.Dispatch` first (activating §6.5 mutation-event emission
+for charge / due_charge / webhook_subscription), then fall back to the legacy
+`adapter.Execute` switch for action helpers and the reactor.
 Reconcilers are installed by `ad.WireReconcilers(a, instanceID)` in
 `main()` before `Register`.
 

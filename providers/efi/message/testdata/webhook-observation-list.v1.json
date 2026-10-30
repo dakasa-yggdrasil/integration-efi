@@ -1,0 +1,43 @@
+{
+  "provider": "efi",
+  "parametros": {
+    "inicio": "2020-11-16T00:00:00.000Z",
+    "fim": "2026-10-30T12:00:00.000Z",
+    "paginacao": {
+      "paginaAtual": 0,
+      "itensPorPagina": 1000,
+      "quantidadeDePaginas": 1,
+      "quantidadeTotalDeItens": 2
+    }
+  },
+  "webhooks": [
+    {
+      "chave": "11111111-1111-4111-8111-111111111111",
+      "webhookUrl": "https://webhook-pix.dakasa.me/payment/webhook/efi/negotiation",
+      "criacao": "2026-10-30T12:00:00.000Z"
+    },
+    {
+      "chave": "22222222-2222-4222-8222-222222222222",
+      "webhookUrl": "https://other-receiver.example.test/webhook",
+      "criacao": "2021-01-01T00:00:00.000Z"
+    }
+  ],
+  "page_provenance": {
+    "schemaVersion": 1,
+    "validated": true,
+    "complete": true
+  },
+  "cursor": "",
+  "items": [
+    {
+      "chave": "11111111-1111-4111-8111-111111111111",
+      "webhookUrl": "https://webhook-pix.dakasa.me/payment/webhook/efi/negotiation",
+      "criacao": "2026-10-30T12:00:00.000Z"
+    },
+    {
+      "chave": "22222222-2222-4222-8222-222222222222",
+      "webhookUrl": "https://other-receiver.example.test/webhook",
+      "criacao": "2021-01-01T00:00:00.000Z"
+    }
+  ]
+}

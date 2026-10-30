@@ -39,7 +39,9 @@ const (
 	// so TLS 1.3 certificate-required alerts are observed after handshake.
 	// v2.5.5: stops presenting the outbound API P12 to the callback receiver;
 	// only EFI can prove its callback identity while processing registration.
-	AdapterVersion = "2.5.5"
+	// v2.5.6: preserves raw webhook observations and proves complete requested
+	// creation-time pages without losing SDK items/cursor compatibility.
+	AdapterVersion = "2.5.6"
 
 	// QueueDescribe / QueueExecute are the AMQP queue names used when
 	// transport=amqp. http_json mode uses the Endpoints instead.
@@ -414,7 +416,7 @@ func Describe() contract.AdapterDescribeResponse {
 			},
 			{
 				Name:          OperationObserveWebhookSubscriptions,
-				Description:   "Observe Pix webhook subscriptions. Filter {chave} returns one subscription; filter {inicio, fim[, page, page_size, cursor]} returns a windowed page from GET /v2/webhook. EFI requires a valid ordered RFC3339 inicio/fim range. URL query values are redacted from normal output. Read-only.",
+				Description:   "Observe Pix webhook subscriptions. Filter {chave} returns one subscription; filter {inicio, fim[, page, page_size, cursor]} returns a windowed page from GET /v2/webhook. EFI requires a valid ordered RFC3339 inicio/fim range. Raw provider fields and compatible items/cursor are retained. LIST page_provenance validates the requested creation-time page; complete requires one authoritative page. URL query values are redacted from normal output. Read-only.",
 				ResourceTypes: []string{"webhook_subscription"},
 				Idempotent:    true,
 				Category:      "capability",

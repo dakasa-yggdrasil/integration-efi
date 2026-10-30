@@ -7,9 +7,9 @@ The docs-freshness CI reads it: a PR that bumps it is trusted and the AI is skip
 Before a PR: update stale docs, set verified_at_commit to your branch tip.
 On arrival: if this is behind the code you touch, reconcile the docs FIRST.
 
-verified_at_commit: 5d415321c5aa4ba6b2dd41451b952c5791f62075
-verified_diff_sha256: 98272690eca4776628e652b8029c88126637b6f470973f944c2ee24be295e811
+verified_at_commit: 41955faeb832c9e215fafa2a74026985a83bdc73
+verified_diff_sha256: d00d0a03052a1814bdc2d7d47bcd4c311ac987ca463be44745b7eec4b6ab82ac
 reconciler_schema: 1
-verified_at: 2026-09-27
+verified_at: 2026-10-30
 by: Codex
-note: Reconciled integration-efi 2.5.5 after preserving its response contract. Generated context covers the exact functional source commit; receiver server-certificate evidence remains separate from provider callback, commercial and account gates.
+note: Reconciled EFI 2.5.6 raw single/LIST observations, compatibility aliases and pre-sanitization URL/page provenance. Generated context describes the exact functional source commit; all tests remain CI-only.

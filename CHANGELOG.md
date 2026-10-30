@@ -5,6 +5,24 @@ All notable changes to integration-efi will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.6] - 2026-10-30
+
+### Fixed
+
+- Preserve declared raw single and LIST webhook observation fields through the
+  actual execute/RabbitMQ handler while retaining `items`/`cursor` compatibility
+  for existing SDK consumers. Per-instance authentication, provider mTLS and
+  mutation-event paths remain unchanged; provider errors never become absence.
+- Add read-only LIST `page_provenance` schema 1, validating original echoed
+  window/page/size, counters and every unique resource before URL sanitization.
+  Completeness requires one authoritative page; malformed or missing metadata
+  stays unproven, with no automatic pagination or extra provider request.
+- Reject unsafe original single webhook URLs before sanitization can hide
+  userinfo or fragments. Errors remain static and contain no provider data.
+- Reject ambiguous duplicate JSON members without reflecting provider data.
+  Add default-dispatch ExecuteHandler fixtures and CI coverage for raw input,
+  compatibility output, incomplete pages and provider-error privacy.
+
 ## [2.5.5] - 2026-09-27
 
 ### Fixed
