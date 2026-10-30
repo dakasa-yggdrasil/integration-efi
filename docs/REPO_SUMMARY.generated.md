@@ -1,11 +1,11 @@
 # Repo Summary (generated)
 
-_Generated from HEAD at: 2026-09-27T09:24:59-03:00_
+_Generated from HEAD at: 2026-10-30T19:57:37-03:00_
 
 ## Languages
 
-- `.go`: 60 files
-- `.json`: 6 files
+- `.go`: 63 files
+- `.json`: 8 files
 - `.yaml`: 17 files
 - `.yml`: 7 files
 
@@ -21,10 +21,10 @@ _Generated from HEAD at: 2026-09-27T09:24:59-03:00_
 
 ## Top Directories by File Count
 
-- providers/efi/adapter/capabilities: 27 files (126.8 KB)
-- manifest/capabilities: 15 files (15.1 KB)
-- providers/efi/adapter: 14 files (134.7 KB)
-- providers/efi/message: 5 files (17.8 KB)
+- providers/efi/adapter/capabilities: 28 files (133.3 KB)
+- manifest/capabilities: 15 files (16.2 KB)
+- providers/efi/adapter: 14 files (135.0 KB)
+- providers/efi/message: 7 files (34.2 KB)
 - .: 4 files (10.6 KB)
 - .github/workflows: 4 files (12.8 KB)
 - providers/efi/efiapi: 4 files (17.8 KB)
@@ -36,7 +36,7 @@ _Generated from HEAD at: 2026-09-27T09:24:59-03:00_
 
 ## Heaviest Files
 
-- providers/efi/adapter/spec.go: 27.2 KB
+- providers/efi/adapter/spec.go: 27.5 KB
 - providers/efi/adapter/surface_query_test.go: 20.8 KB
 - providers/efi/adapter/capabilities/observe_automatic_webhook_readiness.go: 19.4 KB
 - providers/efi/adapter/capabilities/observe_automatic_webhook_readiness_test.go: 17.6 KB
@@ -44,10 +44,10 @@ _Generated from HEAD at: 2026-09-27T09:24:59-03:00_
 - providers/efi/adapter/capabilities/automatic_webhook_test.go: 15.5 KB
 - providers/efi/adapter/reconcile.go: 15.2 KB
 - providers/efi/adapter/surface_query.go: 14.6 KB
+- providers/efi/message/webhook_observation_test.go: 14.5 KB
 - family/contract/types.go: 13.6 KB
 - providers/efi/adapter/capabilities/observe_webhook_subscriptions_test.go: 10.1 KB
 - providers/efi/adapter/capabilities/automatic_webhook.go: 9.6 KB
-- providers/efi/adapter/automatic_webhook_test.go: 9.5 KB
 
 ## Ops & Messaging
 

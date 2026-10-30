@@ -1,28 +1,28 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-09-27T09:24:59-03:00",
+  "generated_at": "2026-10-30T19:57:37-03:00",
   "primary_language": "go",
   "languages": {
-    ".go": 60,
-    ".json": 6,
+    ".go": 63,
+    ".json": 8,
     ".yaml": 17,
     ".yml": 7
   },
   "provenance": {
-    "commit": "5d415321c5aa4ba6b2dd41451b952c5791f62075",
+    "commit": "41955faeb832c9e215fafa2a74026985a83bdc73",
     "dirty": true,
     "files": [
       {
         "path": "AGENTS.md",
-        "sha256": "56e4c6345bb458045734295d9e5fe62c0d2249529120649b5de0df2ca923f0dd"
+        "sha256": "6344e77e7b2f26d21f752cae9d81e8002ebff2e606f61f765cbd7acfc223a8a9"
       },
       {
         "path": "CLAUDE.md",
-        "sha256": "34bd2d6ca44faaf3385f53ffea228501bd370c9241f2a1d46d84ed97fc0c02aa"
+        "sha256": "2cb745dbea8b0ae2db3fc40aad37a0a5aef7fc1eaaf557f96dbdd43a0c329065"
       },
       {
         "path": "README.md",
-        "sha256": "ac3c51ac36b98d4d1780e38f9507430e32ec2ccf5af86c3083995798e60017f1"
+        "sha256": "fd1350361d42cf6d93bfd65214a65aa48198fed91f05b76bea66e650d86e7b7b"
       },
       {
         "path": "Taskfile.yml",
@@ -46,23 +46,23 @@
   "top_dirs": [
     {
       "path": "providers/efi/adapter/capabilities",
-      "files": 27,
-      "kb": 126
+      "files": 28,
+      "kb": 133
     },
     {
       "path": "manifest/capabilities",
       "files": 15,
-      "kb": 15
+      "kb": 16
     },
     {
       "path": "providers/efi/adapter",
       "files": 14,
-      "kb": 134
+      "kb": 135
     },
     {
       "path": "providers/efi/message",
-      "files": 5,
-      "kb": 17
+      "files": 7,
+      "kb": 34
     },
     {
       "path": ".",
@@ -139,6 +139,10 @@
       "kb": 14
     },
     {
+      "path": "providers/efi/message/webhook_observation_test.go",
+      "kb": 14
+    },
+    {
       "path": "family/contract/types.go",
       "kb": 13
     },
@@ -148,10 +152,6 @@
     },
     {
       "path": "providers/efi/adapter/capabilities/automatic_webhook.go",
-      "kb": 9
-    },
-    {
-      "path": "providers/efi/adapter/automatic_webhook_test.go",
       "kb": 9
     }
   ],
