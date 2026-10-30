@@ -41,9 +41,18 @@ func ObserveWebhookSubscriptions(ctx context.Context, c *efiapi.EfiClient, in ma
 			return nil, fmt.Errorf("observe_webhook_subscriptions: chave and time-range filters are mutually exclusive")
 		}
 		chave = strings.TrimSpace(chave)
-		var resp map[string]any
+		var resp webhookObservationJSON
 		if err := efiapi.DoRaw(ctx, c, http.MethodGet, "/v2/webhook/"+url.PathEscape(chave), nil, &resp); err != nil {
 			return nil, fmt.Errorf("observe_webhook_subscriptions: %w", err)
+		}
+		// Sanitization must not turn an unsafe original registration into an
+		// apparently canonical single resource. Missing fields remain missing;
+		// malformed URL values fail without reflecting provider data.
+		if value, present := resp["webhookUrl"]; present {
+			address, ok := value.(string)
+			if !ok || !webhookObservedURLValid(address) {
+				return nil, fmt.Errorf("observe_webhook_subscriptions: invalid observed webhook URL")
+			}
 		}
 		sanitizeObservedWebhookURLs(resp)
 		return resp, nil
@@ -93,13 +102,16 @@ func ObserveWebhookSubscriptions(ctx context.Context, c *efiapi.EfiClient, in ma
 		q.Set("paginacao.itensPorPagina", strconv.Itoa(pageSize))
 	}
 
-	var resp map[string]any
+	var resp webhookObservationJSON
 	if err := efiapi.DoRaw(ctx, c, http.MethodGet, "/v2/webhook?"+q.Encode(), nil, &resp); err != nil {
 		return nil, fmt.Errorf("observe_webhook_subscriptions: %w", err)
 	}
 	if resp == nil {
-		resp = map[string]any{}
+		resp = webhookObservationJSON{}
 	}
+	// Prove the original fields before URL sanitization can remove invalid
+	// userinfo/fragments. Missing or malformed page data never gains proof.
+	resp["page_provenance"] = webhookPageProvenance(in, resp)
 	sanitizeObservedWebhookURLs(resp)
 	resp["cursor"] = nextWebhookPageCursor(resp)
 	return resp, nil

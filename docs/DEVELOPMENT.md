@@ -105,15 +105,20 @@ integration-stripe v2.x):
 ```mermaid
 flowchart TD
   in["execute envelope"] --> norm["normalize operation/capability<br/>+ legacy-alias resolve"]
-  norm --> sdk["reconcile.Dispatch<br/>(SDK dispatch table)"]
+  norm -->|webhook observation| raw["adapter.Execute<br/>raw fields + compatible aliases"]
+  norm -->|other operations| sdk["reconcile.Dispatch<br/>(SDK dispatch table)"]
   sdk -->|routed| emit["resource ensure/observe/destroy<br/>+ §6.5 mutation event emit"]
   sdk -->|unsupported op| legacy["adapter.Execute switch<br/>(actions, helper, reactor replay)"]
 ```
 
-1. Inbound envelopes go through `reconcile.Dispatch` **first** — this activates
+1. `observe_webhook_subscriptions` calls the existing read-only
+   `adapter.Execute` handler directly, preserving declared raw provider fields
+   and adding compatible `items`/`cursor` aliases. The generic SDK observation
+   interface discards provider page parameters. No mutation event is emitted.
+2. Other inbound envelopes go through `reconcile.Dispatch` **first** — this activates
    §6.5 mutation-event auto-emission for the three resource types (`charge`,
    `due_charge`, `webhook_subscription`).
-2. Operations with no registered Reconciler (`refund_charge`, `create_payout`,
+3. Operations with no registered Reconciler (`refund_charge`, `create_payout`,
    `handle_chargeback`, `verify_webhook_signature`, `efi_webhook_received`,
    `ensure_automatic_webhook`, `observe_automatic_webhooks`) fall back to the
    legacy `adapter.Execute` switch. The `automatic_webhook` resource stays off

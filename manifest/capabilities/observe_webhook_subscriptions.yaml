@@ -1,5 +1,5 @@
 name: observe_webhook_subscriptions
-description: Observe Pix webhook subscriptions. Filter {chave} returns one subscription; filter {inicio, fim[, page, page_size, cursor]} returns a windowed page from GET /v2/webhook. EFI requires a valid ordered RFC3339 inicio/fim range. URL query values are redacted from normal output. Read-only.
+description: Observe Pix webhook subscriptions. Filter {chave} returns one subscription; filter {inicio, fim[, page, page_size, cursor]} returns a windowed page from GET /v2/webhook. EFI requires a valid ordered RFC3339 inicio/fim range. Raw provider fields and compatible items/cursor are retained. LIST page_provenance validates the requested creation-time page; complete requires one authoritative page. URL query values are redacted from normal output. Read-only.
 category: capability
 resource_types: [webhook_subscription]
 idempotent: true
@@ -30,11 +30,23 @@ input_schema:
       type: string
       description: Opaque cursor returned by the previous page. Mutually exclusive with page.
 output_schema:
-  description: "Normalized upstream payload. Single-chave variant: {chave, webhookUrl, criacao}. List variant: {parametros, webhooks: [...], cursor}. Query values in webhookUrl are redacted."
+  description: "Raw upstream fields with URL query values redacted and compatible items/cursor aliases. Single-chave: {chave, webhookUrl, criacao, items, cursor}. LIST: {parametros, webhooks, items, cursor, page_provenance}. Missing or malformed pagination remains visible with false provenance; cursor alone never proves completeness."
   properties:
     chave: {type: string}
     webhookUrl: {type: string}
+    criacao: {type: string, format: date-time}
     parametros: {type: object}
     webhooks:
       type: array
+    items:
+      type: [array, "null"]
+      description: Compatibility alias containing the single resource or object records from webhooks; never a completeness proof.
     cursor: {type: string}
+    page_provenance:
+      type: object
+      description: LIST only. Validates the original requested creation-time page before URL sanitization, without extra provider requests. An explicit page_size is required. Complete requires validated page zero, exactly one page, and consistent counts for all records. Does not prove that the requested window covers account history.
+      required: [schemaVersion, validated, complete]
+      properties:
+        schemaVersion: {type: integer, enum: [1]}
+        validated: {type: boolean}
+        complete: {type: boolean}

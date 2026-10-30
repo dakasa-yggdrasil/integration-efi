@@ -175,12 +175,29 @@ previous page. The adapter maps them to the BCB query names.
 | `page_size` | integer | no | Items per page, from 1 through 1000. |
 | `cursor` | string | no | Next-page cursor returned by the prior call, mutually exclusive with `page`. |
 
-**Output (normalized upstream):** single-chave variant
-`{ chave, webhookUrl, criacao }`; list variant
-`{ parametros, webhooks: [...], cursor }`. Empty `cursor` means the last page.
-Query values embedded in `webhookUrl` are redacted so HMAC-style URL secrets do
-not enter workflow history, logs, or surfaces; query parameter names remain
-visible for drift diagnosis.
+**Output:** raw single-chave fields `{ chave, webhookUrl, criacao }`, or raw
+list fields `{ parametros, webhooks: [...] }`, with compatible `items` and
+`cursor` aliases. Single `items` contains the resource; list `items` contains
+object records without discarding malformed entries from the original
+`webhooks`. When no object resource is returned, `items` is `null`. Query values embedded in
+`webhookUrl` are redacted in both raw fields and aliases; query parameter names
+remain visible for drift diagnosis. A provided single-resource `webhookUrl`
+must be valid HTTPS without userinfo or fragments before sanitization; malformed
+values fail with a static error instead of gaining an apparently canonical URL.
+Provider errors remain errors; a 400 never
+proves absence.
+
+LIST also returns `page_provenance: {schemaVersion: 1, validated, complete}`.
+`validated` requires an explicit `page_size`, exact echoed creation-time window,
+page and size, bounded integer counters with consistent page/record counts, and
+every original record to have a unique nonempty key, HTTPS URL without userinfo
+or fragments, and a creation date inside the inclusive window. UUID keys must
+use their canonical spelling. Validation happens before URL sanitization.
+`complete` requires a validated page zero, exactly one provider page, and every
+record accounted for. Missing or malformed pagination/records remain visible
+with false provenance; ambiguous duplicate JSON members fail the observation.
+An empty `cursor` alone never proves completeness. The adapter makes one read
+and does not prove that the caller's window covers the account's entire history.
 
 ### `destroy_webhook_subscription`
 
