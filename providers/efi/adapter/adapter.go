@@ -48,6 +48,21 @@ var LegacyDeprecationLogger = func(format string, args ...any) {
 // remapped to the canonical v2.0.0 name and a deprecation WARN is
 // emitted via LegacyDeprecationLogger. The shim is removed in v3.0.0.
 func Execute(req contract.AdapterExecuteIntegrationRequest) (contract.AdapterExecuteIntegrationResponse, error) {
+	return ExecuteWithContext(context.Background(), req)
+}
+
+// ExecuteWithContext retains the legacy dispatcher while allowing the optional
+// confidential path to carry cancellation and safe diagnostics to the HTTP sink.
+func ExecuteWithContext(ctx context.Context, req contract.AdapterExecuteIntegrationRequest) (response contract.AdapterExecuteIntegrationResponse, resultErr error) {
+	defer func() {
+		if resultErr != nil && efiapi.IsConfidential(ctx) {
+			if efiapi.MutationSucceeded(resultErr) {
+				resultErr = efiapi.ErrConfidentialMutationSucceeded
+			} else {
+				resultErr = errors.New("efi: confidential provider operation failed")
+			}
+		}
+	}()
 	operation := NormalizeExecuteOperation(req.Operation, req.Capability)
 	if operation == "" {
 		return contract.AdapterExecuteIntegrationResponse{}, fmt.Errorf("operation is required")
@@ -65,12 +80,11 @@ func Execute(req contract.AdapterExecuteIntegrationRequest) (contract.AdapterExe
 	if err != nil {
 		return contract.AdapterExecuteIntegrationResponse{}, fmt.Errorf("load mTLS: %w", err)
 	}
-	client, err := efiapi.NewEfiClient(cfg, tlsConfig)
+	client, err := efiapi.NewEfiClientWithContext(ctx, cfg, tlsConfig)
 	if err != nil {
 		return contract.AdapterExecuteIntegrationResponse{}, fmt.Errorf("authenticate to EFI: %w", err)
 	}
 
-	ctx := context.Background()
 	output := map[string]any{"provider": Provider}
 
 	switch operation {

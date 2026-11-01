@@ -3,6 +3,7 @@ package adapter
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 
 	"github.com/dakasa-yggdrasil/yggdrasil-sdk-go/adapter"
@@ -10,6 +11,7 @@ import (
 	"github.com/dakasa-yggdrasil/yggdrasil-sdk-go/sdk/reconcile"
 
 	"github.com/dakasa-yggdrasil/integration-efi/family/contract"
+	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/efiapi"
 )
 
 // reconcilePayload is the typed envelope reconciler impls forward into
@@ -220,6 +222,9 @@ func newWebhookSubscriptionReconciler(instanceID string) *webhookSubscriptionRec
 }
 
 func (r *webhookSubscriptionReconciler) Ensure(ctx context.Context, d reconcilePayload) (reconcilePayload, error) {
+	if call, ok := ctx.Value(confidentialCallKey{}).(*ConfidentialCall); ok {
+		return ensureConfidential(ctx, call)
+	}
 	return r.dispatch(OperationEnsureWebhookSubscription, r.instanceID, d)
 }
 
@@ -358,7 +363,7 @@ func stringValue(m reconcilePayload, key string) string {
 // NOT resource-typed ensure_/observe_/destroy_ ops, so the Reconciler
 // surface does not apply.
 func WireReconcilers(a *adapter.Adapter, instanceID string) {
-	emitter := newEmitterFromEnv()
+	emitter := confidentialSafeEmitter{newEmitterFromEnv()}
 	// ensure_automatic_webhook is served by the legacy Execute switch (the
 	// resource has no destroy, and RegisterReconciler always installs one),
 	// so it receives the same emitter here and emits explicitly.
@@ -399,6 +404,18 @@ func WireReconcilers(a *adapter.Adapter, instanceID string) {
 			),
 		)...,
 	)
+}
+
+// SDK reconcile logs an emitter error. Mask it before that first warning sink,
+// since HTTP emitters may include untrusted response bodies in their errors.
+type confidentialSafeEmitter struct{ wrapped events.Emitter }
+
+func (e confidentialSafeEmitter) Emit(ctx context.Context, event events.MutationEvent) error {
+	err := e.wrapped.Emit(ctx, event)
+	if err != nil && efiapi.IsConfidential(ctx) {
+		return errors.New("efi: confidential mutation event delivery failed")
+	}
+	return err
 }
 
 // newEmitterFromEnv returns an events.Emitter wired to yggdrasil-core

@@ -1,0 +1,53 @@
+{
+  "fixture_version": 1,
+  "attribution": "Synthetic input-only interoperability vector. Never provider output, runtime evidence, or live key material. Crypto outputs are derived only when the consuming CI tests execute standard NaCl/X25519/HMAC code.",
+  "receiver_private_seed_ascii": "0123456789abcdefghijklmnopqrstuv",
+  "result_private_seed_ascii": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef",
+  "comparison_secret_ascii": "abcdefghijklmnopqrstuvwxyz012345",
+  "input_ephemeral_seed_ascii": "11111111111111111111111111111111",
+  "output_ephemeral_seed_ascii": "22222222222222222222222222222222",
+  "receiver_key_id": "00000000-0000-4000-8000-000000000011",
+  "alternate_receiver_key_id": "00000000-0000-4000-8000-000000000012",
+  "invocation_id": "00000000-0000-4000-8000-000000000042",
+  "audit_resource_id": "00000000-0000-4000-8000-000000000043",
+  "target_key": "00000000-0000-4000-8000-000000000001",
+  "canonical_base": "https://receiver.invalid/base",
+  "exact_legacy_url": "https://receiver.invalid/base?hmac=%5BREDACTED%5D&ignorar=",
+  "issued_at": "2026-10-31T12:00:00Z",
+  "expires_at": "2026-10-31T12:05:00Z",
+  "canonical_intent_fixture": {
+    "schemaVersion": 1,
+    "binding": {
+      "source_root": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "release_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "invocation_id": "00000000-0000-4000-8000-000000000042",
+      "mode": "efi-observe",
+      "workflow_id": "observe-test-fixture",
+      "workflow_version": 1,
+      "step_id": "list-before",
+      "operation": "observe_webhook_subscriptions",
+      "purpose": "list",
+      "instance_name": "efi-test-fixture",
+      "receiver_key_id": "00000000-0000-4000-8000-000000000011",
+      "receiver_public_key_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "result_public_key_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "comparison_secret_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "audit_resource_id": "00000000-0000-4000-8000-000000000043",
+      "issued_at": "2026-10-31T12:00:00Z",
+      "expires_at": "2026-10-31T12:05:00Z"
+    },
+    "parameters": {
+      "chave": "00000000-0000-4000-8000-000000000001",
+      "canonical_base": "https://receiver.invalid/base",
+      "inicio": "1970-01-01T00:00:00.000Z",
+      "fim": "2099-12-31T23:59:59.000Z",
+      "page": 0,
+      "page_size": 1000,
+      "before_state": "",
+      "skip_mtls_validation": false
+    },
+    "result_public_key": "canonicalization-only-placeholder-not-a-public-key",
+    "comparison_secret": "canonicalization-only-placeholder-not-a-secret"
+  },
+  "canonical_intent_fixture_note": "The complete typed object above tests encoding only. Its labelled placeholder crypto fields MUST be replaced by standard CI-derived seed outputs before any seal/open test; it is deliberately not a valid encrypted request."
+}

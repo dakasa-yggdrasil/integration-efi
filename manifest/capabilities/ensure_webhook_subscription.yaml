@@ -1,10 +1,16 @@
 name: ensure_webhook_subscription
-description: Ensure a Pix webhook subscription exists. PUT /v2/webhook/{chave} with /v3/gn/webhook/{chave} fallback on 404. webhook_url is the HTTPS receiver base URL; EFI appends /pix to real deliveries. Idempotent; repeat calls reconcile URL/headers without creating duplicates.
+description: Ensure a Pix webhook subscription exists. PUT /v2/webhook/{chave} with /v3/gn/webhook/{chave} fallback on 404. webhook_url is the HTTPS receiver base URL; EFI appends /pix to real deliveries. Idempotent; repeat calls reconcile URL/headers without creating duplicates. Optional confidential_input seals private parameters and complete results, proves a fresh complete LIST, then requires an actual setter with provider mTLS validation and exact readback even for canonical registrations. See docs/CONFIDENTIAL_WEBHOOKS.md.
 category: capability
 resource_types: [webhook_subscription]
 idempotent: true
 input_schema:
-  required: [chave, webhook_url]
+  type: object
+  description: Supply legacy chave/webhook_url OR confidential_input as the only member. Never mix sealed and plaintext parameters.
+  oneOf:
+    - required: [chave, webhook_url]
+      not: {required: [confidential_input]}
+    - required: [confidential_input]
+      maxProperties: 1
   properties:
     chave: {type: string}
     webhook_url:
@@ -15,8 +21,26 @@ input_schema:
       type: boolean
       default: false
       description: EFI webhook mTLS validation bypass. Keep false outside explicitly isolated test/shared-hosting cases.
+    confidential_input:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, algorithm, recipientKeyID, ciphertext]
+      description: Optional two-way sealed v1 request. Decrypted parameters require skip_mtls_validation=false; the exact private request/binding contract is providers/efi/confidential/types.go.
+      properties:
+        schemaVersion: {type: integer, enum: [1]}
+        algorithm: {type: string, enum: [nacl-box-seal-anonymous-v1]}
+        recipientKeyID: {type: string, format: uuid}
+        ciphertext: {type: string, minLength: 64, maxLength: 10988}
 output_schema:
+  description: Legacy mode returns ensured/chave/endpoint. Confidential mode returns only opaque id, privacy and proof; SDK ok alone is not confirmation. Require proof.outcome=confirmed and proof.ensured=true and proof.noop=false before success. endpoint is the actual setter v2/v3 API route, never a URL. Canonical state never waives the actual PUT with skip_mtls_validation=false.
   properties:
     ensured: {type: boolean}
     chave: {type: string}
     endpoint: {type: string}
+    id: {type: string, format: uuid}
+    privacy:
+      type: object
+      description: Sealed complete legacy output and binding, or empty ciphertext for a held post-mutation outcome. No plaintext fallback.
+    proof:
+      type: object
+      description: Closed confidential proof with outcome, ensured, noop=false, key_tag and actual setter endpoint enum. Its safe held outcome never authorizes success or evidence. Broker redelivery may repeat the setter within the authorization interval.

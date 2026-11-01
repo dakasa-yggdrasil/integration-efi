@@ -168,18 +168,34 @@ removed in 2.5.1, and EFI Pix callbacks go to the service behind the registered
 ## Version truth
 
 The wire-advertised adapter version is the `AdapterVersion` constant in
-`providers/efi/adapter/spec.go`, currently **`2.5.6`**. The `describe` handshake
+`providers/efi/adapter/spec.go`, currently **`2.5.7`**. The `describe` handshake
 returns it, and yggdrasil-core compares it against any `expected_version` the
 caller passes.
 
-Current release metadata:
+Current source metadata:
 
 | Source | Version |
 |---|---|
-| `providers/efi/adapter/spec.go` (`AdapterVersion`) | **`2.5.6`** |
-| `manifest/integration_type.json` (`adapter.version`) | `2.5.6` |
-| `CHANGELOG.md` (top entry) | `2.5.6` |
+| `providers/efi/adapter/spec.go` (`AdapterVersion`) | **`2.5.7`** |
+| `manifest/integration_type.json` (`adapter.version`) | `2.5.7` |
+| `CHANGELOG.md` (top entry, unreleased source) | `2.5.7` |
 
-When pinning a deployment, prefer an immutable image tag published by the
-`release` workflow (`sha-<short>`, or `v2.5.6` on the release tag).
+When pinning a deployment, use the actual qualified immutable image digest from
+the release. Source version, OCI image label/tag and deployed version are distinct
+claims; this source change alone proves none of the latter.
+
+## Confidential webhook runtime
+
+The optional mode adds no credential or instance setting. Main process startup
+generates an incoming private recipient in RAM and atomically publishes only its
+closed public metadata at `/run/efi-confidential/runtime.json` before readiness.
+The fixed `/app/integration-efi --print-confidential-runtime` child reads only
+that public file before SDK, credentials or key generation can start.
+
+Provide a small dedicated public-only memory emptyDir at `/run/efi-confidential`
+with ownership for the existing UID/GID65532, retaining nonroot, distroless and
+readOnlyRootFilesystem. Missing/invalid publication holds startup; the private
+recipient is never a file or environment value. The operator owns its separate
+result-recipient key lifetime and must bind/recheck physical runtime identity.
+See [Confidential webhooks](CONFIDENTIAL_WEBHOOKS.md) for exact types and gates.
 </content>

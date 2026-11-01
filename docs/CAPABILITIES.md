@@ -150,13 +150,21 @@ Ensure a Pix webhook subscription exists. `PUT /v2/webhook/{chave}` with a
 `/v3/gn/webhook/{chave}` fallback on 404 (for accounts that only accept v3).
 Idempotent — repeat calls reconcile URL/headers without creating duplicates.
 
+The following fields describe legacy plaintext mode. Optional confidential mode
+instead accepts only `confidential_input`, seals private parameters/results,
+proves its own complete fresh LIST and confirms an already-canonical registration
+through an actual setter with provider mTLS validation and exact GET. Canonical
+state does not waive that PUT. Its safe proof must be confirmed, ensured=true
+and noop=false; SDK ok alone is insufficient. See
+[Confidential webhooks](CONFIDENTIAL_WEBHOOKS.md).
+
 | Input | Type | Required | Notes |
 |---|---|:--:|---|
 | `chave` | string | yes | The Pix key the webhook is attached to. |
 | `webhook_url` | string | yes | HTTPS receiver **base** URL. Do not include `/pix`; EFI probes this URL during registration and appends `/pix` for real deliveries. DaKasa production uses `https://webhook.dakasa.me/efi/webhook`, which delivers to `/efi/webhook/pix`. |
 | `skip_mtls_validation` | boolean | no | Sets EFI's `x-skip-mtls-checking` header (default `false`). |
 
-**Output:** `ensured` (bool), `chave`, `endpoint`.
+**Legacy output:** `ensured` (bool), `chave`, `endpoint` (`v2` or `v3`, not a URL).
 
 ### `observe_webhook_subscriptions`
 
@@ -165,6 +173,12 @@ subscription (`GET /v2/webhook/{chave}`). Listing requires an explicit
 `{inicio, fim}` window because EFI rejects an unbounded `GET /v2/webhook`.
 Optional pagination uses `page`, `page_size`, or the `cursor` returned by the
 previous page. The adapter maps them to the BCB query names.
+
+These are legacy plaintext inputs/outputs. Optional `confidential_input` as the
+only input member encrypts the complete legacy DTO and exposes safe page proof
+plus invocation-scoped HMAC equality tags. Complete raw validation and exact
+legacy-URL tag recomputation remain independent operator checks; see
+[Confidential webhooks](CONFIDENTIAL_WEBHOOKS.md).
 
 | Input | Type | Required | Notes |
 |---|---|:--:|---|

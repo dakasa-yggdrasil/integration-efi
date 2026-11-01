@@ -38,7 +38,7 @@ for the engine.
 |---|---|
 | Provider / type | `efi` / `efi` (single-provider family) |
 | Domain | `payments` |
-| Adapter version (wire-advertised) | **`2.5.6`** (`providers/efi/adapter/spec.go`) |
+| Adapter version (wire-advertised) | **`2.5.7`** (`providers/efi/adapter/spec.go`) |
 | Transport | `http_json` (default) · `amqp` (opt-in) |
 | RPC endpoints | `/rpc/describe`, `/rpc/execute` |
 | Discovery | `push` (no cursor) — resources are not discoverable |
@@ -46,7 +46,7 @@ for the engine.
 | SDK | `yggdrasil-sdk-go v0.9.1` |
 | Image | `ghcr.io/dakasa-yggdrasil/integration-efi` |
 
-> **Version note.** The wire-advertised version is **`2.5.6`** (the
+> **Version note.** The wire-advertised version is **`2.5.7`** (the
 > `AdapterVersion` constant in `providers/efi/adapter/spec.go`, returned by
 > `describe`). The registered manifest is aligned to the same version. See
 > [CONFIGURATION.md](docs/CONFIGURATION.md#version-truth).
@@ -73,7 +73,7 @@ adapter has no inbound listener.
 ```mermaid
 flowchart TD
   fam["family: efi<br/>(payments, Apache-2.0)"]
-  typ["integration_type: efi<br/>adapter v2.5.6 · http_json"]
+  typ["integration_type: efi<br/>adapter v2.5.7 · http_json"]
   inst["instance: efi-prod<br/>base_url, sandbox, mtls_enabled"]
   prov["provider: efi<br/>EFI / BCB PIX API"]
   fam --> typ --> inst --> prov
@@ -188,6 +188,13 @@ The adapter registers EFI webhooks but does not receive them. EFI delivers Pix
 callbacks to the registered `webhook_url` plus `/pix`, served by another
 service.
 
+The two subscription observe/ensure actions also support optional two-way sealed
+inputs/results. This protects returned account keys before durable workflow and
+event sinks while preserving complete in-memory validation and exact equality
+tags. Existing plaintext mode remains compatible. See
+[Confidential webhooks](docs/CONFIDENTIAL_WEBHOOKS.md) for the closed contract,
+runtime recipient, confirmation gates and recovery limits.
+
 ```mermaid
 sequenceDiagram
   participant WF as Yggdrasil workflow
@@ -208,7 +215,8 @@ non-empty `pix[]`. Details in [OPERATIONS.md](docs/OPERATIONS.md#webhooks).
 
 ## Operations
 
-- **Health** — `GET /healthz` (liveness, always 200), `GET /readyz` (200),
+- **Health** — `GET /healthz` (liveness, always 200), `GET /readyz` (200 after
+  runtime/public-recipient initialization),
   `GET /metrics` (Prometheus) on port `8080`.
 - **Metrics**: `efi_adapter_up`,
   `efi_request_duration_seconds`, `efi_request_errors_total`,
@@ -234,7 +242,7 @@ documented in [DEVELOPMENT.md](docs/DEVELOPMENT.md).
 |---|---|
 | Go | 1.25 |
 | `yggdrasil-sdk-go` | v0.9.1 |
-| Adapter (this binary) | 2.5.6 |
+| Adapter (this binary) | 2.5.7 |
 | Transport | `http_json` (default), `amqp` |
 
 ## License
