@@ -38,8 +38,8 @@ func WebhookObservationOutput(value any) any {
 // WebhookObservedURLValid does not canonicalize the string used for HMAC tags.
 func WebhookObservedURLValid(raw string) bool { return webhookObservedURLValid(raw) }
 
-// WebhookBaseURLValid retains the setter's base-path contract for confidential
-// no-op adoption as well as for an actual PUT.
+// WebhookBaseURLValid retains the setter's base-path contract for sealed-request
+// validation and an actual PUT.
 func WebhookBaseURLValid(raw string) bool {
 	normalized, err := normalizeWebhookBaseURL(raw)
 	return err == nil && normalized == raw
