@@ -137,6 +137,10 @@ unique records. A cursor alone, missing/malformed metadata, multiple pages,
 provider 400/403/404 or a foreign same-key registration never establishes absence.
 There is no pagination loop or narrower-window fallback.
 
+Confidential proof also refuses an empty page even when provider metadata claims
+one page and zero total items. It cannot authorize a PUT or B7. This additional
+protocol gate does not change the legacy raw empty-page response contract.
+
 A complete LIST may prove absence or canonical same-key state. Either case
 requires the actual setter with `skip_mtls_validation:false`, so EFI performs
 its provider-side mTLS validation in this invocation. Canonical state or an

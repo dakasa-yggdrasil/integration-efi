@@ -527,7 +527,7 @@ func TestConfidentialEnsureUsesOwnCompleteListAndSDKEvent(t *testing.T) {
 }
 
 func TestConfidentialEnsureRefusesUnprovenOwnListBeforePUT(t *testing.T) {
-	for _, name := range []string{"foreign", "missing-pagination", "wrong-range", "duplicate-key", "noncanonical-uuid", "invalid-query", "missing-created", "paged", "malformed-json", "duplicate-json", "400", "403", "404", "expired-at-entry", "expired-after-list"} {
+	for _, name := range []string{"foreign", "empty-page", "missing-pagination", "wrong-range", "duplicate-key", "noncanonical-uuid", "invalid-query", "missing-created", "paged", "malformed-json", "duplicate-json", "400", "403", "404", "expired-at-entry", "expired-after-list"} {
 		t.Run(name, func(t *testing.T) {
 			h := newConfidentialWireHarness(t)
 			req := h.request("ensure")
@@ -537,6 +537,10 @@ func TestConfidentialEnsureRefusesUnprovenOwnListBeforePUT(t *testing.T) {
 			case "foreign":
 				page["webhooks"] = append(rows, confWireRecord(confWireTarget, "https://foreign.example.test/receiver"))
 				page["parametros"].(map[string]any)["paginacao"].(map[string]any)["quantidadeTotalDeItens"] = 4
+			case "empty-page":
+				// The raw provider's pages1/total0 proof is valid, but the
+				// closed production baseline still holds on an empty table.
+				page = confWirePage([]any{})
 			case "missing-pagination":
 				delete(page["parametros"].(map[string]any), "paginacao")
 			case "wrong-range":
@@ -593,6 +597,9 @@ func TestConfidentialEnsureRefusesUnprovenOwnListBeforePUT(t *testing.T) {
 			}
 			if name == "expired-at-entry" && (calls != 0 || oauth != 0) {
 				t.Fatal("expired input accessed provider before rejection")
+			}
+			if name == "empty-page" && (calls != 1 || oauth != 1 || reply.response.Error.Message != confidential.ErrHeld.Error()) {
+				t.Fatal("empty confidential own-LIST did not hold statically immediately after one complete read")
 			}
 			h.assertPrivateAbsent(reply.raw)
 			h.assertPrivateAbsent(h.logs.Bytes())
@@ -1041,4 +1048,30 @@ func TestConfidentialAcceptedPUTCanFinishAndConfirmAfterAuthorizationExpiry(t *t
 	}
 	h.assertPrivateAbsent(confirmed.raw)
 	h.assertPrivateAbsent(h.logs.Bytes())
+}
+
+func TestLegacyEmptyCompleteListRetainsRawSuccess(t *testing.T) {
+	h := newConfidentialWireHarness(t)
+	h.provider = func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/v2/webhook" {
+			t.Error("legacy empty-page compatibility issued a mutation")
+		}
+		confWireWrite(w, confWirePage([]any{}))
+	}
+	envelope := h.envelope(adapter.OperationObserveWebhookSubscriptions, map[string]any{
+		"inicio": confWireStart, "fim": confWireEnd, "page": 0, "page_size": 1000,
+	})
+	reply := h.callRaw(confWireJSON(t, envelope), h.receiver)
+	rows, rowsOK := reply.legacy["webhooks"].([]any)
+	proof, proofOK := reply.legacy["page_provenance"].(map[string]any)
+	if !reply.response.OK || !rowsOK || len(rows) != 0 || !proofOK || proof["validated"] != true || proof["complete"] != true {
+		t.Fatal("confidential empty-table hold changed legacy raw complete-page behavior")
+	}
+	if _, sealed := reply.legacy["privacy"]; sealed {
+		t.Fatal("legacy empty page was unexpectedly sealed")
+	}
+	calls, oauth, puts, events := h.counts()
+	if calls != 1 || oauth != 1 || puts != 0 || events != 0 {
+		t.Fatal("legacy empty-page read caused extra provider calls or events")
+	}
 }

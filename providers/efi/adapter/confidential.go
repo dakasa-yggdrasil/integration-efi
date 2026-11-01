@@ -294,7 +294,7 @@ func (c *ConfidentialCall) listProof(out map[string]any) (confidential.Proof, er
 		Webhooks   []map[string]any             `json:"webhooks"`
 		Items      []map[string]any             `json:"items"`
 	}
-	if json.Unmarshal(raw, &page) != nil || page.Provider != Provider || page.Cursor == nil || *page.Cursor != "" || page.Parameters == nil || page.Provenance == nil || page.Provenance.SchemaVersion != 1 || !page.Provenance.Validated || !page.Provenance.Complete || page.Parameters.Start != c.request.Parameters.Start || page.Parameters.End != c.request.Parameters.End || page.Parameters.Pagination.Page != 0 || page.Parameters.Pagination.PageSize != c.request.Parameters.PageSize || page.Parameters.Pagination.Pages != 1 || page.Parameters.Pagination.Total != len(page.Webhooks) || len(page.Webhooks) != len(page.Items) || len(page.Webhooks) > c.request.Parameters.PageSize {
+	if json.Unmarshal(raw, &page) != nil || page.Provider != Provider || page.Cursor == nil || *page.Cursor != "" || page.Parameters == nil || page.Provenance == nil || page.Provenance.SchemaVersion != 1 || !page.Provenance.Validated || !page.Provenance.Complete || page.Parameters.Start != c.request.Parameters.Start || page.Parameters.End != c.request.Parameters.End || page.Parameters.Pagination.Page != 0 || page.Parameters.Pagination.PageSize != c.request.Parameters.PageSize || page.Parameters.Pagination.Pages != 1 || page.Parameters.Pagination.Total != len(page.Webhooks) || len(page.Webhooks) < 1 || len(page.Webhooks) != len(page.Items) || len(page.Webhooks) > c.request.Parameters.PageSize {
 		return confidential.Proof{}, confidential.ErrHeld
 	}
 	rows := make([]confidential.Row, 0, len(page.Webhooks))
