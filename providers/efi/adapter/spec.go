@@ -41,7 +41,9 @@ const (
 	// only EFI can prove its callback identity while processing registration.
 	// v2.5.6: preserves raw webhook observations and proves complete requested
 	// creation-time pages without losing SDK items/cursor compatibility.
-	AdapterVersion = "2.5.6"
+	// v2.5.7: adds optional two-way confidential webhook inputs/results with
+	// ephemeral equality tags and fail-closed, fresh-list ensure guards.
+	AdapterVersion = "2.5.7"
 
 	// QueueDescribe / QueueExecute are the AMQP queue names used when
 	// transport=amqp. http_json mode uses the Endpoints instead.
@@ -409,14 +411,14 @@ func Describe() contract.AdapterDescribeResponse {
 			},
 			{
 				Name:          OperationEnsureWebhookSubscription,
-				Description:   "Ensure a Pix webhook subscription exists. PUT /v2/webhook/{chave} (v3 fallback on 404). webhook_url is the HTTPS receiver base URL; EFI appends /pix to real deliveries. Idempotent: repeat calls reconcile URL/headers without creating duplicates.",
+				Description:   "Ensure a Pix webhook subscription exists. PUT /v2/webhook/{chave} (v3 fallback on 404). webhook_url is the HTTPS receiver base URL; EFI appends /pix to real deliveries. Idempotent: repeat calls reconcile URL/headers without creating duplicates. Optional confidential_input seals private parameters and complete results, proves a fresh complete LIST, then requires an actual setter with provider mTLS validation and exact readback even for canonical registrations; see docs/CONFIDENTIAL_WEBHOOKS.md.",
 				ResourceTypes: []string{"webhook_subscription"},
 				Idempotent:    true,
 				Category:      "capability",
 			},
 			{
 				Name:          OperationObserveWebhookSubscriptions,
-				Description:   "Observe Pix webhook subscriptions. Filter {chave} returns one subscription; filter {inicio, fim[, page, page_size, cursor]} returns a windowed page from GET /v2/webhook. EFI requires a valid ordered RFC3339 inicio/fim range. Raw provider fields and compatible items/cursor are retained. LIST page_provenance validates the requested creation-time page; complete requires one authoritative page. URL query values are redacted from normal output. Read-only.",
+				Description:   "Observe Pix webhook subscriptions. Filter {chave} returns one subscription; filter {inicio, fim[, page, page_size, cursor]} returns a windowed page from GET /v2/webhook. EFI requires a valid ordered RFC3339 inicio/fim range. Raw provider fields and compatible items/cursor are retained. LIST page_provenance validates the requested creation-time page; complete requires one authoritative page. URL query values are redacted from normal output. Optional confidential_input seals private parameters and complete legacy results while exposing only bounded page proof and invocation-scoped equality tags; see docs/CONFIDENTIAL_WEBHOOKS.md. Read-only.",
 				ResourceTypes: []string{"webhook_subscription"},
 				Idempotent:    true,
 				Category:      "capability",

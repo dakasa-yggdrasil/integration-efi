@@ -23,11 +23,16 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     go build -o /bin/integration-efi ./cmd/adapter
 
+# Public metadata only. Production overlays this directory with its memory
+# emptyDir while retaining a read-only root filesystem.
+RUN install -d -m 0700 /public-runtime
+
 FROM gcr.io/distroless/base-debian12:nonroot
 
 WORKDIR /app
 
 COPY --from=build /bin/integration-efi /app/integration-efi
+COPY --from=build --chown=65532:65532 /public-runtime /run/efi-confidential
 
 # 8080 health, 8081 RPC HTTP
 EXPOSE 8080 8081

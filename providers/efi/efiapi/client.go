@@ -44,6 +44,14 @@ func (c *EfiClient) Token() string { return c.token }
 // default transport still validates the provider's server certificate against
 // the host system roots.
 func NewEfiClient(cfg config.Config, tlsConfig *tls.Config) (*EfiClient, error) {
+	return NewEfiClientWithContext(context.Background(), cfg, tlsConfig)
+}
+
+// NewEfiClientWithContext includes OAuth in the invocation's cancellation and
+// confidential-diagnostic boundary. The legacy constructor retains its original
+// background-context behavior.
+func NewEfiClientWithContext(ctx context.Context, cfg config.Config, tlsConfig *tls.Config) (client *EfiClient, err error) {
+	defer func() { err = safeConfidentialError(ctx, err) }()
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	if tlsConfig != nil {
 		transport.TLSClientConfig = tlsConfig
@@ -57,7 +65,7 @@ func NewEfiClient(cfg config.Config, tlsConfig *tls.Config) (*EfiClient, error) 
 	}
 
 	body := strings.NewReader(`{"grant_type": "client_credentials"}`)
-	req, err := http.NewRequest(http.MethodPost, cfg.BaseURL+"/oauth/token", body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cfg.BaseURL+"/oauth/token", body)
 	if err != nil {
 		return nil, errors.New("efi: build oauth request")
 	}
@@ -71,7 +79,7 @@ func NewEfiClient(cfg config.Config, tlsConfig *tls.Config) (*EfiClient, error) 
 	}
 	defer resp.Body.Close()
 
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
+	raw, err := readProviderResponse(ctx, resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("efi: read oauth response: %w", err)
 	}
@@ -149,7 +157,7 @@ func (c *EfiClient) do(ctx context.Context, method, path string, body, dest any,
 	)
 
 	start := time.Now()
-	err := c.doInner(ctx, method, path, body, dest, headers)
+	err := safeConfidentialError(ctx, c.doInner(ctx, method, path, body, dest, headers))
 	statusClass := "2xx"
 	var apiErr *EfiAPIError
 	if errors.As(err, &apiErr) {
@@ -187,21 +195,30 @@ func (c *EfiClient) doInner(ctx context.Context, method, path string, body, dest
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
+	if err := confidentialMutationAllowed(ctx, method); err != nil {
+		return err
+	}
+	sendContext, cancelSend, err := mutationRequestContext(ctx, method)
+	if err != nil {
+		return err
+	}
+	defer cancelSend()
+	req = req.WithContext(sendContext)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return &EfiTransportError{Operation: classifyPath(path), Err: err}
 	}
 	defer resp.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
+	raw, err := readProviderResponse(ctx, resp.Body)
 	if err != nil {
-		return fmt.Errorf("efi: read response body: %w", err)
+		return confidentialResponseFailure(ctx, method, resp.StatusCode, fmt.Errorf("efi: read response body: %w", err))
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return newEfiAPIError(resp.StatusCode, "provider_error")
 	}
 	if dest != nil && len(raw) > 0 {
 		if err := json.Unmarshal(raw, dest); err != nil {
-			return fmt.Errorf("efi: decode response: %w", err)
+			return confidentialResponseFailure(ctx, method, resp.StatusCode, fmt.Errorf("efi: decode response: %w", err))
 		}
 	}
 	return nil

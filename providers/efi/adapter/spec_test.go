@@ -36,8 +36,8 @@ func TestProviderConstants(t *testing.T) {
 	if IntegrationType != "efi" {
 		t.Fatalf("IntegrationType = %q, want efi", IntegrationType)
 	}
-	if AdapterVersion != "2.5.6" {
-		t.Fatalf("AdapterVersion = %q, want 2.5.6", AdapterVersion)
+	if AdapterVersion != "2.5.7" {
+		t.Fatalf("AdapterVersion = %q, want 2.5.7", AdapterVersion)
 	}
 }
 

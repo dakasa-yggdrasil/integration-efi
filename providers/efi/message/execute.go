@@ -1,10 +1,12 @@
 package message
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	sdkadapter "github.com/dakasa-yggdrasil/yggdrasil-sdk-go/adapter"
 	"github.com/dakasa-yggdrasil/yggdrasil-sdk-go/rpc"
@@ -13,7 +15,18 @@ import (
 
 	model "github.com/dakasa-yggdrasil/integration-efi/family/contract"
 	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/adapter"
+	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/confidential"
 )
+
+type executeOptions struct {
+	receiver *confidential.Receiver
+	now      func() time.Time
+}
+type ExecuteOption func(*executeOptions)
+
+func WithConfidentialReceiver(receiver *confidential.Receiver) ExecuteOption {
+	return func(o *executeOptions) { o.receiver = receiver }
+}
 
 // ExecuteHandler is the SDK handler that routes operations to the
 // adapter. Production wiring (v2.2.0+): inbound envelopes route through
@@ -30,29 +43,70 @@ import (
 // path stays the source of truth for non-resource operations, while
 // the §6.5-emitting reconcile path handles the three resource types
 // (charge, due_charge, webhook_subscription).
-func ExecuteHandler(logger *zap.Logger, a *sdkadapter.Adapter) Handler {
+func ExecuteHandler(logger *zap.Logger, a *sdkadapter.Adapter, options ...ExecuteOption) Handler {
+	opts := executeOptions{now: time.Now}
+	for _, option := range options {
+		option(&opts)
+	}
 	return func(ctx context.Context, d rpc.Delivery) ([]byte, string, error) {
+		confidentialMode := confidentialEnvelope(d.Body)
+		if confidentialMode && !validConfidentialEnvelope(d.Body) {
+			return failure("bad_request", confidential.ErrInvalid, logger)
+		}
 		var envelope struct {
 			Operation  string `json:"operation"`
 			Capability string `json:"capability,omitempty"`
 		}
 		if err := json.Unmarshal(d.Body, &envelope); err != nil {
+			if confidentialMode {
+				return failure("bad_request", confidential.ErrInvalid, logger)
+			}
 			return failure("bad_request", err, logger)
 		}
 		operation := adapter.NormalizeExecuteOperation(envelope.Operation, envelope.Capability)
 		capability := adapter.NormalizeExecuteCapability(envelope.Capability, operation)
 		if !adapter.SupportsExecuteCapability(capability) {
+			if confidentialMode {
+				return failure("unsupported_capability", confidential.ErrInvalid, logger)
+			}
 			return failure("unsupported_capability", fmt.Errorf("unsupported capability %q", envelope.Capability), logger)
 		}
 		var req model.AdapterExecuteIntegrationRequest
 		if err := json.Unmarshal(d.Body, &req); err != nil {
+			if confidentialMode {
+				return failure("bad_request", confidential.ErrInvalid, logger)
+			}
 			return failure("bad_request", err, logger)
+		}
+		for key := range req.Input {
+			if strings.EqualFold(strings.ReplaceAll(key, "_", ""), "confidentialinput") {
+				confidentialMode = true
+			}
+		}
+		if confidentialMode {
+			var call *adapter.ConfidentialCall
+			var err error
+			ctx, call, err = adapter.PrepareConfidential(ctx, req, opts.receiver, opts.now)
+			if err != nil {
+				return failure("execute_failed", confidential.ErrHeld, logger)
+			}
+			// This is the only Metadata field buildSDKDelivery consumes. Replace
+			// it with a closed token before SDK emission; never forward a caller's
+			// arbitrary idempotency/correlation/resource text to the event bridge.
+			req.Metadata = map[string]any{"idempotency": call.SDKIdempotency()}
+			if operation == adapter.OperationObserveWebhookSubscriptions {
+				out, err := adapter.ObserveConfidential(ctx, call)
+				if err != nil {
+					return failure("execute_failed", confidential.ErrHeld, logger)
+				}
+				return success(model.AdapterExecuteIntegrationResponse{Operation: req.Operation, Capability: req.Capability, Status: "ok", Output: out, Metadata: map[string]any{"provider": adapter.Provider, "via": "observe"}})
+			}
 		}
 		// This observer's declared contract includes the provider's complete
 		// page parameters. The generic SDK Observe interface returns only
 		// items/cursor and would discard those parameters. Keep this read-only
 		// response intact; mutations still use the event-emitting reconciler.
-		if operation == adapter.OperationObserveWebhookSubscriptions {
+		if operation == adapter.OperationObserveWebhookSubscriptions && !confidentialMode {
 			response, err := adapter.Execute(req)
 			if err != nil {
 				return failure("execute_failed", err, logger)
@@ -92,7 +146,13 @@ func ExecuteHandler(logger *zap.Logger, a *sdkadapter.Adapter) Handler {
 			})
 		}
 		if !isUnsupportedReconcileOp(dispatchErr) {
+			if confidentialMode {
+				return failure("execute_failed", confidential.ErrHeld, logger)
+			}
 			return failure("execute_failed", dispatchErr, logger)
+		}
+		if confidentialMode {
+			return failure("execute_failed", confidential.ErrHeld, logger)
 		}
 
 		// Operation has no Reconciler — fall back to the legacy switch
@@ -103,6 +163,65 @@ func ExecuteHandler(logger *zap.Logger, a *sdkadapter.Adapter) Handler {
 		}
 		return success(response)
 	}
+}
+
+func confidentialEnvelope(raw []byte) bool {
+	// Inspect each ORIGINAL top-level input member separately, so a later
+	// duplicate cannot hide an earlier sealed request. Values and unrelated
+	// nested member names are not opt-in markers for legacy callers.
+	scan := json.NewDecoder(bytes.NewReader(raw))
+	first, err := scan.Token()
+	if err != nil || first != json.Delim('{') {
+		return false
+	}
+	for scan.More() {
+		token, err := scan.Token()
+		key, ok := token.(string)
+		if err != nil || !ok {
+			return false
+		}
+		if strings.EqualFold(key, "input") {
+			var value json.RawMessage
+			if scan.Decode(&value) != nil {
+				return false
+			}
+			var input map[string]json.RawMessage
+			if json.Unmarshal(value, &input) == nil {
+				for name := range input {
+					if strings.EqualFold(strings.ReplaceAll(name, "_", ""), "confidentialinput") {
+						return true
+					}
+				}
+			}
+			continue
+		}
+		var skip json.RawMessage
+		if scan.Decode(&skip) != nil {
+			return false
+		}
+	}
+	return false
+}
+func validConfidentialEnvelope(raw []byte) bool {
+	// Check the ORIGINAL bytes, before json.Unmarshal can erase duplicates.
+	var generic any
+	if confidential.DecodeStrict(raw, &generic) != nil {
+		return false
+	}
+	outer, ok := generic.(map[string]any)
+	if !ok {
+		return false
+	}
+	for key := range outer {
+		switch key {
+		case "operation", "capability", "input", "integration", "metadata", "auth":
+		default:
+			return false
+		}
+	}
+	_, operation := outer["operation"].(string)
+	_, input := outer["input"].(map[string]any)
+	return operation && input
 }
 
 // buildSDKDelivery rewrites the inbound wire body into the shape the

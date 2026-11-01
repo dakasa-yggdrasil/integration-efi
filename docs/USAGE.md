@@ -26,8 +26,8 @@ This applies:
 - `manifest/integration_instance.example.json` → example instance `efi-prod`
 - a deploy ref for `ghcr.io/dakasa-yggdrasil/integration-efi`
 
-> Pin an immutable published tag (`sha-<short>` from the `release` workflow, or
-> `v2.5.6`). The running binary advertises adapter version `2.5.6`. See
+> Pin an actually qualified immutable image digest. This source advertises
+> adapter version `2.5.7`; that does not prove publication or deployment. See
 > [CONFIGURATION.md → Version truth](CONFIGURATION.md#version-truth).
 
 ## 2. Configure the instance
@@ -157,6 +157,14 @@ curl -sS -X POST \
 Full input/output schemas: [CAPABILITIES.md](CAPABILITIES.md).
 
 ## 6. Receiving inbound Pix callbacks
+
+The observe/ensure subscription actions optionally accept `confidential_input`
+as their only input member instead of plaintext fields. Seal private parameters
+before sending them through an asynchronous orchestrator; decrypt complete legacy
+results only in operator RAM. The fixed public runtime reader and complete wire,
+HMAC equality, mandatory confirmation and original-run recovery contract are in
+[Confidential webhooks](CONFIDENTIAL_WEBHOOKS.md). No new capability or credential
+is required, and existing plaintext callers remain compatible.
 
 After `ensure_webhook_subscription`, EFI POSTs Pix callbacks to the registered
 `webhook_url` plus `/pix`. The service behind that URL receives them; this

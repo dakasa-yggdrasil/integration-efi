@@ -5,6 +5,20 @@ All notable changes to integration-efi will be documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.7] - Unreleased
+
+### Added
+
+- Optional two-way sealed webhook requests and complete legacy results, with
+  invocation-scoped HMAC equality tags, bounded public runtime recipient metadata
+  and strict authorization deadlines. Existing plaintext callers remain compatible.
+- Confidential ensure proves its own complete fresh LIST, requires the actual
+  setter with provider mTLS validation even for canonical registrations, and
+  retains a safe held event outcome if an accepted mutation cannot be fully
+  confirmed. Broker redelivery may repeat the setter within its authorization
+  interval; no physical exactly-once guarantee is claimed. See
+  [Confidential webhooks](docs/CONFIDENTIAL_WEBHOOKS.md).
+
 ## [2.5.6] - 2026-10-30
 
 ### Fixed

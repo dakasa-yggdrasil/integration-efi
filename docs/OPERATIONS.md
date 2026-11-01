@@ -17,7 +17,7 @@ independent of the RPC transport.
 | Endpoint | Method | Behavior |
 |---|---|---|
 | `/healthz` | GET | Liveness — always `200 ok`. |
-| `/readyz` | GET | Returns `200 ready`. (Liveness-style; not gated on broker state in this adapter.) |
+| `/readyz` | GET | Returns `503` until runtime/public-recipient initialization completes, then `200 ready`. It does not prove broker or provider account state. |
 | `/metrics` | GET | Prometheus exposition. |
 
 Kubernetes `Service` (`deploy/service.yaml`) maps:
@@ -77,6 +77,17 @@ registrations (`ensure_webhook_subscription`, `observe_webhook_subscriptions`,
 registered `webhook_url` plus `/pix`, which another service serves. For DaKasa
 production see [USAGE.md](USAGE.md#6-receiving-inbound-pix-callbacks).
 
+Optional two-way confidential subscription mode protects request parameters and
+complete returned account records before broker/result/event sinks. It exposes
+only safe proof and invocation-scoped equality tags. The fixed public recipient
+reader, strict expiry before every PUT (including fallback), mandatory setter,
+held mutation outcomes and GET-only original-run recovery are documented in
+[Confidential webhooks](CONFIDENTIAL_WEBHOOKS.md). An outer SDK success response
+with held proof never authorizes success/B7; the workflow must assert confirmed
+outcome, ensured=true and noop=false. A fresh canonical registration still
+requires the actual setter with skip_mtls_validation=false; a broker redelivery
+may repeat it within the authorization interval.
+
 ```mermaid
 flowchart LR
   wf["Yggdrasil workflow"] -- "ensure_webhook_subscription" --> efi["integration-efi"]
@@ -111,6 +122,8 @@ returns `{ emitted: false }`.
 | `efi_request_errors_total{status="429"}` | EFI rate limit | Back off; transient (`IsTransient()` retries 429/503/504). |
 | `connection refused` describing via Service DNS | Service missing rpc port `8081` | Apply `deploy/service.yaml` (the 2.3.1 fix). |
 | `efi_webhook_received` fails with `no event sink is wired` | The reactor has had no sink since 2.5.1 | Expected. Pix callbacks belong to the service behind `webhook_url`, not this adapter. |
+| `confidential public runtime unavailable` / startup cannot publish recipient | Missing, stale, invalid or unwritable public-only runtime mount | Hold; repair the reviewed deployment profile. Never create a private-key file or use raw-mode fallback. |
+| Confidential mutation has held proof after accepted PUT | Response/confirmation/size/sealing could not establish complete evidence | Keep success/B7 false and inspect only the original run. Do not resend POST or renew the invocation. |
 
 ### Transient vs terminal (outbound)
 

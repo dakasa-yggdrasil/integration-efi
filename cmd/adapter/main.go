@@ -32,16 +32,32 @@ import (
 	"go.uber.org/zap"
 
 	ad "github.com/dakasa-yggdrasil/integration-efi/providers/efi/adapter"
+	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/confidential"
 	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/config"
 	"github.com/dakasa-yggdrasil/integration-efi/providers/efi/message"
 )
 
 func main() {
+	os.Exit(dispatchAdapterCommand(os.Args[1:], os.Stdout, os.Stderr, runAdapter, readFixedPublicRuntime))
+}
+
+func runAdapter() {
 	logger, err := zap.NewProduction()
 	if err != nil {
 		panic(err)
 	}
 	defer func() { _ = logger.Sync() }()
+
+	// The receiver's private key stays in this process. Publish only its
+	// closed public metadata before any readiness response can be successful.
+	receiver, err := confidential.NewReceiver(ad.AdapterVersion)
+	if err != nil {
+		logger.Fatal("initialize confidential runtime")
+	}
+	if err := publishFixedPublicRuntime(receiver.Metadata()); err != nil {
+		logger.Fatal("publish confidential public runtime")
+	}
+	readiness := &readinessState{}
 
 	// OTel tracer provider — installed globally so efiapi.do() picks it up.
 	tp, err := newTracerProvider(context.Background())
@@ -79,7 +95,7 @@ func main() {
 
 	a = a.
 		Register("describe", message.DescribeHandler(logger)).
-		Register("execute", message.ExecuteHandler(logger, a))
+		Register("execute", message.ExecuteHandler(logger, a, message.WithConfidentialReceiver(receiver)))
 
 	switch transport := strings.ToLower(strings.TrimSpace(os.Getenv("YGGDRASIL_TRANSPORT"))); transport {
 	case "", "http", "http_json":
@@ -97,7 +113,7 @@ func main() {
 		logger.Fatal("unsupported YGGDRASIL_TRANSPORT", zap.String("value", transport))
 	}
 
-	healthSrv := newHealthServer()
+	healthSrv := newHealthServer(readiness)
 	go func() {
 		if err := healthSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Fatal("health server", zap.Error(err))
@@ -111,6 +127,7 @@ func main() {
 	if _, err := ad.LoadTLSConfig(config.Load()); err != nil {
 		logger.Fatal("load mTLS", zap.Error(err))
 	}
+	readiness.ready.Store(true)
 
 	ad.AdapterUp.Set(1)
 

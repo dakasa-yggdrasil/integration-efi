@@ -1,10 +1,21 @@
 name: observe_webhook_subscriptions
-description: Observe Pix webhook subscriptions. Filter {chave} returns one subscription; filter {inicio, fim[, page, page_size, cursor]} returns a windowed page from GET /v2/webhook. EFI requires a valid ordered RFC3339 inicio/fim range. Raw provider fields and compatible items/cursor are retained. LIST page_provenance validates the requested creation-time page; complete requires one authoritative page. URL query values are redacted from normal output. Read-only.
+description: Observe Pix webhook subscriptions. Filter {chave} returns one subscription; filter {inicio, fim[, page, page_size, cursor]} returns a windowed page from GET /v2/webhook. EFI requires a valid ordered RFC3339 inicio/fim range. Raw provider fields and compatible items/cursor are retained. LIST page_provenance validates the requested creation-time page; complete requires one authoritative page. URL query values are redacted from normal output. Optional confidential_input seals private parameters and complete legacy results while exposing only bounded page proof and invocation-scoped equality tags. See docs/CONFIDENTIAL_WEBHOOKS.md. Read-only.
 category: capability
 resource_types: [webhook_subscription]
 idempotent: true
 input_schema:
-  description: "Caller MUST supply either {chave} OR {inicio, fim}. Pagination only applies to the time-range variant."
+  type: object
+  description: "Legacy callers supply {chave} OR {inicio, fim}. Pagination only applies to the time-range variant. Confidential callers supply confidential_input as the ONLY member."
+  oneOf:
+    - required: [chave]
+      not: {required: [confidential_input]}
+    - required: [inicio, fim]
+      not:
+        anyOf:
+          - required: [chave]
+          - required: [confidential_input]
+    - required: [confidential_input]
+      maxProperties: 1
   properties:
     chave:
       type: string
@@ -29,8 +40,18 @@ input_schema:
     cursor:
       type: string
       description: Opaque cursor returned by the previous page. Mutually exclusive with page.
+    confidential_input:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, algorithm, recipientKeyID, ciphertext]
+      description: Optional two-way sealed v1 request. Exact private request/binding and result proof types are in providers/efi/confidential/types.go; plaintext parameters cannot accompany it.
+      properties:
+        schemaVersion: {type: integer, enum: [1]}
+        algorithm: {type: string, enum: [nacl-box-seal-anonymous-v1]}
+        recipientKeyID: {type: string, format: uuid}
+        ciphertext: {type: string, minLength: 64, maxLength: 10988}
 output_schema:
-  description: "Raw upstream fields with URL query values redacted and compatible items/cursor aliases. Single-chave: {chave, webhookUrl, criacao, items, cursor}. LIST: {parametros, webhooks, items, cursor, page_provenance}. Missing or malformed pagination remains visible with false provenance; cursor alone never proves completeness."
+  description: "Legacy mode retains raw upstream fields with URL query values redacted and compatible items/cursor aliases. Single-chave: {chave, webhookUrl, criacao, items, cursor}. LIST: {parametros, webhooks, items, cursor, page_provenance}. Missing or malformed pagination remains visible with false provenance; cursor alone never proves completeness. Confidential mode returns ONLY privacy and closed proof, with no raw key/URL/unknown provider fields outside its sealed complete legacy DTO."
   properties:
     chave: {type: string}
     webhookUrl: {type: string}
@@ -50,3 +71,9 @@ output_schema:
         schemaVersion: {type: integer, enum: [1]}
         validated: {type: boolean}
         complete: {type: boolean}
+    privacy:
+      type: object
+      description: Sealed complete legacy DTO plus exact invocation/step binding. Root must decrypt in RAM and independently validate all raw fields and public projection correspondence.
+    proof:
+      type: object
+      description: Closed safe pagination/provenance and invocation-scoped key_tag/url_tag rows. Tags preserve exact equality predicates without exposing the private comparison secret.
