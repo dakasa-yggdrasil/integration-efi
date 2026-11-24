@@ -29,7 +29,7 @@ func newFakeDispatchTable() *fakeDispatchTable {
 	}
 }
 
-func (f *fakeDispatchTable) dispatch(op string, _ string, in reconcilePayload) (reconcilePayload, error) {
+func (f *fakeDispatchTable) dispatch(_ context.Context, op string, _ string, in reconcilePayload) (reconcilePayload, error) {
 	f.calls[op] = in
 	if err, ok := f.err[op]; ok {
 		return nil, err

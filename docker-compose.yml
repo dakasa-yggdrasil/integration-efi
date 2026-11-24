@@ -1,5 +1,6 @@
 services:
   integration-efi:
+    stop_grace_period: 50s
     build:
       context: ${INTEGRATION_EFI_BUILD_CONTEXT:-.}
       dockerfile: ${INTEGRATION_EFI_DOCKERFILE:-Dockerfile}

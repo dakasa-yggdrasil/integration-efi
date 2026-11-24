@@ -52,9 +52,10 @@ type Transport struct {
 	pubMu sync.Mutex
 	pubCh *amqp091.Channel
 
-	closed   chan struct{}
-	closeErr error
-	closeMu  sync.Mutex
+	closed    chan struct{}
+	closeErr  error
+	closeMu   sync.Mutex
+	closeDone chan struct{}
 
 	subsMu sync.Mutex
 	subs   []*subscription
@@ -95,8 +96,9 @@ type Transport struct {
 // manage connections externally.
 func New(conn *amqp091.Connection) *Transport {
 	return &Transport{
-		conn:   conn,
-		closed: make(chan struct{}),
+		conn:      conn,
+		closed:    make(chan struct{}),
+		closeDone: make(chan struct{}),
 	}
 }
 
@@ -116,9 +118,10 @@ func NewWithDial(dialFn DialFunc) (*Transport, error) {
 		return nil, fmt.Errorf("amqp: initial dial: %w", err)
 	}
 	t := &Transport{
-		conn:   conn,
-		dialFn: dialFn,
-		closed: make(chan struct{}),
+		conn:      conn,
+		dialFn:    dialFn,
+		closed:    make(chan struct{}),
+		closeDone: make(chan struct{}),
 	}
 	t.startWatchdog()
 	return t, nil
@@ -161,12 +164,8 @@ func (t *Transport) SetEndpointPrefix(prefix string) {
 	t.endpointPrefix = prefix
 }
 
-// Consume requires the endpoint queue to have been provisioned, then starts a
-// consumer that dispatches each delivery to cfg.Handler. Queue topology belongs
-// to the deployment control plane; the SDK deliberately never creates fixed
-// queues at adapter startup. AMQP passive declare validates existence only, so
-// the deployment gate must verify durable/quorum attributes through RabbitMQ's
-// management surface before this consumer starts.
+// Consume requires a predeclared fixed endpoint queue and starts a consumer.
+// Passive declare checks existence only; topology remains deployment-owned.
 //
 // The consumer auto-recovers when the AMQP channel closes (broker
 // restart, connection blip, channel reset). Without that, a single
@@ -176,9 +175,9 @@ func (t *Transport) SetEndpointPrefix(prefix string) {
 // and messages pile up unread. Recovery is event-driven via
 // ch.NotifyClose: each time the channel signals close while sub.done
 // has not been closed by the caller, the subscription tears down the
-// dead channel and re-runs setupConsumer. setupConsumer passively re-validates
-// that the same pre-provisioned queue exists, so this is safe to retry. Backoff
-// doubles up to 30s to ride out broker restart windows
+// dead channel and re-runs the passive setupConsumer existence check.
+// Permanent fixed-queue failures are reported through TerminalErrors.
+// Backoff doubles up to 30s to ride out transient broker restart windows
 // without thrashing.
 //
 // When the underlying connection is dropped (rabbit pod restart), the
@@ -199,48 +198,59 @@ func (t *Transport) Consume(cfg rpc.ConsumerConfig) (rpc.Subscription, error) {
 	}
 
 	queueName := t.endpointPrefix + cfg.Endpoint
+	consumerTag := "yggdrasil-sdk-" + uuid.NewString()
 
 	// Validate that we can set up the consumer once before returning to
 	// the caller. After the initial success the subscription owns the
 	// reconnect loop; the caller doesn't need to know recovery is
 	// happening.
-	ch, deliveries, err := t.setupConsumer(queueName, cfg.Concurrency)
+	ch, deliveries, err := t.setupConsumer(queueName, cfg.Concurrency, consumerTag)
 	if err != nil {
-		return nil, err
+		return nil, markFixedQueueUnavailableError(err)
 	}
 
 	sub := &subscription{
 		setupConsumer:  t.setupConsumer,
 		retryAfter:     time.After,
+		terminalErrors: make(chan error, 1),
+		transport:      t,
 		endpoint:       queueName,
 		ch:             ch,
 		done:           make(chan struct{}),
-		terminalErrors: make(chan error, 1),
+		runDone:        make(chan struct{}),
+		closeDone:      make(chan struct{}),
+		consumerTag:    consumerTag,
 	}
 
-	go sub.runWithReconnect(deliveries, cfg)
-
 	t.subsMu.Lock()
+	select {
+	case <-t.closed:
+		t.subsMu.Unlock()
+		_ = ch.Close()
+		return nil, rpc.ErrClosed
+	default:
+	}
 	t.subs = append(t.subs, sub)
+	go sub.runWithReconnect(deliveries, cfg)
 	t.subsMu.Unlock()
 
 	return sub, nil
 }
 
-// setupConsumer opens a channel, passively asserts that the fixed queue already
-// exists, sets the prefetch QoS and starts basic.consume. RabbitMQ ignores
-// durable, auto-delete and arguments on passive declare; the control plane must
-// verify those attributes separately. Factored out of Consume so the
-// subscription's reconnect loop can call it again to rebind after a broker
-// channel close without re-running input validation. Caller owns the returned
-// channel and is responsible for closing it when done.
+// setupConsumer opens a channel and passively checks the fixed queue.
+// It sets prefetch QoS and starts basic.consume, without asserting queue type,
+// durability or arguments. Factored out of
+// Consume so the subscription's reconnect loop can call it again to
+// rebind after a broker channel close without re-running input
+// validation. Caller owns the returned channel and is responsible for
+// closing it when done.
 //
 // If the connection itself is closed (broker restart), this attempts a
 // single inline reconnect via the transport's DialFunc before opening
 // the channel. That keeps the failure path one error deep — callers
 // (the subscription reconnect loop) just retry on any error and the
 // backoff handles repeated dial failures.
-func (t *Transport) setupConsumer(queueName string, concurrency int) (*amqp091.Channel, <-chan amqp091.Delivery, error) {
+func (t *Transport) setupConsumer(queueName string, concurrency int, consumerTag string) (*amqp091.Channel, <-chan amqp091.Delivery, error) {
 	conn, err := t.connectionForUse()
 	if err != nil {
 		return nil, nil, fmt.Errorf("amqp consume: get connection: %w", err)
@@ -257,7 +267,7 @@ func (t *Transport) setupConsumer(queueName string, concurrency int) (*amqp091.C
 		_ = ch.Close()
 		return nil, nil, fmt.Errorf("amqp consume: set qos: %w", err)
 	}
-	deliveries, err := ch.Consume(queueName, "", false, false, false, false, nil)
+	deliveries, err := ch.Consume(queueName, consumerTag, false, false, false, false, nil)
 	if err != nil {
 		_ = ch.Close()
 		return nil, nil, fmt.Errorf("amqp consume: start consumer %q: %w", queueName, err)
@@ -374,6 +384,13 @@ func (t *Transport) reconnect(dialFn DialFunc) (*amqp091.Connection, error) {
 	}
 
 	t.connMu.Lock()
+	select {
+	case <-t.closed:
+		t.connMu.Unlock()
+		_ = newConn.Close()
+		return nil, rpc.ErrClosed
+	default:
+	}
 	// Close stale connection (may already be closed; tolerant).
 	if t.conn != nil {
 		_ = t.conn.Close()
@@ -567,46 +584,60 @@ func (t *Transport) Request(ctx context.Context, req rpc.Request) (rpc.Reply, er
 	}
 }
 
-// Close tears down the shared publish channel, every subscription,
-// and the underlying connection. Safe to call multiple times.
-func (t *Transport) Close() error {
+// Close stops admission and waits for handlers, replies and settlement before
+// closing channels. CloseContext adds an optional bound without changing Transport.
+func (t *Transport) Close() error { return t.CloseContext(context.Background()) }
+
+// CloseContext returns ctx.Err if draining exceeds the caller's budget. It does
+// not force-close a channel under a running handler; the original drain continues.
+func (t *Transport) CloseContext(ctx context.Context) error {
 	t.closeMu.Lock()
 	select {
 	case <-t.closed:
-		t.closeMu.Unlock()
-		return t.closeErr
 	default:
+		t.subsMu.Lock()
+		close(t.closed)
+		subs := append([]*subscription(nil), t.subs...)
+		t.subs = nil
+		t.subsMu.Unlock()
+		go func() {
+			for _, sub := range subs {
+				sub.StopAdmission()
+			}
+			var wg sync.WaitGroup
+			errs := make(chan error, len(subs))
+			for _, sub := range subs {
+				wg.Add(1)
+				go func(s *subscription) { defer wg.Done(); errs <- s.Close() }(sub)
+			}
+			wg.Wait()
+			close(errs)
+			for err := range errs {
+				t.closeErr = errors.Join(t.closeErr, err)
+			}
+			t.pubMu.Lock()
+			if t.pubCh != nil {
+				t.closeErr = errors.Join(t.closeErr, t.pubCh.Close())
+				t.pubCh = nil
+			}
+			t.pubMu.Unlock()
+			t.connMu.Lock()
+			conn := t.conn
+			t.conn = nil
+			t.connMu.Unlock()
+			if conn != nil {
+				t.closeErr = errors.Join(t.closeErr, conn.Close())
+			}
+			close(t.closeDone)
+		}()
 	}
-	close(t.closed)
 	t.closeMu.Unlock()
-
-	t.subsMu.Lock()
-	subs := append([]*subscription(nil), t.subs...)
-	t.subs = nil
-	t.subsMu.Unlock()
-
-	for _, sub := range subs {
-		_ = sub.Close()
+	select {
+	case <-t.closeDone:
+		return t.closeErr
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-
-	t.pubMu.Lock()
-	if t.pubCh != nil {
-		_ = t.pubCh.Close()
-		t.pubCh = nil
-	}
-	t.pubMu.Unlock()
-
-	t.connMu.Lock()
-	conn := t.conn
-	t.conn = nil
-	t.connMu.Unlock()
-
-	var err error
-	if conn != nil {
-		err = conn.Close()
-	}
-	t.closeErr = err
-	return err
 }
 
 func (t *Transport) publishChannel() (*amqp091.Channel, error) {
@@ -638,15 +669,20 @@ func (t *Transport) publishChannel() (*amqp091.Channel, error) {
 
 // subscription wraps one active consumer.
 type subscription struct {
-	setupConsumer  func(string, int) (*amqp091.Channel, <-chan amqp091.Delivery, error)
+	setupConsumer  func(string, int, string) (*amqp091.Channel, <-chan amqp091.Delivery, error)
 	retryAfter     func(time.Duration) <-chan time.Time
+	terminalErrors chan error
+	terminalOnce   sync.Once
+	transport      *Transport
 	endpoint       string
 	chMu           sync.Mutex // guards ch — swapped on reconnect
 	ch             *amqp091.Channel
 	done           chan struct{}
+	runDone        chan struct{}
+	closeDone      chan struct{}
+	consumerTag    string
+	closeErr       error
 	closeOnce      sync.Once
-	terminalErrors chan error
-	terminalOnce   sync.Once
 }
 
 func (s *subscription) Endpoint() string { return s.endpoint }
@@ -668,28 +704,58 @@ func (s *subscription) currentChannel() *amqp091.Channel {
 	return s.ch
 }
 
-func (s *subscription) swapChannel(ch *amqp091.Channel) {
+func (s *subscription) swapChannel(ch *amqp091.Channel) bool {
 	s.chMu.Lock()
 	defer s.chMu.Unlock()
-	s.ch = ch
+	select {
+	case <-s.done:
+		_ = ch.Close()
+		return false
+	default:
+		s.ch = ch
+		return true
+	}
 }
 
-func (s *subscription) Close() error {
-	var err error
+func (s *subscription) Close() error { return s.CloseContext(context.Background()) }
+
+// StopAdmission closes local admission synchronously. Broker cancellation and
+// original reply/Ack/channel joins remain owned by the same closeOnce drain.
+func (s *subscription) StopAdmission() {
 	s.closeOnce.Do(func() {
-		ch := s.currentChannel()
-		if ch != nil {
-			err = ch.Close()
-		}
+		s.chMu.Lock()
 		close(s.done)
+		ch := s.ch
+		s.chMu.Unlock()
+		go func() {
+			if ch != nil {
+				s.closeErr = ch.Cancel(s.consumerTag, false)
+			}
+			<-s.runDone
+			if ch != nil {
+				s.closeErr = errors.Join(s.closeErr, ch.Close())
+			}
+			close(s.closeDone)
+		}()
 	})
-	return err
+}
+
+// CloseContext bounds only this wait; the original handler/reply/Ack/channel
+// drain continues until completion without cancelling admitted contexts.
+func (s *subscription) CloseContext(ctx context.Context) error {
+	s.StopAdmission()
+	select {
+	case <-s.closeDone:
+		return s.closeErr
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // runWithReconnect is the outer loop that re-runs setupConsumer when
 // the AMQP channel closes unexpectedly. The first iteration consumes
 // the deliveries channel handed in by Consume; subsequent iterations
-// rebind via subscription.transport.setupConsumer. Exits cleanly when
+// rebind via the original transport setupConsumer callback. Exits cleanly when
 // sub.Close() is called (s.done closed). Each reconnect attempt waits
 // an exponentially backing-off interval (1s → 30s, capped) so a broker
 // in extended downtime does not get hammered.
@@ -698,12 +764,9 @@ func (s *subscription) Close() error {
 // setupConsumer routes through Transport.connectionForUse which
 // triggers a re-dial via the transport's DialFunc. From the
 // subscription's point of view that is just "the next setupConsumer
-// retry happened to succeed" — no extra plumbing needed here. Missing
-// or inaccessible fixed queue is permanent: it is reported through
-// TerminalErrors and stops this reconnect loop so Adapter.Run can exit. Queue
-// type/durability remain a management-plane validation because passive AMQP
-// declare does not expose them.
+// retry happened to succeed" — no extra plumbing needed here.
 func (s *subscription) runWithReconnect(initialDeliveries <-chan amqp091.Delivery, cfg rpc.ConsumerConfig) {
+	defer close(s.runDone)
 	deliveries := initialDeliveries
 	backoff := time.Second
 	for {
@@ -727,9 +790,11 @@ func (s *subscription) runWithReconnect(initialDeliveries <-chan amqp091.Deliver
 				return
 			case <-s.retryAfter(backoff):
 			}
-			ch, newDeliveries, err := s.setupConsumer(s.endpoint, cfg.Concurrency)
+			ch, newDeliveries, err := s.setupConsumer(s.endpoint, cfg.Concurrency, s.consumerTag)
 			if err == nil {
-				s.swapChannel(ch)
+				if !s.swapChannel(ch) {
+					return
+				}
 				deliveries = newDeliveries
 				backoff = time.Second // reset on successful rebind
 				break
@@ -755,10 +820,27 @@ func (s *subscription) runWithReconnect(initialDeliveries <-chan amqp091.Deliver
 // at which point the outer runWithReconnect decides whether to rebind.
 func (s *subscription) deliverLoop(deliveries <-chan amqp091.Delivery, cfg rpc.ConsumerConfig) {
 	sem := make(chan struct{}, cfg.Concurrency)
+	var handlers sync.WaitGroup
+	defer handlers.Wait()
 	for raw := range deliveries {
 		raw := raw
-		sem <- struct{}{}
+		select {
+		case sem <- struct{}{}:
+		case <-s.done:
+			continue // Leave unstarted deliveries unacked for channel close.
+		}
+		s.chMu.Lock()
+		select {
+		case <-s.done:
+			s.chMu.Unlock()
+			<-sem
+			continue
+		default:
+		}
+		handlers.Add(1)
+		s.chMu.Unlock()
 		go func() {
+			defer handlers.Done()
 			defer func() { <-sem }()
 
 			ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
