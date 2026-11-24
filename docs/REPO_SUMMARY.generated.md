@@ -1,11 +1,11 @@
 # Repo Summary (generated)
 
-_Generated from HEAD at: 2026-10-30T19:57:37-03:00_
+_Generated from HEAD at: 2026-11-24T19:57:53-03:00_
 
 ## Languages
 
-- `.go`: 63 files
-- `.json`: 8 files
+- `.go`: 76 files
+- `.json`: 9 files
 - `.yaml`: 17 files
 - `.yml`: 7 files
 
@@ -21,33 +21,33 @@ _Generated from HEAD at: 2026-10-30T19:57:37-03:00_
 
 ## Top Directories by File Count
 
-- providers/efi/adapter/capabilities: 28 files (133.3 KB)
-- manifest/capabilities: 15 files (16.2 KB)
-- providers/efi/adapter: 14 files (135.0 KB)
-- providers/efi/message: 7 files (34.2 KB)
-- .: 4 files (10.6 KB)
-- .github/workflows: 4 files (12.8 KB)
-- providers/efi/efiapi: 4 files (17.8 KB)
+- providers/efi/adapter/capabilities: 29 files (134.7 KB)
+- manifest/capabilities: 15 files (19.8 KB)
+- providers/efi/adapter: 15 files (151.4 KB)
+- providers/efi/message: 9 files (90.0 KB)
+- providers/efi/efiapi: 7 files (44.0 KB)
+- cmd/adapter: 5 files (32.1 KB)
+- .: 4 files (10.7 KB)
+- .github/workflows: 4 files (13.1 KB)
+- providers/efi/confidential: 3 files (42.8 KB)
 - surface-ui: 3 files (2.0 KB)
-- cmd/adapter: 2 files (5.7 KB)
 - manifest: 2 files (4.5 KB)
 - pkg/contractcheck: 2 files (9.4 KB)
-- providers/efi/adapter/reactor: 2 files (3.5 KB)
 
 ## Heaviest Files
 
-- providers/efi/adapter/spec.go: 27.5 KB
+- providers/efi/message/confidential_execute_test.go: 45.1 KB
+- providers/efi/adapter/spec.go: 28.1 KB
+- providers/efi/confidential/codec_test.go: 26.3 KB
 - providers/efi/adapter/surface_query_test.go: 20.8 KB
 - providers/efi/adapter/capabilities/observe_automatic_webhook_readiness.go: 19.4 KB
+- providers/efi/efiapi/confidential_test.go: 17.9 KB
 - providers/efi/adapter/capabilities/observe_automatic_webhook_readiness_test.go: 17.6 KB
 - providers/efi/adapter/reconcile_test.go: 17.0 KB
+- providers/efi/adapter/reconcile.go: 16.0 KB
 - providers/efi/adapter/capabilities/automatic_webhook_test.go: 15.5 KB
-- providers/efi/adapter/reconcile.go: 15.2 KB
 - providers/efi/adapter/surface_query.go: 14.6 KB
 - providers/efi/message/webhook_observation_test.go: 14.5 KB
-- family/contract/types.go: 13.6 KB
-- providers/efi/adapter/capabilities/observe_webhook_subscriptions_test.go: 10.1 KB
-- providers/efi/adapter/capabilities/automatic_webhook.go: 9.6 KB
 
 ## Ops & Messaging
 
@@ -60,7 +60,7 @@ _Generated from HEAD at: 2026-10-30T19:57:37-03:00_
 - github.com/beorn7/perks v1.0.1 // indirect
 - github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 - github.com/cespare/xxhash/v2 v2.3.0 // indirect
-- github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.9.1
+- github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.10.0
 - github.com/go-logr/logr v1.4.4 // indirect
 - github.com/go-logr/stdr v1.2.2 // indirect
 - github.com/google/uuid v1.6.0
