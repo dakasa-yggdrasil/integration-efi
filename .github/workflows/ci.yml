@@ -18,8 +18,14 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Verify vendored common SDK matches canonical module generation
+        run: |
+          vendor_output="$RUNNER_TEMP/vendor-sdk010"
+          go mod vendor -o "$vendor_output"
+          diff -ru vendor/github.com/dakasa-yggdrasil/yggdrasil-sdk-go "$vendor_output/github.com/dakasa-yggdrasil/yggdrasil-sdk-go"
+
       - name: Test
-        run: go test ./...
+        run: go test -race -v ./...
 
   build-image:
     runs-on: ubuntu-latest

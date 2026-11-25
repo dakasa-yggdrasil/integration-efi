@@ -26,9 +26,9 @@ type reconcilePayload map[string]any
 // reuse the existing Execute() path so legacy alias resolution and
 // auth-loading semantics stay identical between the SDK-driven path
 // and the AMQP/HTTP transport path.
-type dispatchFn func(op string, instanceID string, in reconcilePayload) (reconcilePayload, error)
+type dispatchFn func(ctx context.Context, op string, instanceID string, in reconcilePayload) (reconcilePayload, error)
 
-func defaultDispatch(op string, instanceID string, in reconcilePayload) (reconcilePayload, error) {
+func defaultDispatch(ctx context.Context, op string, instanceID string, in reconcilePayload) (reconcilePayload, error) {
 	integ := integrationFromPayload(in, instanceID)
 	// Strip the bridge metadata before forwarding to Execute so the
 	// legacy switch sees a clean input map.
@@ -39,7 +39,7 @@ func defaultDispatch(op string, instanceID string, in reconcilePayload) (reconci
 		}
 		cleanInput[k] = v
 	}
-	resp, err := Execute(contract.AdapterExecuteIntegrationRequest{
+	resp, err := ExecuteWithContext(ctx, contract.AdapterExecuteIntegrationRequest{
 		Operation:   op,
 		Input:       cleanInput,
 		Integration: integ,
@@ -122,11 +122,11 @@ func newChargeReconciler(instanceID string) *chargeReconciler {
 }
 
 func (r *chargeReconciler) Ensure(ctx context.Context, d reconcilePayload) (reconcilePayload, error) {
-	return r.dispatch(OperationEnsureCharge, r.instanceID, d)
+	return r.dispatch(ctx, OperationEnsureCharge, r.instanceID, d)
 }
 
 func (r *chargeReconciler) Observe(ctx context.Context, filter map[string]any) ([]reconcilePayload, string, error) {
-	out, err := r.dispatch(OperationObserveCharges, r.instanceID, reconcilePayload(filter))
+	out, err := r.dispatch(ctx, OperationObserveCharges, r.instanceID, reconcilePayload(filter))
 	if err != nil {
 		return nil, "", err
 	}
@@ -139,7 +139,7 @@ func (r *chargeReconciler) Observe(ctx context.Context, filter map[string]any) (
 }
 
 func (r *chargeReconciler) Destroy(ctx context.Context, ref string) error {
-	_, err := r.dispatch(OperationDestroyCharge, r.instanceID, reconcilePayload{"txid": ref})
+	_, err := r.dispatch(ctx, OperationDestroyCharge, r.instanceID, reconcilePayload{"txid": ref})
 	return err
 }
 
@@ -157,7 +157,7 @@ func (r *chargeReconciler) DestroyWithDesired(ctx context.Context, ref string, d
 	if _, present := desired["txid"]; !present {
 		desired["txid"] = ref
 	}
-	_, err := r.dispatch(OperationDestroyCharge, instanceFromDesired(desired, r.instanceID), desired)
+	_, err := r.dispatch(ctx, OperationDestroyCharge, instanceFromDesired(desired, r.instanceID), desired)
 	return err
 }
 
@@ -178,13 +178,13 @@ func newDueChargeReconciler(instanceID string) *dueChargeReconciler {
 }
 
 func (r *dueChargeReconciler) Ensure(ctx context.Context, d reconcilePayload) (reconcilePayload, error) {
-	return r.dispatch(OperationEnsureDueCharge, r.instanceID, d)
+	return r.dispatch(ctx, OperationEnsureDueCharge, r.instanceID, d)
 }
 
 func (r *dueChargeReconciler) Observe(ctx context.Context, filter map[string]any) ([]reconcilePayload, string, error) {
 	// Reuse observe_charges — BCB Pix returns the same shape for cobv
 	// records when queried by txid through /v2/cob/{txid}.
-	out, err := r.dispatch(OperationObserveCharges, r.instanceID, reconcilePayload(filter))
+	out, err := r.dispatch(ctx, OperationObserveCharges, r.instanceID, reconcilePayload(filter))
 	if err != nil {
 		return nil, "", err
 	}
@@ -192,7 +192,7 @@ func (r *dueChargeReconciler) Observe(ctx context.Context, filter map[string]any
 }
 
 func (r *dueChargeReconciler) Destroy(ctx context.Context, ref string) error {
-	_, err := r.dispatch(OperationDestroyCharge, r.instanceID, reconcilePayload{"txid": ref})
+	_, err := r.dispatch(ctx, OperationDestroyCharge, r.instanceID, reconcilePayload{"txid": ref})
 	return err
 }
 
@@ -205,7 +205,7 @@ func (r *dueChargeReconciler) DestroyWithDesired(ctx context.Context, ref string
 	if _, present := desired["txid"]; !present {
 		desired["txid"] = ref
 	}
-	_, err := r.dispatch(OperationDestroyCharge, instanceFromDesired(desired, r.instanceID), desired)
+	_, err := r.dispatch(ctx, OperationDestroyCharge, instanceFromDesired(desired, r.instanceID), desired)
 	return err
 }
 
@@ -225,11 +225,11 @@ func (r *webhookSubscriptionReconciler) Ensure(ctx context.Context, d reconcileP
 	if call, ok := ctx.Value(confidentialCallKey{}).(*ConfidentialCall); ok {
 		return ensureConfidential(ctx, call)
 	}
-	return r.dispatch(OperationEnsureWebhookSubscription, r.instanceID, d)
+	return r.dispatch(ctx, OperationEnsureWebhookSubscription, r.instanceID, d)
 }
 
 func (r *webhookSubscriptionReconciler) Observe(ctx context.Context, filter map[string]any) ([]reconcilePayload, string, error) {
-	out, err := r.dispatch(OperationObserveWebhookSubscriptions, r.instanceID, reconcilePayload(filter))
+	out, err := r.dispatch(ctx, OperationObserveWebhookSubscriptions, r.instanceID, reconcilePayload(filter))
 	if err != nil {
 		return nil, "", err
 	}
@@ -237,7 +237,7 @@ func (r *webhookSubscriptionReconciler) Observe(ctx context.Context, filter map[
 }
 
 func (r *webhookSubscriptionReconciler) Destroy(ctx context.Context, ref string) error {
-	_, err := r.dispatch(OperationDestroyWebhookSubscription, r.instanceID, reconcilePayload{"chave": ref})
+	_, err := r.dispatch(ctx, OperationDestroyWebhookSubscription, r.instanceID, reconcilePayload{"chave": ref})
 	return err
 }
 
@@ -250,7 +250,7 @@ func (r *webhookSubscriptionReconciler) DestroyWithDesired(ctx context.Context, 
 	if _, present := desired["chave"]; !present {
 		desired["chave"] = ref
 	}
-	_, err := r.dispatch(OperationDestroyWebhookSubscription, instanceFromDesired(desired, r.instanceID), desired)
+	_, err := r.dispatch(ctx, OperationDestroyWebhookSubscription, instanceFromDesired(desired, r.instanceID), desired)
 	return err
 }
 

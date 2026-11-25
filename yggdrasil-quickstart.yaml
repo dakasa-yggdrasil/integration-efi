@@ -158,6 +158,7 @@ spec:
                       app: integration-efi-adapter
                   spec:
                     serviceAccountName: integration-efi
+                    terminationGracePeriodSeconds: 50
                     containers:
                       - name: adapter
                         image: "{{ inputs.image }}"

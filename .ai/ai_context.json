@@ -1,28 +1,28 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-10-30T19:57:37-03:00",
+  "generated_at": "2026-11-24T19:57:53-03:00",
   "primary_language": "go",
   "languages": {
-    ".go": 63,
-    ".json": 8,
+    ".go": 76,
+    ".json": 9,
     ".yaml": 17,
     ".yml": 7
   },
   "provenance": {
-    "commit": "41955faeb832c9e215fafa2a74026985a83bdc73",
+    "commit": "360bfe6ee150b992e3e07bf36b7cbb2c247584bc",
     "dirty": true,
     "files": [
       {
         "path": "AGENTS.md",
-        "sha256": "6344e77e7b2f26d21f752cae9d81e8002ebff2e606f61f765cbd7acfc223a8a9"
+        "sha256": "44c92a4152ce5c42a1fbf79bbc3c746ef2af355d5b2814b374aac6f13a2558c1"
       },
       {
         "path": "CLAUDE.md",
-        "sha256": "2cb745dbea8b0ae2db3fc40aad37a0a5aef7fc1eaaf557f96dbdd43a0c329065"
+        "sha256": "98c94d23612549b114f7be8ee2329bc0a1018a55490935458f987ee5939ebf00"
       },
       {
         "path": "README.md",
-        "sha256": "fd1350361d42cf6d93bfd65214a65aa48198fed91f05b76bea66e650d86e7b7b"
+        "sha256": "8711f771582f374557eab6af2aca4a9cd0aab9f6a7284f5f7eb5746fb7ed284a"
       },
       {
         "path": "Taskfile.yml",
@@ -30,15 +30,15 @@
       },
       {
         "path": "Dockerfile",
-        "sha256": "05dfc552da1d63fd3d0917923983c9e73e94cdc66061d08929d8295e038c9cc3"
+        "sha256": "0a0c6fbbd71bb811fde7a726c2f3428549d930b596bd547523325bd74e69b0c9"
       },
       {
         "path": "docker-compose.yml",
-        "sha256": "606b138b8bfaf9f005240d903ccb74374cde6cd0e1485acef9882f5bb93f984a"
+        "sha256": "c8fc70bb672446eac25d2e2b963b67d20a17d7fd317b08af3839cb4ca9c7e936"
       },
       {
         "path": "go.mod",
-        "sha256": "197086bba0456b1802a77621716ce9247d3761041d76049422f8e142e7e70715"
+        "sha256": "67de7d6f3447b951d5400e3c63e935fa9db139ad20dd218ac2c53703b10be7e5"
       }
     ]
   },
@@ -46,23 +46,33 @@
   "top_dirs": [
     {
       "path": "providers/efi/adapter/capabilities",
-      "files": 28,
-      "kb": 133
+      "files": 29,
+      "kb": 134
     },
     {
       "path": "manifest/capabilities",
       "files": 15,
-      "kb": 16
+      "kb": 19
     },
     {
       "path": "providers/efi/adapter",
-      "files": 14,
-      "kb": 135
+      "files": 15,
+      "kb": 151
     },
     {
       "path": "providers/efi/message",
+      "files": 9,
+      "kb": 89
+    },
+    {
+      "path": "providers/efi/efiapi",
       "files": 7,
-      "kb": 34
+      "kb": 43
+    },
+    {
+      "path": "cmd/adapter",
+      "files": 5,
+      "kb": 32
     },
     {
       "path": ".",
@@ -72,22 +82,17 @@
     {
       "path": ".github/workflows",
       "files": 4,
-      "kb": 12
+      "kb": 13
     },
     {
-      "path": "providers/efi/efiapi",
-      "files": 4,
-      "kb": 17
+      "path": "providers/efi/confidential",
+      "files": 3,
+      "kb": 42
     },
     {
       "path": "surface-ui",
       "files": 3,
       "kb": 1
-    },
-    {
-      "path": "cmd/adapter",
-      "files": 2,
-      "kb": 5
     },
     {
       "path": "manifest",
@@ -98,17 +103,20 @@
       "path": "pkg/contractcheck",
       "files": 2,
       "kb": 9
-    },
-    {
-      "path": "providers/efi/adapter/reactor",
-      "files": 2,
-      "kb": 3
     }
   ],
   "top_files_by_size": [
     {
+      "path": "providers/efi/message/confidential_execute_test.go",
+      "kb": 45
+    },
+    {
       "path": "providers/efi/adapter/spec.go",
-      "kb": 27
+      "kb": 28
+    },
+    {
+      "path": "providers/efi/confidential/codec_test.go",
+      "kb": 26
     },
     {
       "path": "providers/efi/adapter/surface_query_test.go",
@@ -119,6 +127,10 @@
       "kb": 19
     },
     {
+      "path": "providers/efi/efiapi/confidential_test.go",
+      "kb": 17
+    },
+    {
       "path": "providers/efi/adapter/capabilities/observe_automatic_webhook_readiness_test.go",
       "kb": 17
     },
@@ -127,11 +139,11 @@
       "kb": 16
     },
     {
-      "path": "providers/efi/adapter/capabilities/automatic_webhook_test.go",
+      "path": "providers/efi/adapter/reconcile.go",
       "kb": 15
     },
     {
-      "path": "providers/efi/adapter/reconcile.go",
+      "path": "providers/efi/adapter/capabilities/automatic_webhook_test.go",
       "kb": 15
     },
     {
@@ -141,18 +153,6 @@
     {
       "path": "providers/efi/message/webhook_observation_test.go",
       "kb": 14
-    },
-    {
-      "path": "family/contract/types.go",
-      "kb": 13
-    },
-    {
-      "path": "providers/efi/adapter/capabilities/observe_webhook_subscriptions_test.go",
-      "kb": 10
-    },
-    {
-      "path": "providers/efi/adapter/capabilities/automatic_webhook.go",
-      "kb": 9
     }
   ],
   "contracts": {
@@ -172,7 +172,7 @@
       "github.com/beorn7/perks v1.0.1 // indirect",
       "github.com/cenkalti/backoff/v5 v5.0.3 // indirect",
       "github.com/cespare/xxhash/v2 v2.3.0 // indirect",
-      "github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.9.1",
+      "github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.10.0",
       "github.com/go-logr/logr v1.4.4 // indirect",
       "github.com/go-logr/stdr v1.2.2 // indirect",
       "github.com/google/uuid v1.6.0",

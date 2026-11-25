@@ -107,7 +107,7 @@ func ExecuteHandler(logger *zap.Logger, a *sdkadapter.Adapter, options ...Execut
 		// items/cursor and would discard those parameters. Keep this read-only
 		// response intact; mutations still use the event-emitting reconciler.
 		if operation == adapter.OperationObserveWebhookSubscriptions && !confidentialMode {
-			response, err := adapter.Execute(req)
+			response, err := adapter.ExecuteWithContext(ctx, req)
 			if err != nil {
 				return failure("execute_failed", err, logger)
 			}
@@ -157,7 +157,7 @@ func ExecuteHandler(logger *zap.Logger, a *sdkadapter.Adapter, options ...Execut
 
 		// Operation has no Reconciler — fall back to the legacy switch
 		// (action helpers, verify_webhook_signature, reactor replay).
-		response, err := adapter.Execute(req)
+		response, err := adapter.ExecuteWithContext(ctx, req)
 		if err != nil {
 			return failure("execute_failed", err, logger)
 		}
@@ -235,7 +235,7 @@ func validConfidentialEnvelope(raw []byte) bool {
 func buildSDKDelivery(d rpc.Delivery, req model.AdapterExecuteIntegrationRequest) (rpc.Delivery, error) {
 	// The SDK bridge needs two private fields that are not capability inputs.
 	// Copy the caller map before adding them: unsupported reconcile operations
-	// fall back to adapter.Execute(req), whose strict input contracts must see
+	// fall back to the context-preserving dispatcher, whose strict input contracts see
 	// the original request unchanged.
 	input := make(map[string]any, len(req.Input)+2)
 	for key, value := range req.Input {

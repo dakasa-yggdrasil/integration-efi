@@ -113,14 +113,11 @@ func runAdapter() {
 		logger.Fatal("unsupported YGGDRASIL_TRANSPORT", zap.String("value", transport))
 	}
 
-	healthSrv := newHealthServer(readiness)
-	go func() {
-		if err := healthSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Fatal("health server", zap.Error(err))
-		}
-	}()
+	ctx, stopAdmission := context.WithCancel(adapter.WithSignalHandler(context.Background()))
+	defer stopAdmission()
 
-	ctx := adapter.WithSignalHandler(context.Background())
+	healthSrv := newHealthServer(readiness)
+	healthFailure := serveHealthServer(healthSrv, logger, stopAdmission)
 
 	// Execute loads the TLS config again per request (instance config
 	// may override the env), so this load only guards the boot.
@@ -131,15 +128,59 @@ func runAdapter() {
 
 	ad.AdapterUp.Set(1)
 
-	if err := a.Run(ctx); err != nil {
-		logger.Fatal("adapter run", zap.Error(err))
+	runErr, drainErr := runAndJoinOriginalDrain(ctx, a)
+	if drainErr != nil {
+		logger.Error("original adapter drain is unqualified; holding process", zap.Error(drainErr))
+		for {
+			time.Sleep(time.Hour)
+		}
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := healthSrv.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		logger.Warn("shutdown health server", zap.Error(err))
+		if joined := healthSrv.Shutdown(context.Background()); joined != nil {
+			logger.Error("original health server shutdown is unqualified; holding process", zap.Error(joined))
+			for {
+				time.Sleep(time.Hour)
+			}
+		}
 	}
+	if runErr != nil {
+		logger.Fatal("adapter run after original drain joined", zap.Error(runErr))
+	}
+	select {
+	case err := <-healthFailure:
+		logger.Fatal("health server after original drain joined", zap.Error(err))
+	default:
+	}
+}
+
+// A failed side listener stops the same Run's admission, then its original
+// completion still owns all provider handlers, replies and settlement.
+func serveHealthServer(server *http.Server, logger *zap.Logger, stopAdmission context.CancelFunc) <-chan error {
+	failure := make(chan error, 1)
+	go func() {
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("health server failed; stopping admission", zap.Error(err))
+			failure <- err
+			stopAdmission()
+		}
+	}()
+	return failure
+}
+
+// originalDrainRunner is the same SDK runtime that owns the first Run handle.
+// WaitDrained limits no handler and never starts replacement cleanup.
+type originalDrainRunner interface {
+	Run(context.Context) error
+	WaitDrained(context.Context) error
+}
+
+func runAndJoinOriginalDrain(ctx context.Context, a originalDrainRunner) (error, error) {
+	runErr := a.Run(ctx)
+	return runErr, a.WaitDrained(context.Background())
 }
 
 func envOrDefault(name, fallback string) string {

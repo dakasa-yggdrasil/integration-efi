@@ -54,7 +54,7 @@ vendor/                            # vendored deps (go.mod uses vendoring)
 ## Stack
 
 - Go 1.25, vendored deps.
-- `github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.9.1` — the adapter
+- `github.com/dakasa-yggdrasil/yggdrasil-sdk-go v0.10.0` — the adapter
   uses the SDK `adapter`, `rpc`, `mtls`, and `sdk/reconcile` packages.
   This is NOT a from-scratch RPC layer; describe/execute go through the
   SDK adapter (`adapter.New(...)` in `cmd/adapter/main.go`). The custom execute
@@ -138,11 +138,11 @@ Two SDK-only reconcile ops (`observe_due_charges`,
 ### Execute = hybrid bridge
 
 `providers/efi/message/execute.go` preserves canonical read-only
-`observe_webhook_subscriptions` through `adapter.Execute`, retaining raw
+`observe_webhook_subscriptions` through `adapter.ExecuteWithContext`, retaining raw
 provider fields and compatible `items`/`cursor` aliases. Other inbound envelopes
 route through `reconcile.Dispatch` first (activating §6.5 mutation-event emission
-for charge / due_charge / webhook_subscription), then fall back to the legacy
-`adapter.Execute` switch for action helpers and the reactor.
+for charge / due_charge / webhook_subscription), then fall back to the context-preserving legacy
+`adapter.ExecuteWithContext` switch for action helpers and the reactor.
 Reconcilers are installed by `ad.WireReconcilers(a, instanceID)` in
 `main()` before `Register`.
 

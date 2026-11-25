@@ -49,11 +49,7 @@ func (a *Adapter) ListenHTTP(addr string) *Adapter {
 			return nil
 		}
 	}
-	a.afterRun = func() {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		_ = server.Shutdown(shutdownCtx)
-	}
+	a.afterRun = func(ctx context.Context) error { return server.Shutdown(ctx) }
 	return a
 }
 
@@ -91,10 +87,8 @@ func (a *Adapter) ListenHTTP(addr string) *Adapter {
 // bare queue name nobody publishes to.
 func (a *Adapter) ListenAMQP(url string) *Adapter {
 	a.beforeRun = func(ctx context.Context) error {
-		// Initial dial blocks Adapter.Run with the full retry budget. The SDK
-		// does not own an application's readiness endpoint; callers that start
-		// health serving before Run must gate rollout on active consumers or
-		// wire readiness to transport state themselves.
+		// Initial dial blocks Run. Applications own their readiness endpoint;
+		// broker reachability alone does not prove active fixed-queue consumers.
 		conn, err := dialAMQPWithRetry(ctx, url)
 		if err != nil {
 			return err
@@ -123,11 +117,11 @@ func (a *Adapter) ListenAMQP(url string) *Adapter {
 			transport.SetEndpointPrefix("yggdrasil.adapter." + queueOwner + ".")
 		}
 		a.transport = transport
-		a.afterRun = func() {
+		a.afterRun = func(ctx context.Context) error {
 			// transport.Close also closes the underlying connection,
 			// so no separate conn.Close needed (and a double Close
 			// would error harmlessly anyway).
-			_ = transport.Close()
+			return transport.CloseContext(ctx)
 		}
 		return nil
 	}
