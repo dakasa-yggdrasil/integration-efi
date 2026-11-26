@@ -198,4 +198,10 @@ readOnlyRootFilesystem. Missing/invalid publication holds startup; the private
 recipient is never a file or environment value. The operator owns its separate
 result-recipient key lifetime and must bind/recheck physical runtime identity.
 See [Confidential webhooks](CONFIDENTIAL_WEBHOOKS.md) for exact types and gates.
+
+The separate sole-argument `--print-cpu-capacity-runtime` mode observes only the
+fixed PID1/cgroup-v2 CPU and memory-limit files before normal startup. It adds no
+environment setting, private-key access, automatic resize or capacity owner.
+See [Fixed CPU capacity observation](CPU_CAPACITY_RUNTIME.md) for its closed ABI
+and unsupported hierarchy/lifetime cases.
 </content>

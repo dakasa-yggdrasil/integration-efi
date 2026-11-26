@@ -24,9 +24,16 @@ var errPublicRuntime = errors.New("confidential public runtime unavailable")
 // callback can initialize logging, credentials, SDK transport or private keys.
 // The callbacks are private CI seams, never command-line or environment options.
 func dispatchAdapterCommand(args []string, out, diagnostic io.Writer, start func(), read func() (confidential.RuntimePublic, error)) int {
+	return dispatchAdapterCommandWithCapacity(args, out, diagnostic, start, read, readFixedCPUCapacityRuntime)
+}
+
+func dispatchAdapterCommandWithCapacity(args []string, out, diagnostic io.Writer, start func(), read func() (confidential.RuntimePublic, error), readCapacity func() (cpuCapacityRuntime, error)) int {
 	if len(args) == 0 {
 		start()
 		return 0
+	}
+	if len(args) == 1 && args[0] == printCPUCapacityArgument {
+		return printCPUCapacityRuntime(out, diagnostic, readCapacity)
 	}
 	if len(args) != 1 || args[0] != printRuntimeArgument {
 		_, _ = io.WriteString(diagnostic, "unsupported adapter arguments\n")
